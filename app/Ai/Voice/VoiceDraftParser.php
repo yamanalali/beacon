@@ -110,6 +110,10 @@ class VoiceDraftParser
         if (preg_match('/(?:لمحل|محل|من عند|عند|لـ|إلى|الى|من)\s+([\p{L}][\p{L}\s]{1,40}?)(?=\s+(?:أجار|اجار|ب|بـ|اليوم|مبارح|امبارح|امس|أمس|\d)|[\.,،]|$)/u', $t, $c)) {
             $counterparty = $this->cleanVendor($c[1]);
         }
+        // «لابو سمير»: «ل» glued to a title. Only known titles, so «ليرة»/«لمدة» are never names.
+        if ($counterparty === null && preg_match('/(?<![\p{L}])ل((?:ابو|أبو|ام|أم|استاذ|أستاذ|دكتور|الدكتور|عم|خال|حجي|الحج)\s+[\p{L}]{2,20})(?![\p{L}])/u', $t, $c)) {
+            $counterparty = $this->cleanVendor($c[1]);
+        }
 
         $currency = null;
         foreach (self::CURRENCIES as $code => $re) {
