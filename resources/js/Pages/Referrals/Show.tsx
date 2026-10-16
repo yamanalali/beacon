@@ -5,6 +5,7 @@ import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { PackageView } from "../../Components/Referrals/PackageView";
+import type { ReferralPackage } from "../../types/referrals";
 
 type Props = {
     referral: {
@@ -18,7 +19,7 @@ type Props = {
         decision_note: string | null;
         outcome_note: string | null;
     };
-    package: Record<string, unknown>;
+    package: ReferralPackage;
     consent: {
         active: { version: string; granted_at: string } | null;
         history: { status: string; version: string; granted_at: string | null; withdrawn_at: string | null }[];

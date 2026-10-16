@@ -17,6 +17,8 @@ return [
         'enterprise_profile' => 'الملف التعريفي للمنشأة',
         'readiness_assessment' => 'نتيجة تقييم الجاهزية',
         'compliance_status' => 'حالة الامتثال',
+        'financial_summary' => 'الملخص المالي',
+        'documents' => 'المستندات',
     ],
 
     // TODO: BUSINESS DECISION REQUIRED - how many days before a deadline counts as "approaching" (section 22). NULL = show all future deadlines.
