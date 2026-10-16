@@ -30,6 +30,13 @@ class AiDataGuard
     /** Insights (§19): sends aggregate report figures only; own processor (manager decision). */
     public const INSIGHTS = ['insights', ['aggregate_financial_figures']];
 
+    /** Whether an AI driver is enabled and sharing is approved, without logging (UI flag). */
+    public static function available(array $use): bool
+    {
+        return config('ai.driver', 'null') !== 'null' && DataControl::isApproved($use[0])
+            && array_diff($use[1], config("operations.data_processors.{$use[0]}.allowed_data", [])) === [];
+    }
+
     /** @param  array{0:string,1:list<string>}  $use */
     public static function allows(array $use): bool
     {
