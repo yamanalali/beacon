@@ -48,5 +48,12 @@ return [
         'tesseract_path' => env('TESSERACT_PATH', 'tesseract'),
         'tesseract_langs' => env('TESSERACT_LANGS', 'ara+eng'),
         'timeout' => (int) env('TESSERACT_TIMEOUT', 30),
+        // Image clean-up before OCR (ImageMagick CLI, else GD, else skipped). On by default in local.
+        'preprocess' => (bool) env('AI_OCR_PREPROCESS', env('APP_ENV') === 'local'),
+        'preprocess_osd' => (bool) env('AI_OCR_PREPROCESS_OSD', true),
+        'magick_path' => env('MAGICK_PATH'), // null = auto-detect magick/convert
+        'min_width' => (int) env('AI_OCR_MIN_WIDTH', 1200),
+        'osd_min_confidence' => (float) env('AI_OCR_OSD_MIN_CONFIDENCE', 2.0),
+        'psm' => env('TESSERACT_PSM', '6'), // 6 = single text block; best on the synthetic benchmark
     ],
 ];
