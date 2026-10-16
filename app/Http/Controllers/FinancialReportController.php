@@ -9,6 +9,7 @@ use App\Services\FinancialReports\FinancialReportService;
 use App\Services\FinancialReports\ReportExporter;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
+use App\Navigation\PageAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -20,17 +21,10 @@ class FinancialReportController extends Controller
 {
     public function entry(Request $request): RedirectResponse
     {
-        $user = $request->user();
+        // Same gate the sidebar uses (auth.can.*): only a user with an own enterprise has this page.
+        Gate::authorize(PageAccess::REPORTS_ENTRY);
 
-        if ($user->role === UserRole::SmeUser) {
-            $enterprise = Enterprise::query()->whereHas('members', fn ($q) => $q->whereKey($user->id))->first();
-
-            return $enterprise !== null ? redirect()->route('enterprises.reports.show', $enterprise) : redirect('/');
-        }
-
-        Gate::authorize('viewAny', Enterprise::class);
-
-        return redirect()->route('enterprises.index');
+        return redirect()->route('enterprises.reports.show', PageAccess::ownEnterprise($request->user()));
     }
 
     public function show(Request $request, Enterprise $enterprise, FinancialReportService $service): Response
