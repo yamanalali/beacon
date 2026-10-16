@@ -185,9 +185,9 @@ class VoiceDraftTest extends TestCase
         $this->send()->assertOk()
             ->assertJsonPath('draft.suggested_transaction_type', 'income')->assertJsonPath('type', 'income');
 
-        // Old heuristic word "قبضت" alone is no longer income: shared suggester defaults to expense.
+        // Spoken income word (shared suggester, #25).
         $this->stubStt('قبضت 200 دولار');
-        $this->send()->assertOk()->assertJsonPath('draft.suggested_transaction_type', 'expense')->assertJsonPath('type', 'expense');
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_transaction_type', 'income')->assertJsonPath('type', 'income');
 
         // Categorizer receives the suggested type's list.
         $seen = null;
