@@ -32,6 +32,43 @@ class StartReceiptExtractionAction
             && $actor->can('create', [FinancialTransaction::class, $document->enterprise]);
     }
 
+    /**
+     * Draft line items: [{description, quantity, unit_price, total}] with numbers as int/float
+     * and unreadable values null (never guessed). [] when there are none. One category per
+     * transaction, so items carry none.
+     *
+     * @return list<array{description: ?string, quantity: int|float|null, unit_price: int|float|null, total: int|float|null}>
+     */
+    public static function sanitiseItems(array $items): array
+    {
+        $num = function ($v): int|float|null {
+            if (! is_int($v) && ! is_float($v)) {
+                return null;
+            }
+            $v = round((float) $v, 2);
+
+            return $v < 0 || $v > 9_999_999_999_999 ? null : ($v == (int) $v ? (int) $v : $v);
+        };
+        $out = [];
+        foreach (array_slice($items, 0, 100) as $i) {
+            if (! is_array($i)) {
+                continue;
+            }
+            $d = isset($i['description']) && is_string($i['description']) ? trim(strip_tags($i['description'])) : '';
+            $row = [
+                'description' => $d !== '' ? mb_substr($d, 0, 255) : null,
+                'quantity' => $num($i['quantity'] ?? null),
+                'unit_price' => $num($i['unit_price'] ?? null),
+                'total' => $num($i['total'] ?? null),
+            ];
+            if ($row['description'] !== null || $row['total'] !== null) {
+                $out[] = $row;
+            }
+        }
+
+        return $out;
+    }
+
     public function execute(User $actor, Document $document): ReceiptExtraction
     {
         abort_unless($actor->can('create', [FinancialTransaction::class, $document->enterprise]), 403);
@@ -55,8 +92,11 @@ class StartReceiptExtractionAction
         $extraction->suggested_amount = $result->amount !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $result->amount) ? $result->amount : null;
         $extraction->suggested_currency = in_array($result->currency, $currencies, true) ? $result->currency : null;
         $extraction->suggested_counterparty = $result->counterparty !== null ? mb_substr($result->counterparty, 0, 150) : null;
+        $extraction->suggested_items = self::sanitiseItems($result->items);
+        $extraction->suggested_invoice_number = $result->invoiceNumber !== null && preg_match('/^[\p{L}\d\-\/]{1,50}$/u', $result->invoiceNumber) ? $result->invoiceNumber : null;
         $hasSuggestion = ! $result->failed && ($extraction->suggested_date !== null || $extraction->suggested_amount !== null
-            || $extraction->suggested_currency !== null || $extraction->suggested_counterparty !== null);
+            || $extraction->suggested_currency !== null || $extraction->suggested_counterparty !== null
+            || $extraction->suggested_items !== []);
         // Suggestion only; null when OCR produced nothing (manual entry).
         $extraction->suggested_transaction_type = $hasSuggestion
             ? ($this->typeSuggester->suggest($result->rawText) ?? 'expense')

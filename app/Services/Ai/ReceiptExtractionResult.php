@@ -14,6 +14,10 @@ final class ReceiptExtractionResult
         public readonly bool $failed = false,
         // Raw OCR text, kept in memory only (never persisted) for type suggestion.
         public readonly ?string $rawText = null,
+        // Suggested line items: list<array{description, quantity, unit_price, total}> (null values = unread).
+        public readonly array $items = [],
+        // Invoice number printed on the document (e.g. «رقم الفاتورة / 1002»), null when unread.
+        public readonly ?string $invoiceNumber = null,
     ) {}
 
     public static function empty(): self
