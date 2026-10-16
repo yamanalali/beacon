@@ -13,7 +13,7 @@ export function DocumentList({ documents, canExtract = false }: { documents: Doc
                 <li key={doc.public_id} className="border rounded p-3 d-flex flex-wrap align-items-center gap-2">
                     <i className={`bi ${doc.is_image ? "bi-file-earmark-image" : "bi-file-earmark-pdf"} fs-4`} aria-hidden="true" />
                     <div className="flex-grow-1">
-                        <p className="mb-0 fw-semibold">{doc.title}</p>
+                        <a href={`/documents/${doc.public_id}`} className="mb-0 fw-semibold d-block">{doc.title}</a>
                         <p className="mb-0 small text-body-secondary">
                             {doc.uploaded_at} · {doc.size_kb} ك.ب{doc.uploader_name ? ` · ${doc.uploader_name}` : ""}
                             {doc.transaction_public_id ? (

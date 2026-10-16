@@ -64,3 +64,11 @@ export const desktopSingleItems: NavItem[] = [
     { key: "documents", label: "المستندات", icon: "bi-folder2", href: "/documents" },
     { key: "assistant", label: "المساعد", icon: "bi-chat-dots" },
 ];
+
+/** Shown only to Beacon admins (UI visibility only; routes enforce role server-side). */
+export const adminItem: NavItem = {
+    key: "admin",
+    label: "الإدارة",
+    icon: "bi-gear",
+    href: "/admin",
+};

@@ -43,6 +43,7 @@ class DocumentController extends Controller
         Gate::authorize('viewAny', [Document::class, $enterprise]);
 
         $documents = Document::query()
+            ->active()
             ->where('enterprise_id', $enterprise->id)
             ->with(['transaction:id,public_id', 'uploader:id,name'])
             ->latest()
@@ -106,6 +107,82 @@ class DocumentController extends Controller
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store',
         ]);
+    }
+
+    public function show(Request $request, Document $document): Response
+    {
+        $document->load(['enterprise', 'transaction:id,public_id', 'uploader:id,name']);
+        Gate::authorize('view', $document);
+
+        $history = \App\Models\AuditLog::query()
+            ->where('target_type', $document->getMorphClass())
+            ->where('target_id', (string) $document->id)
+            ->with('actor:id,name')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get()
+            ->map(fn (\App\Models\AuditLog $log): array => [
+                'id' => $log->id,
+                'action' => $log->action,
+                'created_at' => $log->created_at?->toDateTimeString(),
+                'actor_name' => $log->actor?->name,
+            ]);
+
+        $transactions = $request->user()->can('update', $document)
+            ? FinancialTransaction::query()->posted()->where('enterprise_id', $document->enterprise_id)
+                ->orderByDesc('transaction_date')->limit(100)->get()
+                ->map(fn (FinancialTransaction $t): array => [
+                    'value' => $t->public_id,
+                    'label' => $t->transaction_date?->toDateString().' · '.$t->type->label().' · '.$t->amount.' '.$t->currency,
+                ])
+            : [];
+
+        return Inertia::render('Documents/Show', [
+            'enterprise' => ['public_id' => $document->enterprise->public_id, 'business_name' => $document->enterprise->business_name],
+            'document' => self::row($document) + [
+                'original_name' => $document->original_name,
+                'is_archived' => $document->isArchived(),
+                'archived_at' => $document->archived_at?->toDateTimeString(),
+                'archive_reason' => $document->archive_reason,
+            ],
+            'history' => $history,
+            'transactions' => $transactions,
+            'can_update' => $request->user()->can('update', $document),
+            'can_archive' => ! $document->isArchived() && $request->user()->can('archive', $document),
+        ]);
+    }
+
+    public function update(Request $request, Document $document, \App\Actions\Documents\UpdateDocumentMetadataAction $action): RedirectResponse
+    {
+        $document->load('enterprise');
+        Gate::authorize('update', $document);
+
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'transaction' => ['nullable', 'string', 'size:26'],
+        ], ['title.required' => 'عنوان المستند مطلوب.']);
+
+        $transaction = filled($data['transaction'] ?? null)
+            ? FinancialTransaction::query()->where('public_id', $data['transaction'])->where('enterprise_id', $document->enterprise_id)->firstOrFail()
+            : null;
+
+        $action->execute($request->user(), $document, $data['title'], $transaction);
+
+        return back()->with('success', 'تم حفظ بيانات المستند.');
+    }
+
+    public function archive(Request $request, Document $document, \App\Actions\Documents\ArchiveDocumentAction $action): RedirectResponse
+    {
+        $document->load('enterprise');
+        Gate::authorize('archive', $document);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+        ], ['reason.required' => 'اكتب سبب الأرشفة.', 'reason.min' => 'اكتب سبب الأرشفة بشكل أوضح.']);
+
+        $action->execute($request->user(), $document, $data['reason']);
+
+        return redirect()->route('enterprises.documents.index', $document->enterprise)->with('success', 'تمت أرشفة المستند. الملف ما زال محفوظاً.');
     }
 
     /**
