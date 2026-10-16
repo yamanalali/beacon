@@ -30,6 +30,7 @@ class MfiMatcher
         $assessment = ReadinessAssessment::query()
             ->where('enterprise_id', $enterprise->id)
             ->where('status', ReadinessAssessment::STATUS_FINALIZED)
+            ->with('currentSnapshot')
             ->orderByDesc('finalized_at')->orderByDesc('id')
             ->first();
 
@@ -58,20 +59,22 @@ class MfiMatcher
 
         switch ($criterion->type) {
             case 'min_readiness_score':
-                if ($assessment === null || $assessment->score === null || ! isset($params['min_score'])) {
+                $score = $assessment?->frozenScore();
+                if ($score === null || ! isset($params['min_score'])) {
                     return [self::NEEDS_REVIEW, 'لا يوجد تقييم جاهزية نهائي بنتيجة محسوبة.'];
                 }
 
-                return (float) $assessment->score >= (float) $params['min_score']
-                    ? [self::MET, 'نتيجة الجاهزية '.$assessment->score.' من 100.']
-                    : [self::NOT_MET, 'نتيجة الجاهزية '.$assessment->score.' أقل من الحد المحدد '.$params['min_score'].'.'];
+                return (float) $score >= (float) $params['min_score']
+                    ? [self::MET, 'نتيجة الجاهزية '.$score.' من 100.']
+                    : [self::NOT_MET, 'نتيجة الجاهزية '.$score.' أقل من الحد المحدد '.$params['min_score'].'.'];
 
             case 'mandatory_readiness_conditions_met':
-                if ($assessment === null || $assessment->mandatory_conditions_met === null) {
+                $mandatory = $assessment?->frozenMandatoryConditionsMet();
+                if ($mandatory === null) {
                     return [self::NEEDS_REVIEW, 'حالة الشروط الإلزامية غير محسومة بعد.'];
                 }
 
-                return $assessment->mandatory_conditions_met
+                return $mandatory
                     ? [self::MET, 'الشروط الإلزامية مستوفاة في آخر تقييم نهائي.']
                     : [self::NOT_MET, 'يوجد شرط إلزامي غير مستوفى في آخر تقييم نهائي.'];
 

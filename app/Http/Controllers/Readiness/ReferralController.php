@@ -43,7 +43,8 @@ class ReferralController extends Controller
             'canCreate' => $canManage,
             'institutions' => $canManage ? MfiInstitution::query()->where('is_active', true)->orderBy('name_ar')->get(['id', 'name_ar']) : [],
             'assessments' => $canManage ? ReadinessAssessment::query()->where('enterprise_id', $enterprise->id)
-                ->where('status', ReadinessAssessment::STATUS_FINALIZED)->orderByDesc('id')->get(['id', 'public_id', 'score', 'finalized_at']) : [],
+                ->where('status', ReadinessAssessment::STATUS_FINALIZED)->with('currentSnapshot')->orderByDesc('id')->get(['id', 'public_id', 'score', 'finalized_at'])
+                ->map(fn (ReadinessAssessment $a) => ['id' => $a->id, 'public_id' => $a->public_id, 'score' => $a->frozenScore(), 'finalized_at' => $a->finalized_at]) : [],
             'disclosableItems' => config('readiness.disclosable_items'),
         ]);
     }

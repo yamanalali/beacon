@@ -66,6 +66,29 @@ class ReadinessAssessment extends Model
         return $this->hasOne(ReadinessAssessmentSnapshot::class)->where('is_current', true)->latestOfMany();
     }
 
+    /**
+     * Score shown everywhere outside the live draft view: the current frozen snapshot when present, otherwise the
+     * row value (legacy finalized rows without a snapshot yet, and drafts). Eager load `currentSnapshot` to avoid N+1.
+     */
+    public function frozenScore(): ?string
+    {
+        $snap = $this->currentSnapshot;
+
+        return $snap !== null ? $snap->score : $this->score;
+    }
+
+    public function frozenMandatoryConditionsMet(): ?bool
+    {
+        $snap = $this->currentSnapshot;
+
+        return $snap !== null ? $snap->mandatory_conditions_met : $this->mandatory_conditions_met;
+    }
+
+    public function frozenBand(): ?string
+    {
+        return $this->currentSnapshot?->band;
+    }
+
     public function isFinalized(): bool
     {
         return $this->status === self::STATUS_FINALIZED;
