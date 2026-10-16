@@ -1,4 +1,4 @@
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { FormEvent, useState } from "react";
 import { PageHeader } from "../../../Components/Common/PageHeader";
 import { SectionCard } from "../../../Components/Common/SectionCard";
@@ -24,9 +24,22 @@ type UsersIndexProps = {
     search: string;
     currentUserId: number;
     mfaNote: string;
+    roles: { value: string; label: string }[];
 };
 
-export default function Index({ users, search, currentUserId, mfaNote }: UsersIndexProps) {
+export default function Index({ users, search, currentUserId, mfaNote, roles }: UsersIndexProps) {
+    const { errors } = usePage().props;
+
+    function changeRole(user: UserRow, role: string) {
+        if (role === user.role) {
+            return;
+        }
+        const label = roles.find((r) => r.value === role)?.label ?? role;
+        if (window.confirm(`تغيير دور ${user.name} إلى «${label}»؟ سيتم تسجيل خروجه من جميع الأجهزة.`)) {
+            router.put(`/users/${user.id}/role`, { role }, { preserveScroll: true });
+        }
+    }
+
     const [term, setTerm] = useState(search);
 
     function onSearch(event: FormEvent) {
@@ -74,6 +87,11 @@ export default function Index({ users, search, currentUserId, mfaNote }: UsersIn
                         إضافة حساب
                     </Link>
                 </div>
+                {errors.role ? (
+                    <p className="alert alert-danger" role="alert">
+                        {errors.role}
+                    </p>
+                ) : null}
                 <SectionCard title="الحسابات">
                     {users.data.length === 0 ? (
                         <EmptyState title="لا توجد حسابات مطابقة." />
@@ -85,7 +103,28 @@ export default function Index({ users, search, currentUserId, mfaNote }: UsersIn
                                         <div>
                                             <div className="fw-semibold">{user.name}</div>
                                             <div>{user.email}</div>
-                                            <div>{user.role_label}</div>
+                                            {user.id !== currentUserId ? (
+                                                <div className="mt-1" style={{ maxWidth: "16rem" }}>
+                                                    <label className="visually-hidden" htmlFor={`role-${user.id}`}>
+                                                        الدور
+                                                    </label>
+                                                    <select
+                                                        id={`role-${user.id}`}
+                                                        className="form-select"
+                                                        style={{ minHeight: "44px", fontSize: "16px" }}
+                                                        value={user.role}
+                                                        onChange={(event) => changeRole(user, event.target.value)}
+                                                    >
+                                                        {roles.map((role) => (
+                                                            <option key={role.value} value={role.value}>
+                                                                {role.label}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            ) : (
+                                                <div>{user.role_label}</div>
+                                            )}
                                             <div>{user.is_active ? "نشط" : "موقوف"}</div>
                                         </div>
                                         {user.id !== currentUserId ? (

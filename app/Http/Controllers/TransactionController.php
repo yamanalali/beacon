@@ -146,7 +146,7 @@ class TransactionController extends Controller
                     'note' => $s->note,
                     'creator_name' => $s->creator?->name,
                 ]),
-            'documents' => $transaction->documents->map(fn (Document $d): array => DocumentController::row($d)),
+            'documents' => $transaction->documents->whereNull('archived_at')->values()->map(fn (Document $d): array => DocumentController::row($d)),
             'can_correct' => $user->can('correct', $transaction),
             'can_settle' => $user->can('settle', $transaction) && $transaction->outstandingMinor() > 0,
             'can_upload' => $user->can('upload', [Document::class, $transaction->enterprise]),

@@ -32,14 +32,17 @@ class RoleLandingTest extends TestCase
         }
     }
 
-    public function test_mfi_and_technical_admin_keep_current_home(): void
+    public function test_mfi_user_lands_on_referral_inbox(): void
     {
-        // MFI: referrals screen arrives with PR #4. Technical admin: unchanged by request.
-        foreach ([UserRole::MfiUser, UserRole::TechnicalAdmin] as $role) {
-            $this->actingAs(User::factory()->create(['role' => $role]))
-                ->get('/')->assertOk()
-                ->assertInertia(fn (Assert $page) => $page->component('Dashboard/Index'));
-        }
+        $this->actingAs(User::factory()->create(['role' => UserRole::MfiUser]))
+            ->get('/')->assertRedirect('/mfi/referrals');
+    }
+
+    public function test_technical_admin_keeps_current_home(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => UserRole::TechnicalAdmin]))
+            ->get('/')->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Dashboard/Index'));
     }
 
     public function test_login_redirects_through_role_landing(): void

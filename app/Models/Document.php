@@ -20,6 +20,21 @@ class Document extends Model
      */
     protected $hidden = ['disk', 'path'];
 
+    protected function casts(): array
+    {
+        return ['archived_at' => 'datetime'];
+    }
+
+    public function scopeActive(\Illuminate\Database\Eloquent\Builder $query): void
+    {
+        $query->whereNull('archived_at');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
     public const PREVIEWABLE_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
     protected static function booted(): void

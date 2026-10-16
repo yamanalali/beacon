@@ -1,9 +1,10 @@
 import { Link, usePage } from "@inertiajs/react";
 import { SoonButton } from "./SoonButton";
-import { desktopGroups, desktopSingleItems, homeItem, isHomePath } from "./navigation";
+import { adminItem, desktopGroups, desktopSingleItems, homeItem, isHomePath } from "./navigation";
 
 export function DesktopSidebar() {
-    const { url } = usePage();
+    const { url, props } = usePage();
+    const isAdmin = props.auth.user?.role === "beacon_admin";
     const homeActive = isHomePath(url);
 
     return (
@@ -44,6 +45,11 @@ export function DesktopSidebar() {
                             <SoonButton item={item} className="app-side-link" />
                         </li>
                     ))}
+                    {isAdmin ? (
+                        <li>
+                            <SoonButton item={adminItem} className="app-side-link" />
+                        </li>
+                    ) : null}
                 </ul>
             </nav>
         </aside>

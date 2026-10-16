@@ -51,6 +51,10 @@ class UserAccountController extends Controller
             'users' => $users,
             'search' => $search,
             'currentUserId' => $request->user()->id,
+            'roles' => collect(UserRole::cases())->map(fn (UserRole $role): array => [
+                'value' => $role->value,
+                'label' => $role->label(),
+            ])->values()->all(),
             'mfaNote' => 'التحقق بخطوتين للمدراء بانتظار قرار تشغيلي من بيكون.',
         ]);
     }
