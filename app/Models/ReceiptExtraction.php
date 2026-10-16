@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ExtractionStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -31,6 +32,12 @@ class ReceiptExtraction extends Model
                 $e->public_id = (string) Str::ulid();
             }
         });
+    }
+
+    /** The review queue: suggestions not yet confirmed or rejected. Shared by the dashboard count and the pending list. */
+    public function scopePendingReview(Builder $query): Builder
+    {
+        return $query->where('status', ExtractionStatus::PendingReview->value);
     }
 
     public function getRouteKeyName(): string

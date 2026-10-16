@@ -3,7 +3,6 @@
 namespace App\Dashboard;
 
 use App\Ai\Models\AiEscalation;
-use App\Enums\ExtractionStatus;
 use App\Enums\TransactionType;
 use App\Models\Enterprise;
 use App\Models\EnterpriseComplianceRecord;
@@ -44,7 +43,7 @@ class SmeDashboardData
 
         $pendingExtractions = ReceiptExtraction::query()
             ->where('enterprise_id', $enterprise->id)
-            ->where('status', ExtractionStatus::PendingReview->value)
+            ->pendingReview()
             ->count();
 
         $openCompliance = EnterpriseComplianceRecord::query()->with('version')
@@ -110,8 +109,8 @@ class SmeDashboardData
                 'severity' => 'warning',
                 'count' => $pendingExtractions,
                 'title' => 'فواتير بانتظار المراجعة',
-                // No pending-extraction list route; documents index is the SME review entry.
-                'href' => route('enterprises.documents.index', $enterprise),
+                // Same filter as the count above (ReceiptExtraction::pendingReview).
+                'href' => route('enterprises.extractions.pending', $enterprise),
             ];
         }
         if ($openEscalations > 0) {

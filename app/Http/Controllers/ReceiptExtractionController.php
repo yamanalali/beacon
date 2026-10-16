@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Support\PaginatedProps;
 use App\Actions\Bookkeeping\ConfirmReceiptExtractionAction;
 use App\Actions\Bookkeeping\StartReceiptExtractionAction;
 use App\Contracts\TransactionCategorizer;
@@ -11,6 +12,7 @@ use App\Enums\TransactionType;
 use App\Finance\TransactionTypeSuggester;
 use App\Http\Requests\Bookkeeping\StoreTransactionRequest;
 use App\Models\Document;
+use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +31,37 @@ class ReceiptExtractionController extends Controller
         $extraction = $action->execute($request->user(), $document);
 
         return redirect()->route('extractions.show', $extraction);
+    }
+
+    public function pending(Request $request, Enterprise $enterprise): Response
+    {
+        // Same ability as extractions.show: membership/role checked by EnterprisePolicy::view.
+        Gate::authorize('view', $enterprise);
+
+        $extractions = ReceiptExtraction::query()
+            ->where('enterprise_id', $enterprise->id)
+            ->pendingReview()
+            ->with('document:id,public_id,title')
+            ->latest()
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (ReceiptExtraction $e): array => [
+                'public_id' => $e->public_id,
+                'document_title' => $e->document?->title,
+                'created_at' => $e->created_at?->toDateString(),
+                'suggested_date' => $e->suggested_date?->toDateString(),
+                'suggested_amount' => $e->suggested_amount,
+                'suggested_currency' => $e->suggested_currency,
+                'suggested_counterparty' => $e->suggested_counterparty,
+                'needs_review' => (bool) $e->needs_review,
+                'confidence' => $e->confidence,
+            ]);
+
+        return Inertia::render('Extractions/Pending', [
+            'enterprise' => ['public_id' => $enterprise->public_id, 'business_name' => $enterprise->business_name],
+            'extractions' => PaginatedProps::from($extractions),
+        ]);
     }
 
     public function show(Request $request, ReceiptExtraction $extraction, TransactionCategorizer $categorizer): Response
