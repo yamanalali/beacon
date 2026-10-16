@@ -65,7 +65,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
     }
 
     return (
-        <AppLayout title="تعديل الملف" showBack>
+        <AppLayout title="تعديل الملف">
             <div className="app-page">
                 <PageHeader title="تعديل الملف" description={enterprise.business_name} />
                 <form onSubmit={submit} style={{ maxWidth: '42rem' }} className="d-flex flex-column gap-3">
