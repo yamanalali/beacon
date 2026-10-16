@@ -95,13 +95,33 @@ class SmeDashboardData
 
         $alerts = [];
         if ($overdue->isNotEmpty()) {
-            $alerts[] = ['key' => 'overdue_compliance', 'severity' => 'danger', 'count' => $overdue->count(), 'title' => 'مواعيد امتثال متأخرة'];
+            $alerts[] = [
+                'key' => 'overdue_compliance',
+                'severity' => 'danger',
+                'count' => $overdue->count(),
+                'title' => 'مواعيد امتثال متأخرة',
+                // No overdue query filter on enterprises.compliance.index today.
+                'href' => route('enterprises.compliance.index', $enterprise),
+            ];
         }
         if ($pendingExtractions > 0) {
-            $alerts[] = ['key' => 'pending_reviews', 'severity' => 'warning', 'count' => $pendingExtractions, 'title' => 'فواتير بانتظار المراجعة'];
+            $alerts[] = [
+                'key' => 'pending_reviews',
+                'severity' => 'warning',
+                'count' => $pendingExtractions,
+                'title' => 'فواتير بانتظار المراجعة',
+                // No pending-extraction list route; documents index is the SME review entry.
+                'href' => route('enterprises.documents.index', $enterprise),
+            ];
         }
         if ($openEscalations > 0) {
-            $alerts[] = ['key' => 'open_escalations', 'severity' => 'info', 'count' => $openEscalations, 'title' => 'استفسارات مفتوحة'];
+            $alerts[] = [
+                'key' => 'open_escalations',
+                'severity' => 'info',
+                'count' => $openEscalations,
+                'title' => 'استفسارات مفتوحة',
+                'href' => route('ai.pages.escalations.index', ['status' => 'open']),
+            ];
         }
 
         $readinessStatus = $assessment?->score !== null ? (string) $assessment->score : null;

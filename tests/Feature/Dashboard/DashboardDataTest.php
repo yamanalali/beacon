@@ -188,4 +188,25 @@ class DashboardDataTest extends TestCase
             $this->actingAs($u)->get('/dashboard/beacon')->assertForbidden();
         }
     }
+
+    public function test_sme_alert_hrefs_are_reachable(): void
+    {
+        $this->seedBoth();
+
+        $response = $this->actingAs($this->sme)->get('/dashboard/sme')->assertOk();
+        $alerts = $response->original->getData()['page']['props']['alerts'];
+        $this->assertCount(3, $alerts);
+
+        $byKey = collect($alerts)->keyBy('key');
+        foreach (['overdue_compliance', 'pending_reviews', 'open_escalations'] as $key) {
+            $this->assertArrayHasKey($key, $byKey->all());
+            $this->assertIsString($byKey[$key]['href']);
+            $this->assertNotSame('', $byKey[$key]['href']);
+            $this->actingAs($this->sme)->get($byKey[$key]['href'])->assertOk();
+        }
+
+        $this->assertStringContainsString('/compliance', $byKey['overdue_compliance']['href']);
+        $this->assertStringContainsString('/documents', $byKey['pending_reviews']['href']);
+        $this->assertStringContainsString('/ai/pages/escalations', $byKey['open_escalations']['href']);
+    }
 }
