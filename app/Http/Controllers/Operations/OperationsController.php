@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Operations;
 
 use App\Actions\Audit\RecordAuditLog;
-use App\Enums\UserRole;
+use App\Navigation\PageAccess;
 use App\Http\Controllers\Controller;
 use App\Models\BackupRun;
 use App\Services\Operations\BackupService;
@@ -11,6 +11,7 @@ use App\Services\Operations\SecurityChecklist;
 use App\Support\DataControl;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -80,7 +81,7 @@ class OperationsController extends Controller
     public function dataControl(Request $request): Response
     {
         $user = $request->user();
-        abort_unless($user->isActive() && in_array($user->role, [UserRole::TechnicalAdmin, UserRole::BeaconAdmin], true), 403);
+        abort_unless(Gate::forUser($user)->allows(PageAccess::OPERATIONS_DATA_CONTROL), 403);
 
         return Inertia::render('Operations/DataControl', ['processors' => DataControl::registry()]);
     }
@@ -88,7 +89,7 @@ class OperationsController extends Controller
     private function technicalAdmin(Request $request)
     {
         $user = $request->user();
-        abort_unless($user !== null && $user->isActive() && $user->role === UserRole::TechnicalAdmin, 403);
+        abort_unless($user !== null && Gate::forUser($user)->allows(PageAccess::OPERATIONS_TECHNICAL), 403);
 
         return $user;
     }

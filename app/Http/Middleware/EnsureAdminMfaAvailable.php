@@ -21,4 +21,12 @@ class EnsureAdminMfaAvailable
 
         return $next($request);
     }
+
+    /** Same outcome as handle() without aborting: feature on and the user's role is eligible. */
+    public static function allows(mixed $user): bool
+    {
+        $twoFactor = app(TwoFactorService::class);
+
+        return $twoFactor->enabled() && $twoFactor->appliesTo($user instanceof \App\Models\User ? $user : null);
+    }
 }

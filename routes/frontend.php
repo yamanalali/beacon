@@ -1,6 +1,7 @@
 <?php
 
-use App\Enums\UserRole;
+use App\Navigation\PageAccess;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -12,7 +13,7 @@ use Inertia\Inertia;
  */
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard/beacon', function (Request $request) {
-        abort_unless(in_array($request->user()->role, [UserRole::BeaconAdmin, UserRole::BeaconAdvisor], true), 403);
+        abort_unless(Gate::allows(PageAccess::DASHBOARD_BEACON), 403);
 
         return Inertia::render('Dashboard/Beacon', [
             'indicators' => [],
@@ -23,7 +24,7 @@ Route::middleware(['auth'])->group(function () {
     })->name('dashboard.beacon');
 
     Route::get('/dashboard/sme', function (Request $request) {
-        abort_unless($request->user()->role === UserRole::SmeUser, 403);
+        abort_unless(Gate::allows(PageAccess::DASHBOARD_SME), 403);
 
         return Inertia::render('Dashboard/Sme', [
             'recentActivity' => [],

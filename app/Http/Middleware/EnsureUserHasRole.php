@@ -14,18 +14,20 @@ class EnsureUserHasRole
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        $user = $request->user();
-
-        if (! $user instanceof User || ! $user->isActive()) {
-            abort(403);
-        }
-
-        $role = $user->role->value;
-
-        if (! in_array($role, $roles, true)) {
-            abort(403);
-        }
+        abort_unless(self::allows($request->user(), $roles), 403);
 
         return $next($request);
+    }
+
+    /**
+     * The single check behind `role:...`; NavigationBuilder calls it for the same route parameters.
+     *
+     * @param  list<string>  $roles
+     */
+    public static function allows(mixed $user, array $roles): bool
+    {
+        return $user instanceof User
+            && $user->isActive()
+            && in_array($user->role->value, $roles, true);
     }
 }

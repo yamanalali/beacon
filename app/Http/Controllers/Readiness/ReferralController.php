@@ -10,11 +10,13 @@ use App\Models\MfiInstitution;
 use App\Models\ReadinessAssessment;
 use App\Models\Referral;
 use App\Models\ReferralConsent;
+use App\Navigation\PageAccess;
 use App\Support\ReadinessAccess;
 use App\Support\ReferralPackageBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -224,7 +226,7 @@ class ReferralController extends Controller
     public function mfiInbox(Request $request): Response
     {
         $user = $request->user();
-        abort_unless($user->isActive() && $user->role === UserRole::MfiUser && $user->mfi_institution_id !== null, 403);
+        abort_unless(Gate::forUser($user)->allows(PageAccess::MFI_REFERRAL_INBOX), 403);
 
         $referrals = Referral::query()->where('mfi_institution_id', $user->mfi_institution_id)
             ->where('status', '!=', Referral::STATUS_DRAFT)->with(['institution:id,name_ar', 'enterprise:id,business_name'])->orderByDesc('shared_at')->get()
