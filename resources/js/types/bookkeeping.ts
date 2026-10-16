@@ -41,3 +41,13 @@ export type DocumentRow = {
     uploader_name: string | null;
     transaction_public_id: string | null;
 };
+
+/** Expense/income suggestion on Extractions/Show (and voice drafts). Suggestion only; user confirms. */
+export type SuggestedTransactionType = "expense" | "income" | null;
+
+export type TransactionTypeOption = { value: "expense" | "income"; label: string };
+
+export type TransactionTypeSuggestionProps = {
+    suggested_transaction_type: SuggestedTransactionType;
+    transaction_type_options: TransactionTypeOption[];
+};

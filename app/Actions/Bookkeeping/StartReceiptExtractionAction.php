@@ -5,6 +5,7 @@ namespace App\Actions\Bookkeeping;
 use App\Actions\Audit\RecordAuditLog;
 use App\Contracts\ReceiptExtractor;
 use App\Enums\ExtractionStatus;
+use App\Finance\TransactionTypeSuggester;
 use App\Models\Document;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
@@ -17,6 +18,7 @@ class StartReceiptExtractionAction
     public function __construct(
         private readonly ReceiptExtractor $extractor,
         private readonly RecordAuditLog $audit,
+        private readonly TransactionTypeSuggester $typeSuggester,
     ) {}
 
     public function execute(User $actor, Document $document): ReceiptExtraction
@@ -42,6 +44,12 @@ class StartReceiptExtractionAction
         $extraction->suggested_amount = $result->amount !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $result->amount) ? $result->amount : null;
         $extraction->suggested_currency = in_array($result->currency, $currencies, true) ? $result->currency : null;
         $extraction->suggested_counterparty = $result->counterparty !== null ? mb_substr($result->counterparty, 0, 150) : null;
+        $hasSuggestion = ! $result->failed && ($extraction->suggested_date !== null || $extraction->suggested_amount !== null
+            || $extraction->suggested_currency !== null || $extraction->suggested_counterparty !== null);
+        // Suggestion only; null when OCR produced nothing (manual entry).
+        $extraction->suggested_transaction_type = $hasSuggestion
+            ? ($this->typeSuggester->suggest($result->rawText) ?? 'expense')
+            : null;
         $extraction->confidence = $result->confidence;
         // Always reviewed by a human; flag stays true unless provider is confident AND complete.
         $extraction->needs_review = true;
