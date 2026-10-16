@@ -17,12 +17,12 @@ class ReadinessAssessmentResult extends Model
 
     protected $fillable = [
         'readiness_assessment_id', 'readiness_criterion_id', 'compliance_requirement_version_id',
-        'outcome', 'note', 'action_needed', 'responsible_user_id', 'target_date',
+        'outcome', 'value', 'points', 'note', 'action_needed', 'responsible_user_id', 'target_date',
     ];
 
     protected function casts(): array
     {
-        return ['target_date' => 'date'];
+        return ['target_date' => 'date', 'value' => 'array', 'points' => 'decimal:4'];
     }
 
     protected static function booted(): void
