@@ -18,10 +18,12 @@ type Result = {
     target_date: string | null;
 };
 
-import type { ReadinessScoreSnapshot } from "../../types/readiness-snapshot";
+import type { ReadinessScoreSnapshot, ReadinessScoreSnapshotWithResult, ReadinessSnapshotResult } from "../../types/readiness-snapshot";
 
 type Props = {
-    snapshot?: ReadinessScoreSnapshot | null;
+    snapshot?: ReadinessScoreSnapshotWithResult | null;
+    /** Frozen (finalized) or live (draft) result in one shape. */
+    result?: ReadinessSnapshotResult | null;
     snapshotHistory?: ReadinessScoreSnapshot[];
     canRecalculate?: boolean;
     enterprise: { public_id: string; business_name: string };
