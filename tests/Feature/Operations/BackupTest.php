@@ -92,4 +92,33 @@ class BackupTest extends TestCase
         $this->artisan('beacon:backup --verify')->assertSuccessful();
         $this->assertSame(2, BackupRun::query()->where('status', 'succeeded')->count());
     }
+
+    public function test_restore_test_never_touches_live_database(): void
+    {
+        $service = app(BackupService::class);
+        $backup = $service->backup();
+        $liveUser = $this->user(UserRole::SmeUser); // created AFTER the backup
+        $usersBefore = User::query()->count();
+        $database = config('database.connections.sqlite.database');
+
+        $run = $service->restoreTest($backup);
+
+        $this->assertSame('succeeded', $run->status, (string) $run->error);
+        $this->assertSame($usersBefore, User::query()->count());
+        $this->assertNotNull(User::query()->find($liveUser->id));
+        $this->assertSame($database, config('database.connections.sqlite.database'));
+        $this->assertSame('sqlite', \Illuminate\Support\Facades\DB::getDefaultConnection());
+    }
+
+    public function test_restore_test_endpoint_is_technical_admin_only(): void
+    {
+        $backup = app(BackupService::class)->backup();
+        foreach ([UserRole::SmeUser, UserRole::BeaconAdvisor, UserRole::BeaconAdmin, UserRole::MfiUser] as $role) {
+            $this->actingAs($this->user($role))->post(route('operations.backups.restore-test', $backup))->assertForbidden();
+        }
+        $inactive = $this->user(UserRole::TechnicalAdmin);
+        $inactive->forceFill(['is_active' => false])->save();
+        $this->actingAs($inactive)->post(route('operations.backups.restore-test', $backup))->assertForbidden();
+        $this->assertSame(0, BackupRun::query()->where('type', 'restore_test')->count());
+    }
 }
