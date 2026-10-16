@@ -8,11 +8,18 @@ use Tests\TestCase;
 
 class WhisperConfigTest extends TestCase
 {
+    private string $out = 'دفعت';
+
+    private string $text = '';
+
     private function run_(): array
     {
-        $w = new class extends WhisperCppTranscriber
+        $out = $this->out;
+        $w = new class($out) extends WhisperCppTranscriber
         {
             public array $cmd = [];
+
+            public function __construct(private string $out) {}
 
             protected function isWindows(): bool
             {
@@ -22,12 +29,12 @@ class WhisperConfigTest extends TestCase
             protected function makeProcess(array $command): Process
             {
                 $this->cmd = $command;
-                file_put_contents($command[array_search('-of', $command, true) + 1].'.txt', 'دفعت');
+                file_put_contents($command[array_search('-of', $command, true) + 1].'.txt', $this->out);
 
                 return new Process(['php', '-r', '']);
             }
         };
-        $w->transcribe('/tmp/a.wav', 'audio/wav');
+        $this->text = (string) $w->transcribe('/tmp/a.wav', 'audio/wav');
 
         return $w->cmd;
     }
@@ -79,5 +86,16 @@ class WhisperConfigTest extends TestCase
         $cmd = $this->run_();
         $this->assertNull($this->arg($cmd, '--prompt'));
         $this->assertNotContains('-t', $cmd);
+    }
+
+    public function test_money_correction_applied_and_can_be_disabled(): void
+    {
+        config(['ai.voice.whisper_model' => 'small', 'ai.voice.whisper_correct' => true]);
+        $this->out = 'دفعت همس مياه الفا';
+        $this->run_();
+        $this->assertSame('دفعت خمس مية ألف', $this->text);
+        config(['ai.voice.whisper_correct' => false]);
+        $this->run_();
+        $this->assertSame('دفعت همس مياه الفا', $this->text);
     }
 }

@@ -68,7 +68,7 @@ class WhisperCppTranscriber implements SpeechToText
                 return null;
             }
 
-            return $text;
+            return config('ai.voice.whisper_correct', true) ? (new WhisperMoneyCorrector)->correct($text) : $text;
         } catch (Throwable $e) {
             Log::warning('Whisper STT unavailable', ['error' => $e->getMessage()]);
             $this->failureReason = 'failed';

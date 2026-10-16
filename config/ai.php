@@ -44,6 +44,8 @@ return [
         'whisper_model' => $env('WHISPER_MODEL', ''),
         // Manager decision: large-v3-turbo won the Levantine benchmark (docs/whisper-dialect-benchmark.md).
         'whisper_default_model' => 'large-v3-turbo',
+        // Fix common whisper mis-hearings of money words («الفا» -> «ألف», «همس مياه» -> «خمس مية»).
+        'whisper_correct' => (bool) $env('WHISPER_CORRECT', true),
         'whisper_threads' => (int) $env('WHISPER_THREADS', 0), // 0 = whisper.cpp default
         // Language is fixed to Arabic ("-l ar", no auto-detect). Optional initial prompt
         // biasing Whisper toward finance vocabulary; empty = no --prompt.
