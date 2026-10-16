@@ -5,6 +5,9 @@ import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { QuickRecordButton } from "../../Components/QuickRecord/QuickRecord";
+import { StatCard } from "../../Components/Common/StatCard";
+import { StatusBadge, type StatusTone } from "../../Components/Feedback/StatusBadge";
+import type { DashboardAlert, SmeComplianceItem, SmeDashboardProps, SmeRecentTransaction } from "../../types/dashboard";
 
 /**
  * Simple SME personal dashboard (§40). Summarizes existing information only; no new metrics or scoring.
@@ -12,29 +15,67 @@ import { QuickRecordButton } from "../../Components/QuickRecord/QuickRecord";
  */
 export type SummaryItem = { id: string | number; title: string; meta?: string };
 
-type Props = {
-    recentActivity?: SummaryItem[];
-    outstandingActions?: SummaryItem[];
-    upcomingDeadlines?: SummaryItem[];
-    readinessStatus?: string | null;
-    referralStatus?: string | null;
+type Props = Partial<SmeDashboardProps>;
+
+const ALERT_TONE: Record<DashboardAlert["severity"], StatusTone> = {
+    danger: "danger",
+    warning: "warning",
+    info: "neutral",
 };
 
-function List({ items, empty }: { items: SummaryItem[]; empty: string }) {
-    if (items.length === 0) return <EmptyState title={empty} />;
+/** Alert row: links only when the server gives an href (null = plain text). */
+export function AlertItem({ alert }: { alert: DashboardAlert }) {
+    const body = (
+        <>
+            <span>{alert.title}</span>
+            <StatusBadge tone={ALERT_TONE[alert.severity]} label={String(alert.count)} />
+        </>
+    );
+    const cls = "list-group-item px-0 d-flex justify-content-between align-items-center gap-2";
+    return alert.href ? (
+        <Link href={alert.href} className={`${cls} list-group-item-action`}>
+            {body}
+        </Link>
+    ) : (
+        <div className={cls}>{body}</div>
+    );
+}
+
+function money(amount: string, currency: string) {
+    return `${amount} ${currency}`;
+}
+
+function TransactionRow({ t }: { t: SmeRecentTransaction }) {
+    return (
+        <li className="list-group-item px-0">
+            <Link href={t.url} className="d-flex justify-content-between gap-2 text-reset text-decoration-none">
+                <span>
+                    <span className="d-block fw-semibold">{t.category}</span>
+                    <small className="text-body-secondary">
+                        {t.counterparty ? `${t.counterparty} · ` : ""}
+                        <bdi dir="ltr">{t.transaction_date}</bdi>
+                    </small>
+                </span>
+                <bdi dir="ltr" className={t.direction === "income" ? "text-success fw-semibold" : "fw-semibold"}>
+                    {t.direction === "income" ? "+" : "−"}
+                    {money(t.amount, t.currency)}
+                </bdi>
+            </Link>
+        </li>
+    );
+}
+
+function DeadlineList({ items, empty }: { items: SmeComplianceItem[]; empty: string }) {
+    if (items.length === 0) return <EmptyState title={empty} icon="bi-calendar-check" />;
     return (
         <ul className="list-group list-group-flush">
-            {items.map((i) => (
-                <li
-                    key={i.id}
-                    className="list-group-item px-0 d-flex justify-content-between gap-2"
-                >
-                    <span>{i.title}</span>
-                    {i.meta ? (
-                        <bdi dir="ltr" className="text-body-secondary small">
-                            {i.meta}
-                        </bdi>
-                    ) : null}
+            {items.map((d) => (
+                <li key={d.id} className="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
+                    <span>{d.title}</span>
+                    <span className="d-flex align-items-center gap-2">
+                        <bdi dir="ltr" className="text-body-secondary small">{d.due_date}</bdi>
+                        {d.overdue ? <StatusBadge tone="danger" label="متأخر" /> : null}
+                    </span>
                 </li>
             ))}
         </ul>
@@ -42,11 +83,13 @@ function List({ items, empty }: { items: SummaryItem[]; empty: string }) {
 }
 
 export default function Sme({
-    recentActivity = [],
-    outstandingActions = [],
-    upcomingDeadlines = [],
     readinessStatus = null,
     referralStatus = null,
+    enterprise = null,
+    kpis = null,
+    recent_transactions = [],
+    compliance = { overdue: [], upcoming: [] },
+    alerts = [],
 }: Props) {
     return (
         <AppLayout title="الرئيسية">
@@ -58,80 +101,96 @@ export default function Sme({
                 <div className="d-grid d-lg-flex mb-4">
                     <QuickRecordButton />
                 </div>
-                <div className="app-overview-banner">
-                    <div>
-                        <h2>أعمالك اليوم، بصورة أوضح</h2>
-                        <p>سجّل عملياتك أولاً بأول، وتابع ما يحتاج اهتمامك.</p>
-                    </div>
-                    <Link href="/transactions" className="btn btn-primary">
-                        <i className="bi bi-wallet2 me-2" aria-hidden="true" />
-                        عرض المعاملات
-                    </Link>
-                </div>
+                {enterprise === null ? (
+                    <SectionCard>
+                        <EmptyState
+                            icon="bi-buildings"
+                            title="لا توجد منشأة مرتبطة بحسابك بعد"
+                            description="تواصل مع فريق Beacon لربط حسابك بمنشأتك."
+                        />
+                    </SectionCard>
+                ) : (
+                    <>
+                        {alerts.length > 0 ? (
+                            <SectionCard title="يحتاج انتباهك">
+                                <div className="list-group list-group-flush" data-testid="alerts">
+                                    {alerts.map((a) => (
+                                        <AlertItem key={a.key} alert={a} />
+                                    ))}
+                                </div>
+                            </SectionCard>
+                        ) : null}
+                        {kpis ? (
+                            <section aria-label="مؤشرات هذا الشهر">
+                                <div className="row g-3">
+                                    <div className="col-6 col-lg-3">
+                                        <StatCard label="دخل هذا الشهر" value={money(kpis.current_month.income, kpis.currency)} hint={`الشهر السابق: ${money(kpis.previous_month.income, kpis.currency)}`} icon="bi-arrow-down-left" />
+                                    </div>
+                                    <div className="col-6 col-lg-3">
+                                        <StatCard label="مصروف هذا الشهر" value={money(kpis.current_month.expense, kpis.currency)} hint={`الشهر السابق: ${money(kpis.previous_month.expense, kpis.currency)}`} icon="bi-arrow-up-right" tone="amber" />
+                                    </div>
+                                    <div className="col-6 col-lg-3">
+                                        <StatCard label="الصافي" value={money(kpis.current_month.net, kpis.currency)} hint={`${kpis.current_month.count} معاملة هذا الشهر`} icon="bi-graph-up" tone="blue" />
+                                    </div>
+                                    <div className="col-6 col-lg-3">
+                                        <StatCard label="فواتير بانتظار المراجعة" value={String(kpis.pending_extractions_count)} hint={`إجمالي المعاملات: ${kpis.transaction_count}`} icon="bi-receipt" tone="violet" />
+                                    </div>
+                                </div>
+                                {kpis.other_currencies.length > 0 ? (
+                                    <p className="small text-body-secondary mt-2 mb-0">
+                                        الإجماليات بعملة <bdi dir="ltr">{kpis.currency}</bdi> فقط. عملات أخرى مسجلة:{" "}
+                                        <bdi dir="ltr">{kpis.other_currencies.join("، ")}</bdi>
+                                    </p>
+                                ) : null}
+                            </section>
+                        ) : null}
+                        <div className="row g-3">
+                            <div className="col-12 col-lg-6">
+                                <SectionCard title="آخر المعاملات">
+                                    {recent_transactions.length === 0 ? (
+                                        <EmptyState title="لا توجد معاملات بعد" icon="bi-wallet2" />
+                                    ) : (
+                                        <ul className="list-group list-group-flush">
+                                            {recent_transactions.map((t) => (
+                                                <TransactionRow key={t.public_id} t={t} />
+                                            ))}
+                                        </ul>
+                                    )}
+                                </SectionCard>
+                            </div>
+                            <div className="col-12 col-lg-6">
+                                <SectionCard title="مواعيد الامتثال">
+                                    <DeadlineList
+                                        items={[...compliance.overdue, ...compliance.upcoming]}
+                                        empty="لا توجد مواعيد قريبة"
+                                    />
+                                </SectionCard>
+                            </div>
+                            <div className="col-12">
+                                <SectionCard title="الجاهزية والإحالة">
+                                    <p className="mb-1">
+                                        آخر درجة جاهزية:{" "}
+                                        <strong>
+                                            <bdi dir="ltr">{readinessStatus ?? "غير متاحة بعد"}</bdi>
+                                        </strong>
+                                    </p>
+                                    {referralStatus ? (
+                                        <p className="mb-0">
+                                            حالة الإحالة: <strong>{referralStatus}</strong>
+                                        </p>
+                                    ) : null}
+                                </SectionCard>
+                            </div>
+                        </div>
+                    </>
+                )}
                 <QuickLinks
                     items={[
-                        {
-                            href: "/transactions",
-                            label: "المعاملات",
-                            description: "المبيعات والمصاريف والدفعات",
-                            icon: "bi-wallet2",
-                        },
-                        {
-                            href: "/reports",
-                            label: "التقارير",
-                            description: "افهم وضع منشأتك المالي",
-                            icon: "bi-bar-chart-line",
-                        },
-                        {
-                            href: "/documents",
-                            label: "المستندات",
-                            description: "كل وثائقك في مكان واحد",
-                            icon: "bi-folder2-open",
-                        },
+                        { href: "/transactions", label: "المعاملات", description: "المبيعات والمشتريات والدفعات", icon: "bi-wallet2" },
+                        { href: "/reports", label: "التقارير", description: "فهم وضع منشأتك المالي", icon: "bi-bar-chart-line" },
+                        { href: "/documents", label: "المستندات", description: "كل وثائقك في مكان واحد", icon: "bi-folder2-open" },
                     ]}
                 />
-                <div className="row g-3">
-                    <div className="col-12 col-lg-6">
-                        <SectionCard title="إجراءات مطلوبة">
-                            <List
-                                items={outstandingActions}
-                                empty="لا توجد إجراءات مطلوبة"
-                            />
-                        </SectionCard>
-                    </div>
-                    <div className="col-12 col-lg-6">
-                        <SectionCard title="مواعيد امتثال قريبة">
-                            <List
-                                items={upcomingDeadlines}
-                                empty="لا توجد مواعيد قريبة"
-                            />
-                        </SectionCard>
-                    </div>
-                    <div className="col-12 col-lg-6">
-                        <SectionCard title="آخر النشاط المالي">
-                            <List
-                                items={recentActivity}
-                                empty="لا يوجد نشاط مالي بعد"
-                            />
-                        </SectionCard>
-                    </div>
-                    <div className="col-12 col-lg-6">
-                        <SectionCard title="الجاهزية والإحالة">
-                            <p className="mb-1">
-                                حالة الجاهزية:{" "}
-                                <strong>
-                                    {readinessStatus ?? "غير متاحة بعد"}
-                                </strong>
-                            </p>
-                            {referralStatus ? (
-                                <p className="mb-0">
-                                    حالة الإحالة:{" "}
-                                    <strong>{referralStatus}</strong>
-                                </p>
-                            ) : null}
-                        </SectionCard>
-                    </div>
-                </div>
             </div>
         </AppLayout>
     );
