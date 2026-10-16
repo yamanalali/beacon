@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { EmptyState } from "../Feedback/EmptyState";
 
 export type Column<T> = {
@@ -16,7 +16,7 @@ export type Column<T> = {
 /**
  * Desktop: real table. Mobile: stacked cards (§45: never shrink desktop tables on mobile).
  */
-export function DataTable<T>({ columns, rows, rowKey, caption, emptyTitle = "لا توجد بيانات", emptyDescription, onRowClick }: {
+export function DataTable<T>({ columns, rows, rowKey, caption, emptyTitle = "لا توجد بيانات", emptyDescription, onRowClick, rowLabel }: {
     columns: Column<T>[];
     rows: T[];
     rowKey: (row: T) => string | number;
@@ -24,7 +24,25 @@ export function DataTable<T>({ columns, rows, rowKey, caption, emptyTitle = "ل�
     emptyTitle?: string;
     emptyDescription?: string;
     onRowClick?: (row: T) => void;
+    /** Accessible name for a clickable row, e.g. "عرض المعاملة 12". */
+    rowLabel?: (row: T) => string;
 }) {
+    const interactive = (r: T) =>
+        onRowClick
+            ? {
+                  tabIndex: 0,
+                  role: "button",
+                  "aria-label": rowLabel ? rowLabel(r) : undefined,
+                  onClick: () => onRowClick(r),
+                  onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onRowClick(r);
+                      }
+                  },
+                  style: { cursor: "pointer" },
+              }
+            : {};
     if (rows.length === 0) return <EmptyState title={emptyTitle} description={emptyDescription} />;
     const primary = columns.find((c) => c.primary) ?? columns[0];
     const rest = columns.filter((c) => c !== primary && !c.hideOnMobile);
@@ -39,7 +57,7 @@ export function DataTable<T>({ columns, rows, rowKey, caption, emptyTitle = "ل�
                     </thead>
                     <tbody>
                         {rows.map((r) => (
-                            <tr key={rowKey(r)} onClick={onRowClick ? () => onRowClick(r) : undefined} style={onRowClick ? { cursor: "pointer" } : undefined}>
+                            <tr key={rowKey(r)} {...interactive(r)} className={onRowClick ? "app-row-action" : undefined}>
                                 {columns.map((c) => (
                                     <td key={c.key} className={c.numeric ? "text-end" : ""}>
                                         {c.numeric ? <bdi dir="ltr">{c.cell(r)}</bdi> : c.cell(r)}
@@ -52,7 +70,8 @@ export function DataTable<T>({ columns, rows, rowKey, caption, emptyTitle = "ل�
             </div>
             <ul className="list-unstyled d-md-none d-flex flex-column gap-2 mb-0" aria-label={caption}>
                 {rows.map((r) => (
-                    <li key={rowKey(r)} className="border rounded-3 bg-white p-3" onClick={onRowClick ? () => onRowClick(r) : undefined}>
+                    <li key={rowKey(r)}>
+                        <div {...interactive(r)} className={`border rounded-3 bg-white p-3${onRowClick ? " app-row-action" : ""}`}>
                         <div className="fw-semibold mb-1">{primary.cell(r)}</div>
                         <dl className="row g-1 mb-0 small">
                             {rest.map((c) => (
@@ -62,6 +81,7 @@ export function DataTable<T>({ columns, rows, rowKey, caption, emptyTitle = "ل�
                                 </div>
                             ))}
                         </dl>
+                        </div>
                     </li>
                 ))}
             </ul>
