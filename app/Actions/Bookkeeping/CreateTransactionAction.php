@@ -57,7 +57,7 @@ class CreateTransactionAction
                 $settlement->save();
             }
 
-            $this->saveItems($transaction, $data['items'] ?? []);
+            $this->saveItems($transaction, $data['items'] ?? []); // absent or null on store = no items
 
             $this->audit->record($actor, 'transaction.created', $transaction, [
                 'enterprise_id' => $enterprise->id,

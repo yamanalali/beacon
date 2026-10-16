@@ -170,12 +170,76 @@ class TransactionItemsTest extends TestCase
         // History: the superseded original keeps its own items.
         $this->assertSame(['a', 'b'], $original->fresh()->items->pluck('description')->all());
 
-        // Correction without items clears the set on the new version.
+        // Correction with items: [] clears the set on the new version.
         $this->actingAs($this->sme)->post(route('transactions.correct', $corrected), $this->payload([
-            'amount' => '500', 'correction_reason' => 'بلا بنود',
+            'amount' => '500', 'correction_reason' => 'بلا بنود', 'items' => [],
         ]))->assertSessionHasNoErrors();
         $latest = FinancialTransaction::query()->where('corrects_transaction_id', $corrected->id)->sole();
         $this->assertCount(0, $latest->items);
+    }
+
+    public function test_correction_without_items_key_keeps_previous_items(): void
+    {
+        $this->store($this->payload(['amount' => '300', 'items' => [
+            ['description' => 'a', 'quantity' => '1.5', 'unit_price' => 100, 'total' => 150],
+            ['description' => 'b', 'quantity' => 1, 'unit_price' => 150],
+        ]]));
+        $original = FinancialTransaction::query()->sole();
+
+        $this->actingAs($this->sme)->post(route('transactions.correct', $original), $this->payload([
+            'amount' => '300', 'correction_reason' => 'تعديل التاريخ', 'transaction_date' => '2026-10-02',
+        ]))->assertRedirect()->assertSessionHasNoErrors()->assertSessionMissing('warning');
+
+        $corrected = FinancialTransaction::query()->where('corrects_transaction_id', $original->id)->sole();
+        $this->assertSame(['a', 'b'], $corrected->items->pluck('description')->all());
+        $this->assertSame(['1.500', '1.000'], $corrected->items->map(fn ($i) => (string) $i->quantity)->all());
+        $this->assertSame(['150.00', '150.00'], $corrected->items->map(fn ($i) => (string) $i->total)->all());
+        $this->assertSame(['a', 'b'], $original->fresh()->items->pluck('description')->all());
+    }
+
+    public function test_manual_store_without_items_key_has_no_items(): void
+    {
+        $this->store($this->payload())->assertSessionHasNoErrors()->assertSessionMissing('warning');
+        $this->assertCount(0, FinancialTransaction::query()->sole()->items);
+    }
+
+    private function mismatch(string $currency, string $amount, array $totals): bool
+    {
+        $t = new FinancialTransaction;
+        $t->setRawAttributes(['amount' => $amount, 'currency' => $currency]);
+        $t->setRelation('items', collect(array_map(function (string $total): TransactionItem {
+            $i = new TransactionItem;
+            $i->setRawAttributes(['total' => $total]);
+            return $i;
+        }, $totals)));
+
+        return $t->itemsMismatch();
+    }
+
+    public function test_mismatch_tolerance_is_half_smallest_unit(): void
+    {
+        // SYP: |diff| <= 0.5
+        $this->assertFalse($this->mismatch('SYP', '100000.00', ['33333.33', '33333.33', '33333.33'])); // 0.01
+        $this->assertFalse($this->mismatch('SYP', '1000.00', ['1000.40']));
+        $this->assertFalse($this->mismatch('SYP', '1000.00', ['1000.50']));
+        $this->assertTrue($this->mismatch('SYP', '1000.00', ['1000.60']));
+        $this->assertTrue($this->mismatch('SYP', '1000.00', ['999.40']));
+        // Others: |diff| <= 0.005
+        $this->assertFalse($this->mismatch('USD', '10.000', ['10.004']));
+        $this->assertTrue($this->mismatch('USD', '10.00', ['10.01']));
+        $this->assertTrue($this->mismatch('USD', '10.00', ['9.99']));
+        $this->assertFalse($this->mismatch('USD', '10.00', ['4.00', '6.00']));
+    }
+
+    public function test_syp_rounding_difference_does_not_warn_end_to_end(): void
+    {
+        $this->store($this->payload(['amount' => '100000', 'items' => [
+            ['description' => 'x', 'quantity' => 3, 'unit_price' => '33333.33'],
+        ]]))->assertRedirect()->assertSessionMissing('warning');
+
+        $this->store($this->payload(['amount' => '10', 'currency' => 'USD', 'items' => [
+            ['description' => 'x', 'quantity' => 1, 'unit_price' => '10.01'],
+        ]]))->assertRedirect()->assertSessionHas('warning');
     }
 
     public function test_items_are_deleted_with_transaction(): void

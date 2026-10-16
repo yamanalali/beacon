@@ -66,6 +66,7 @@ class SmeDashboardData
         $assessment = ReadinessAssessment::query()
             ->where('enterprise_id', $enterprise->id)
             ->where('status', ReadinessAssessment::STATUS_FINALIZED)
+            ->with('currentSnapshot')
             ->orderByDesc('finalized_at')->orderByDesc('id')
             ->first();
 
@@ -123,7 +124,8 @@ class SmeDashboardData
             ];
         }
 
-        $readinessStatus = $assessment?->score !== null ? (string) $assessment->score : null;
+        $frozenScore = $assessment?->frozenScore();
+        $readinessStatus = $frozenScore !== null ? (string) $frozenScore : null;
 
         return [
             // Existing props (kept for the current page UI).

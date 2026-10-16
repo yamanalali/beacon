@@ -18,7 +18,12 @@ type Result = {
     target_date: string | null;
 };
 
+import type { ReadinessScoreSnapshot } from "../../types/readiness-snapshot";
+
 type Props = {
+    snapshot?: ReadinessScoreSnapshot | null;
+    snapshotHistory?: ReadinessScoreSnapshot[];
+    canRecalculate?: boolean;
     enterprise: { public_id: string; business_name: string };
     assessment: { public_id: string; status: string; rule_set: { version_number: number; name_ar: string }; finalized_at: string | null };
     evaluation: { score: number | null; mandatory_conditions_met: boolean | null; earned_weight: number; counted_weight: number; unmet_mandatory: string[]; needs_review: string[]; missing: string[] };

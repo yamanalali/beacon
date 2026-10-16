@@ -40,6 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/readiness-assessments/{assessment:public_id}', [ReadinessAssessmentController::class, 'show'])->name('readiness-assessments.show');
     Route::put('/readiness-assessments/{assessment:public_id}/results/{result}', [ReadinessAssessmentController::class, 'updateResult'])->name('readiness-assessments.results.update');
     Route::post('/readiness-assessments/{assessment:public_id}/finalize', [ReadinessAssessmentController::class, 'finalize'])->name('readiness-assessments.finalize');
+    Route::post('/readiness-assessments/{assessment:public_id}/recalculate', [ReadinessAssessmentController::class, 'recalculate'])->name('readiness-assessments.recalculate');
 
     // 27: MFI directory (BEACON_ADMIN)
     Route::prefix('admin/mfis')->name('admin.mfis.')->group(function () {
