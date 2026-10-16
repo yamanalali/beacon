@@ -1,3 +1,4 @@
+import { handleInertiaConflict } from "../../lib/inertiaConflict";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
 import type { CategorySuggestion, TransactionDraft } from "../Transactions/ReviewForm";
 
@@ -34,6 +35,7 @@ export async function sendVoice(url: string, audio: Blob, fetchImpl: typeof fetc
     } catch {
         return { ok: false, kind: "error", message: "تعذّر الاتصال. تحقق من الشبكة وحاول مرة أخرى." };
     }
+    if (res.status === 409 && handleInertiaConflict(res)) return { ok: false, kind: "error", message: "" };
     if (res.status === 404 || res.status === 503) return { ok: false, kind: "unavailable", message: "التسجيل الصوتي غير متاح حالياً. يمكنك إدخال العملية يدوياً." };
     if (res.status === 422) {
         const j = (await res.json().catch(() => null)) as { errors?: Record<string, string[]> } | null;
