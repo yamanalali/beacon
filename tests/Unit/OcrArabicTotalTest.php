@@ -63,6 +63,14 @@ class OcrArabicTotalTest extends TestCase
         $this->assertNull($this->parse("مثل سعر المحل\nالإجمالي 10")->currency, 'no "ل س" across words');
     }
 
+    public function test_aed_is_a_supported_currency_and_kept_on_extraction(): void
+    {
+        $this->assertArrayHasKey('AED', config('bookkeeping.currencies'));
+        foreach (["محل\nالإجمالي 10 درهم", "محل\nالإجمالي 10 د.إ", "Shop\nTotal 10 AED"] as $t) {
+            $this->assertSame('AED', $this->parse($t)->currency);
+        }
+    }
+
     private function extractor(string $langs, array &$calls): TesseractReceiptExtractor
     {
         return new class(new ReceiptTextParser, $langs, $calls) extends TesseractReceiptExtractor
