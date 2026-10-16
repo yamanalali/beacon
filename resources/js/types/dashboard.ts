@@ -13,12 +13,25 @@ export type SmePeriodTotals = {
     count: number;
 };
 
+/** Same item shape as the referral package financial_summary items. */
+export type CurrencyTotals = {
+    currency: string;
+    income_total: MoneyString;
+    expense_total: MoneyString;
+    net: MoneyString;
+    transaction_count: number;
+};
+
 export type SmeDashboardKpis = {
     /** TODO: BUSINESS DECISION REQUIRED — base currency; totals only include this currency. */
     currency: string;
     current_month: SmePeriodTotals;
     previous_month: SmePeriodTotals;
     other_currencies: string[];
+    /** Totals per currency, each summed separately and never converted. Default currency first. */
+    by_currency: { current_month: CurrencyTotals[]; previous_month: CurrencyTotals[] };
+    /** Pending receipt reviews plus non-final transactions; not included in any totals. */
+    unposted_count: number;
     transaction_count: number;
     pending_extractions_count: number;
     readiness_score: string | null;

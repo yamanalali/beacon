@@ -3,6 +3,7 @@
 namespace App\Dashboard;
 
 use App\Ai\Models\AiEscalation;
+use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\Enterprise;
 use App\Models\EnterpriseComplianceRecord;
@@ -156,6 +157,9 @@ class SmeDashboardData
                     ->where('enterprise_id', $enterprise->id)
                     ->where('currency', '!=', $this->currency())
                     ->distinct()->orderBy('currency')->pluck('currency')->all(),
+                // Per-currency totals, no conversion (see byCurrency).
+                'by_currency' => $this->byCurrency($enterprise, $today),
+                'unposted_count' => $this->unpostedCount($enterprise, $pendingExtractions),
                 'transaction_count' => FinancialTransaction::query()->posted()->where('enterprise_id', $enterprise->id)->count(),
                 'pending_extractions_count' => $pendingExtractions,
                 'readiness_score' => $readinessStatus,
@@ -178,11 +182,11 @@ class SmeDashboardData
     }
 
     /** @return array{from: string, to: string, income: string, expense: string, net: string, count: int} */
-    private function period(Enterprise $enterprise, CarbonImmutable $from, CarbonImmutable $to): array
+    private function period(Enterprise $enterprise, CarbonImmutable $from, CarbonImmutable $to, ?string $currency = null): array
     {
         $rows = FinancialTransaction::query()->posted()
             ->where('enterprise_id', $enterprise->id)
-            ->where('currency', $this->currency())
+            ->where('currency', $currency ?? $this->currency())
             ->whereBetween('transaction_date', [$from->toDateString(), $to->toDateString()])
             ->get(['type', 'amount']);
 
@@ -205,6 +209,58 @@ class SmeDashboardData
             'net' => Money::fromMinor($income - $expense),
             'count' => $rows->count(),
         ];
+    }
+
+    /**
+     * Current/previous month totals for every currency the enterprise has posted transactions in.
+     * Each currency is summed on its own; amounts are never converted or added across currencies.
+     *
+     * TODO: BUSINESS DECISION REQUIRED - exchange rate source/date and a reporting currency, if
+     * totals across currencies are ever wanted. Until then each currency stays separate.
+     *
+     * @return array{current_month: list<array{currency: string, income_total: string, expense_total: string, net: string, transaction_count: int}>, previous_month: list<array<string, mixed>>}
+     */
+    private function byCurrency(Enterprise $enterprise, CarbonImmutable $today): array
+    {
+        $currencies = FinancialTransaction::query()->posted()
+            ->where('enterprise_id', $enterprise->id)
+            ->distinct()->orderBy('currency')->pluck('currency')->all();
+
+        // Default currency first so the main card stays stable, then the rest alphabetically.
+        $currencies = array_values(array_unique(array_merge([$this->currency()], $currencies)));
+        $previous = $today->subMonthNoOverflow();
+
+        // Item fields match the referral financial_summary items so the frontend reuses one type.
+        $items = fn (CarbonImmutable $from, CarbonImmutable $to) => array_map(function (string $currency) use ($enterprise, $from, $to) {
+            $p = $this->period($enterprise, $from, $to, $currency);
+
+            return [
+                'currency' => $currency,
+                'income_total' => $p['income'],
+                'expense_total' => $p['expense'],
+                'net' => $p['net'],
+                'transaction_count' => $p['count'],
+            ];
+        }, $currencies);
+
+        return [
+            'current_month' => $items($today->startOfMonth(), $today->endOfMonth()),
+            'previous_month' => $items($previous->startOfMonth(), $previous->endOfMonth()),
+        ];
+    }
+
+    /**
+     * Items not yet counted in the totals: receipt extractions waiting for review, plus any
+     * transaction in a non-final status (neither posted nor superseded by an edit).
+     */
+    private function unpostedCount(Enterprise $enterprise, int $pendingExtractions): int
+    {
+        $transactions = FinancialTransaction::query()
+            ->where('enterprise_id', $enterprise->id)
+            ->whereNotIn('status', [TransactionStatus::Posted->value, TransactionStatus::Superseded->value])
+            ->count();
+
+        return $pendingExtractions + $transactions;
     }
 
     /** @return array<string, mixed> */
