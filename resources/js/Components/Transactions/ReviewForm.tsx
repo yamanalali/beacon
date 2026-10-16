@@ -26,6 +26,10 @@ export type TransactionDraft = {
     suggested_currency_source?: string | null;
     /** Line items read from the receipt/voice (optional; unread values are null). */
     suggested_items?: SuggestedTransactionItem[] | null;
+    /** Voice: items sum ≠ spoken total (non-blocking). */
+    items_mismatch?: boolean;
+    /** Voice: Arabic hint when the amount wording is ambiguous («3000 الاف») or items ≠ total. */
+    suggested_amount_warning?: string | null;
 };
 
 export type ReviewFormData = {
