@@ -49,19 +49,27 @@ class VoiceDraftController extends Controller
         }
 
         $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'note' => null, 'confidence' => null];
-        $suggestedType = $typeSuggester->suggest($text);
+        // Voice-normalized text (e.g. «ليرائي جر محل» -> «ليرائي اجار محل») feeds the suggesters.
+        $catText = $text !== null ? ($p['normalized'] ?? $text) : null;
+        $suggestedType = $typeSuggester->suggest($catText);
         // Categories follow the suggested type (as Extractions/Show does).
         $type = $suggestedType ?? 'expense';
         $allowed = config('bookkeeping.categories.'.$type, []);
-        $suggestion = $text !== null ? $categorizer->suggest($type, $text, $p['counterparty'], $allowed) : null;
+        $suggestion = $text !== null ? $categorizer->suggest($type, $catText, $p['counterparty'], $allowed) : null;
         // Fall back to the keyword categorizer used for receipts (e.g. «اجار» -> rent).
         if ($suggestion === null && $text !== null) {
-            $suggestion = $textCategorizer->suggest($text, $allowed);
+            $suggestion = $textCategorizer->suggest($catText, $allowed);
         }
         if ($suggestion !== null && ! array_key_exists($suggestion->category, $allowed)) {
             $suggestion = null;
         }
         $currencies = array_keys(config('bookkeeping.currencies'));
+        // Manager decision (voice only, not OCR): no spoken currency => suggest the
+        // business base currency (bookkeeping.default_currency, same as the forms), else SYP.
+        $spoken = in_array($p['currency'], $currencies, true) ? $p['currency'] : null;
+        $base = config('bookkeeping.default_currency') ?: 'SYP';
+        $currency = $spoken ?? ($text !== null && in_array($base, $currencies, true) ? $base : null);
+        $currencySource = $spoken !== null ? 'spoken' : ($currency !== null ? 'default' : null);
         $typeOptions = collect(TransactionType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()])->all();
 
         AuditLog::query()->create([
@@ -80,7 +88,9 @@ class VoiceDraftController extends Controller
                 'confidence' => $p['confidence'],
                 'suggested_date' => $p['date'],
                 'suggested_amount' => $p['amount'] !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $p['amount']) ? $p['amount'] : null,
-                'suggested_currency' => in_array($p['currency'], $currencies, true) ? $p['currency'] : null,
+                'suggested_currency' => $currency,
+                // 'spoken' or 'default' (base currency suggested because none was said); null when no currency.
+                'suggested_currency_source' => $currencySource,
                 'suggested_counterparty' => $p['counterparty'],
                 'suggested_transaction_type' => $suggestedType,
                 // e.g. 'لمدة ثلاثة اشهر': prefill the transaction note; never changes the amount.

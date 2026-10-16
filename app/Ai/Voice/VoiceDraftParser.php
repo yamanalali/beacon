@@ -16,7 +16,8 @@ class VoiceDraftParser
     /** Checked in order; "ليرة تركية" before plain "ليرة". Codes outside bookkeeping.currencies are dropped by the caller. */
     private const CURRENCIES = [
         'TRY' => '/((ليرة|ليرات)\s*(تركية|تركي|تركيه)|₺|\bTRY\b)/iu',
-        'SYP' => '/(ليرة|ليرات|ل\.\s?س|\bSYP\b)/iu',
+        // Tolerant to whisper spellings: ليره، ليرا، ليرائي (ليرة+اجار glued), standalone لير.
+        'SYP' => '/((?<![\p{L}])(?:ليرة|ليره|ليرات|ليرا|ليرائي|لير)(?![\p{L}])|ل\.\s?س|\bSYP\b)/iu',
         'USD' => '/(دولار|دولارات|\$|\bUSD\b)/iu',
         'EUR' => '/(يورو|€|\bEUR\b)/iu',
         'AED' => '/(درهم|دراهم|\bAED\b)/iu',
@@ -28,7 +29,7 @@ class VoiceDraftParser
         'اليوم', 'مبارح', 'امبارح', 'أمس', 'امس', 'البارحة', 'أول', 'اول', 'قبل', 'today', 'yesterday',
         'ليرة', 'ليرات', 'تركية', 'تركي', 'سورية', 'دولار', 'دولارات', 'يورو', 'درهم', 'دراهم', 'ريال', 'ريالات',
         'دفعت', 'قبضت', 'اشتريت', 'شريت', 'بعت', 'صرفت', 'استلمت', 'وصلني', 'حطيت',
-        'أجار', 'اجار', 'إيجار', 'ايجار', 'محل', 'لمحل', 'المحل', 'ب', 'بـ', 'من', 'عند', 'على', 'في', 'هاد', 'هذا',
+        'ليره', 'ليرا', 'ليرائي', 'لير', 'جر', 'ئي', 'شقة', 'بيت', 'مكتب', 'عن', 'لـ', 'ل', 'الى', 'إلى', 'مع', 'لمدة', 'مدة', 'و', 'يا', 'أجار', 'اجار', 'إيجار', 'ايجار', 'محل', 'لمحل', 'المحل', 'ب', 'بـ', 'من', 'عند', 'على', 'في', 'هاد', 'هذا',
     ];
 
     private function cleanVendor(string $candidate): ?string
@@ -36,16 +37,35 @@ class VoiceDraftParser
         $words = array_filter(preg_split('/\s+/u', trim($candidate)) ?: [], fn ($w) => $w !== ''
             && ! in_array($w, self::NOT_VENDOR, true) && ! preg_match('/\d/u', $w));
         $name = trim(implode(' ', $words));
+        // A lone short token (e.g. «عن») is never a name.
+        if (count($words) === 1 && mb_strlen($name) <= 2) {
+            return null;
+        }
 
         return mb_strlen($name) >= 2 ? mb_substr($name, 0, 150) : null;
     }
 
     /** @return array{amount:?string,date:?string,counterparty:?string,currency:?string,note:?string,confidence:float} */
     /** "لمدة ثلاثة اشهر", "مدة شهرين", "لمدة سنة"... goes to the note only (manager decision). */
-    private const PERIOD = '/(?:لمدة|لمده|مدة|مده|عن\s+مدة)\s+(?:(?:[\p{L}\d]+)\s+)?(?:شهر|شهرين|أشهر|اشهر|شهور|سنة|سنه|سنتين|سنوات|سنين|أسبوع|اسبوع|أسبوعين|اسبوعين|أسابيع|اسابيع|يوم|يومين|أيام|ايام)(?=\s|[\p{P}]|$)/u';
+    private const PERIOD = '/(?:لمدة|لمده|مدة|مده|عن\s+مدة|عن|ل)\s+(?:(?:[\p{L}\d]+)\s+)?(?:شهر|شهرين|أشهر|اشهر|شهور|سنة|سنه|سنتين|سنوات|سنين|أسبوع|اسبوع|أسبوعين|اسبوعين|أسابيع|اسابيع|يوم|يومين|أيام|ايام)(?=\s|[\p{P}]|$)/u';
+
+    /**
+     * Voice-only fixes for whisper splitting «ليرة اجار» into «ليرائي جر»:
+     * «جر» / «ئي جر» after a lira word, or «جر» before محل/بيت/شقة/مكتب, becomes «اجار»
+     * so the shared category suggesters see rent. Receipt categorizer untouched.
+     */
+    public function normalizeTerms(string $text): string
+    {
+        $t = preg_replace('/(?<![\p{L}])(ليرائي|ليرا|ليره|ليرة|ليرات|لير)\s+(?:ئي\s+)?جر(?![\p{L}])/u', '$1 اجار', $text);
+        $t = preg_replace('/(?<![\p{L}])جر(?=\s+(?:محل|المحل|بيت|البيت|شقة|الشقة|مكتب|المكتب)(?![\p{L}]))/u', 'اجار', $t);
+
+        return $t;
+    }
 
     public function parse(string $text): array
     {
+        $text = $this->normalizeTerms($text);
+        $normalized = $text;
         // A period phrase is kept verbatim as a note and removed before reading the
         // amount, so "3 اشهر" never becomes or multiplies the amount.
         $note = preg_match(self::PERIOD, $text, $pm) ? trim($pm[0]) : null;
@@ -67,7 +87,7 @@ class VoiceDraftParser
         };
 
         $counterparty = null;
-        if (preg_match('/(?:لمحل|محل|من عند|عند|لـ|إلى|الى|من)\s+([\p{L}][\p{L}\s]{1,40}?)(?=\s+(?:أجار|اجار|ب|بـ|\d)|[\.,،]|$)/u', $t, $c)) {
+        if (preg_match('/(?:لمحل|محل|من عند|عند|لـ|إلى|الى|من)\s+([\p{L}][\p{L}\s]{1,40}?)(?=\s+(?:أجار|اجار|ب|بـ|اليوم|مبارح|امبارح|امس|أمس|\d)|[\.,،]|$)/u', $t, $c)) {
             $counterparty = $this->cleanVendor($c[1]);
         }
 
@@ -81,6 +101,6 @@ class VoiceDraftParser
 
         $found = count(array_filter([$amount, $date, $counterparty]));
 
-        return compact('amount', 'date', 'counterparty', 'currency', 'note') + ['confidence' => round(min(0.5, 0.15 * $found), 2)];
+        return compact('amount', 'date', 'counterparty', 'currency', 'note', 'normalized') + ['confidence' => round(min(0.5, 0.15 * $found), 2)];
     }
 }
