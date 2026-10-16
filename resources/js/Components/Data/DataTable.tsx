@@ -2,6 +2,7 @@ import { router } from "@inertiajs/react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { EmptyState } from "../Feedback/EmptyState";
 import { formatNumber, type NumberFormat } from "./format";
+import "../../../css/datatable.css";
 
 export type Column<T> = {
     key: string;
