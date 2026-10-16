@@ -1,0 +1,111 @@
+/*
+ * Beacon design tokens: the ONLY place colours, type, spacing, radius and shadows are defined.
+ * TODO: BUSINESS DECISION REQUIRED: brand colours, logo and font are provisional
+ * (deep indigo + teal accent, IBM Plex Sans Arabic). Replace the values here only.
+ */
+:root:root {
+    /* Brand */
+    --app-primary: #3730A3;          /* deep indigo */
+    --app-primary-rgb: 55, 48, 163;
+    --app-primary-dark: #282380;
+    --app-primary-soft: #EEF0FF;
+    --app-accent: #0EA5A4;           /* vivid teal */
+    --app-accent-rgb: 14, 165, 164;
+    --app-accent-soft: #E3F7F6;
+    --app-gradient-sidebar: linear-gradient(180deg, #1E1B4B 0%, #312E81 60%, #0F766E 140%);
+    --app-gradient-hero: linear-gradient(135deg, #3730A3 0%, #4F46E5 55%, #0EA5A4 100%);
+
+    /* Surfaces & text */
+    --app-background: #F4F5FB;       /* tinted, not pure white */
+    --app-surface: #FFFFFF;
+    --app-surface-muted: #F8F9FD;
+    --app-text: #1B1F3B;
+    --app-text-muted: #5D6382;
+    --app-border: #E3E6F2;
+
+    /* Status */
+    --app-success: #15803D; --app-success-soft: #E6F6EC;
+    --app-warning: #B45309; --app-warning-soft: #FEF3E2;
+    --app-danger: #B91C1C;  --app-danger-soft: #FDECEC;
+    --app-info: #0369A1;    --app-info-soft: #E5F2FA;
+
+    /* KPI tile palette */
+    --app-kpi-1: #4F46E5; --app-kpi-1-soft: #EEF0FF;
+    --app-kpi-2: #0EA5A4; --app-kpi-2-soft: #E3F7F6;
+    --app-kpi-3: #D97706; --app-kpi-3-soft: #FEF3E2;
+    --app-kpi-4: #DB2777; --app-kpi-4-soft: #FDEBF4;
+    --app-kpi-5: #059669; --app-kpi-5-soft: #E6F6EC;
+
+    /* Type: provisional font + 32/26/20/17/16/14/13 scale */
+    --app-font-family: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
+    --app-fs-display: 32px;
+    --app-fs-h1: 26px;
+    --app-fs-h2: 20px;
+    --app-fs-h3: 17px;
+    --app-fs-body: 16px;
+    --app-fs-sm: 14px;
+    --app-fs-xs: 13px;
+
+    /* Spacing: 4px grid */
+    --app-space-1: 4px;  --app-space-2: 8px;  --app-space-3: 12px; --app-space-4: 16px;
+    --app-space-5: 20px; --app-space-6: 24px; --app-space-8: 32px; --app-space-10: 40px;
+
+    /* Shape & depth */
+    --app-radius-sm: 8px;
+    --app-radius: 12px;
+    --app-radius-lg: 16px;
+    --app-radius-pill: 999px;
+    --app-shadow-sm: 0 1px 2px rgba(27, 31, 59, 0.06);
+    --app-shadow: 0 4px 16px rgba(27, 31, 59, 0.07);
+    --app-shadow-lg: 0 12px 32px rgba(27, 31, 59, 0.12);
+    --app-bottom-nav-space: 128px;
+
+    /* Bootstrap overrides */
+    --bs-primary: var(--app-primary);
+    --bs-primary-rgb: var(--app-primary-rgb);
+    --bs-link-color: var(--app-primary);
+    --bs-link-color-rgb: var(--app-primary-rgb);
+    --bs-link-hover-color: var(--app-primary-dark);
+    --bs-body-font-family: var(--app-font-family);
+    --bs-body-font-size: var(--app-fs-body);
+    --bs-body-line-height: 1.6;
+    --bs-body-bg: var(--app-background);
+    --bs-body-color: var(--app-text);
+    --bs-secondary-color: var(--app-text-muted);
+    --bs-border-color: var(--app-border);
+    --bs-border-radius: var(--app-radius);
+    --bs-border-radius-sm: var(--app-radius-sm);
+    --bs-border-radius-lg: var(--app-radius-lg);
+    --bs-success: var(--app-success);
+    --bs-warning: var(--app-warning);
+    --bs-danger: var(--app-danger);
+    --bs-focus-ring-color: rgba(var(--app-primary-rgb), 0.3);
+    color-scheme: light;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--app-primary);
+    --bs-btn-border-color: var(--app-primary);
+    --bs-btn-hover-bg: var(--app-primary-dark);
+    --bs-btn-hover-border-color: var(--app-primary-dark);
+    --bs-btn-active-bg: var(--app-primary-dark);
+    --bs-btn-active-border-color: var(--app-primary-dark);
+    --bs-btn-disabled-bg: var(--app-primary);
+    --bs-btn-disabled-border-color: var(--app-primary);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--app-primary);
+    --bs-btn-border-color: var(--app-primary);
+    --bs-btn-hover-bg: var(--app-primary);
+    --bs-btn-hover-border-color: var(--app-primary);
+    --bs-btn-active-bg: var(--app-primary-dark);
+}
+
+.app-display { font-size: var(--app-fs-display); font-weight: 700; line-height: 1.25; }
+h1, .h1 { font-size: var(--app-fs-h1); font-weight: 700; }
+h2, .h2 { font-size: var(--app-fs-h2); font-weight: 600; }
+h3, .h3 { font-size: var(--app-fs-h3); font-weight: 600; }
+.small, small { font-size: var(--app-fs-sm); }
+.app-text-xs { font-size: var(--app-fs-xs); }
+
+html body { font-family: var(--app-font-family); background-color: var(--app-background); color: var(--app-text); }
