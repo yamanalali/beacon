@@ -6,6 +6,7 @@ vi.mock("@inertiajs/react", () => ({ router: { post: vi.fn() }, usePage: () => (
 vi.mock("../../Layouts/AppLayout", () => ({ default: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
 
 import Show from "./Show";
+import type { ReferralPackage } from "../../types/referrals";
 import { humanizeKey } from "../../Components/Referrals/PackageView";
 
 afterEach(cleanup);
@@ -18,7 +19,8 @@ const pkg = {
     documents: [{ title: "السجل التجاري", type: "registration", uploaded_at: "2026-09-01", storage_path: "x/y.pdf", public_id: "01ABC" }],
     risk_flags: ["late_payments"],
     extra_meta: { weird_field: { nested_key: true } },
-};
+    // Deliberately off-contract: PackageView must stay readable for unknown/legacy shapes.
+} as unknown as ReferralPackage;
 
 const props = {
     referral: { public_id: "R1", institution: "مؤسسة التمويل", status: "shared", status_label: "تمت المشاركة", purpose_ar: "تمويل معدات", disclosed_items: [{ key: "enterprise_profile", label: "الملف التعريفي" }], info_request_note: "أرسلوا كشف حساب", decision_note: null, outcome_note: "تمت الموافقة" },
