@@ -7,7 +7,7 @@ import { MobileAppHeader } from "./MobileAppHeader";
 import { MobileBottomNavigation } from "./MobileBottomNavigation";
 
 export default function AppLayout({ title, children }: { title: string; children: React.ReactNode }) {
-    const { locale, dir } = usePage().props;
+    const { locale, dir, flash } = usePage().props;
 
     useEffect(() => {
         document.documentElement.lang = locale;
@@ -25,6 +25,14 @@ export default function AppLayout({ title, children }: { title: string; children
                 <MobileAppHeader title={title} />
                 <DesktopTopbar title={title} />
                 <main id="main-content" className="app-content flex-grow-1">
+                    {flash?.success ? (
+                        <div className="app-page pb-0">
+                            <div className="alert alert-success mb-0" role="status">
+                                <i className="bi bi-check-circle me-2" aria-hidden="true" />
+                                {flash.success}
+                            </div>
+                        </div>
+                    ) : null}
                     {children}
                 </main>
             </div>

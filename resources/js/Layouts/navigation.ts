@@ -2,6 +2,7 @@ export type NavItem = {
     key: string;
     label: string;
     icon: string;
+    href?: string;
 };
 
 export function isHomePath(url: string): boolean {
@@ -23,14 +24,14 @@ export const homeItem: NavItem = {
 };
 
 export const mobileSoonItems: NavItem[] = [
-    { key: "transactions", label: "المعاملات", icon: "bi-cash-stack" },
+    { key: "transactions", label: "المعاملات", icon: "bi-cash-stack", href: "/transactions" },
     { key: "reports", label: "التقارير", icon: "bi-file-earmark-text" },
     { key: "readiness", label: "الجاهزية", icon: "bi-shield-check" },
 ];
 
 export const moreSoonItems: NavItem[] = [
     { key: "compliance", label: "الامتثال", icon: "bi-patch-check" },
-    { key: "documents", label: "المستندات", icon: "bi-folder2" },
+    { key: "documents", label: "المستندات", icon: "bi-folder2", href: "/documents" },
     { key: "assistant", label: "المساعد", icon: "bi-chat-dots" },
     { key: "referrals", label: "الإحالات", icon: "bi-send" },
 ];
@@ -45,7 +46,7 @@ export const desktopGroups: { label: string; items: NavItem[] }[] = [
     {
         label: "المالية",
         items: [
-            { key: "transactions", label: "المعاملات", icon: "bi-cash-stack" },
+            { key: "transactions", label: "المعاملات", icon: "bi-cash-stack", href: "/transactions" },
             { key: "reports", label: "التقارير", icon: "bi-file-earmark-text" },
         ],
     },
@@ -60,6 +61,6 @@ export const desktopGroups: { label: string; items: NavItem[] }[] = [
 ];
 
 export const desktopSingleItems: NavItem[] = [
-    { key: "documents", label: "المستندات", icon: "bi-folder2" },
+    { key: "documents", label: "المستندات", icon: "bi-folder2", href: "/documents" },
     { key: "assistant", label: "المساعد", icon: "bi-chat-dots" },
 ];

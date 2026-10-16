@@ -11,6 +11,9 @@ export type BeaconSharedProps = PageProps & {
     auth: {
         user: AuthUser | null;
     };
+    flash?: {
+        success?: string | null;
+    };
 };
 
 declare module "@inertiajs/core" {

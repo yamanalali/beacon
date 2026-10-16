@@ -121,8 +121,17 @@ export default function Show({
                     <Line label="ملاحظة الجاهزية المالية الأولية" value={enterprise.initial_financial_readiness_note} />
                 </SectionCard>
 
-                <SectionCard title="المستندات">
-                    <EmptyState title="لا توجد مستندات بعد" />
+                <SectionCard title="المعاملات والمستندات">
+                    <div className="d-flex flex-wrap gap-2">
+                        <Link href={`/enterprises/${enterprise.public_id}/transactions`} className="btn btn-primary" style={{ minHeight: '48px' }}>
+                            <i className="bi bi-cash-stack me-2" aria-hidden="true" />
+                            المعاملات المالية
+                        </Link>
+                        <Link href={`/enterprises/${enterprise.public_id}/documents`} className="btn btn-outline-primary" style={{ minHeight: '48px' }}>
+                            <i className="bi bi-folder2 me-2" aria-hidden="true" />
+                            المستندات
+                        </Link>
+                    </div>
                 </SectionCard>
 
                 <SectionCard title="الموافقة">
