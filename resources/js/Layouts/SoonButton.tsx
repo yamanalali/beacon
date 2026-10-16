@@ -1,5 +1,5 @@
 import { Link, usePage } from "@inertiajs/react";
-import type { NavItem } from "./navigation";
+import { isNavItemActive, type NavItem } from "./navigation";
 
 type SoonButtonProps = {
     item: NavItem;
@@ -11,12 +11,15 @@ type SoonButtonProps = {
  * Renders a real navigation link when the module is available (item.href),
  * otherwise a disabled "coming soon" button.
  */
-export function SoonButton({ item, className, soonClassName = "app-soon" }: SoonButtonProps) {
+export function SoonButton({
+    item,
+    className,
+    soonClassName = "app-soon",
+}: SoonButtonProps) {
     const { url } = usePage();
 
     if (item.href) {
-        const path = url.split("?")[0] ?? "";
-        const active = path === item.href || path.includes(`/${item.key}`);
+        const active = isNavItemActive(item, url);
 
         return (
             <Link

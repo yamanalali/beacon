@@ -1,4 +1,9 @@
-import type { ChangeEvent } from 'react';
+import {
+    useState,
+    type ChangeEvent,
+    type HTMLInputTypeAttribute,
+    type InputHTMLAttributes,
+} from "react";
 
 export function TextInput(props: {
     id: string;
@@ -7,44 +12,83 @@ export function TextInput(props: {
     value: string;
     onChange: (value: string) => void;
     error?: string;
-    type?: string;
+    type?: HTMLInputTypeAttribute;
     help?: string;
+    autoComplete?: string;
+    inputMode?: InputHTMLAttributes<HTMLInputElement>["inputMode"];
 }) {
-    const { id, label, name, value, onChange, error, type = 'text', help } = props;
+    const {
+        id,
+        label,
+        name,
+        value,
+        onChange,
+        error,
+        type = "text",
+        help,
+        autoComplete,
+        inputMode,
+    } = props;
+    const [visible, setVisible] = useState(false);
+    const isPassword = type === "password";
     const helpId = help ? `${id}-help` : undefined;
     const errorId = error ? `${id}-error` : undefined;
-    const describedBy = [helpId, errorId].filter(Boolean).join(' ') || undefined;
+    const describedBy =
+        [helpId, errorId].filter(Boolean).join(" ") || undefined;
+    const mode =
+        inputMode ??
+        (/amount/.test(name)
+            ? "decimal"
+            : /phone/.test(name)
+              ? "tel"
+              : undefined);
 
     return (
         <div className="mb-3 w-100">
-            <label
-                htmlFor={id}
-                className="form-label mb-1 fw-semibold"
-                style={{
-                    fontSize: '0.9375rem',
-                    color: 'var(--app-text, #1c1917)',
-                }}
-            >
+            <label htmlFor={id} className="form-label">
                 {label}
             </label>
-            <input
-                id={id}
-                name={name}
-                type={type}
-                value={value}
-                className={`form-control w-100${error ? ' is-invalid' : ''}`}
-                style={{ minHeight: '48px', fontSize: '16px' }}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={describedBy}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
-            />
+            <div className={isPassword ? "app-password-field" : undefined}>
+                <input
+                    id={id}
+                    name={name}
+                    type={isPassword && visible ? "text" : type}
+                    value={value}
+                    className={`form-control w-100${error ? " is-invalid" : ""}`}
+                    autoComplete={autoComplete}
+                    inputMode={mode}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={describedBy}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                        onChange(event.target.value)
+                    }
+                />
+                {isPassword ? (
+                    <button
+                        type="button"
+                        className="app-password-toggle"
+                        onClick={() => setVisible(!visible)}
+                        aria-label={`${visible ? "إخفاء" : "إظهار"} ${label}`}
+                        aria-pressed={visible}
+                    >
+                        <i
+                            className={`bi ${visible ? "bi-eye-slash" : "bi-eye"}`}
+                            aria-hidden="true"
+                        />
+                    </button>
+                ) : null}
+            </div>
             {help ? (
-                <div id={helpId} className="form-text" style={{ fontSize: '0.875rem' }}>
+                <div id={helpId} className="form-text">
                     {help}
                 </div>
             ) : null}
             {error ? (
-                <div id={errorId} className="invalid-feedback d-block" role="alert" style={{ fontSize: '0.875rem' }}>
+                <div
+                    id={errorId}
+                    className="invalid-feedback d-block"
+                    role="alert"
+                >
                     {error}
                 </div>
             ) : null}

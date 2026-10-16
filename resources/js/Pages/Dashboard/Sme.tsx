@@ -1,3 +1,5 @@
+import { Link } from "@inertiajs/react";
+import { QuickLinks } from "../../Components/Common/QuickLinks";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
@@ -22,28 +24,107 @@ function List({ items, empty }: { items: SummaryItem[]; empty: string }) {
     return (
         <ul className="list-group list-group-flush">
             {items.map((i) => (
-                <li key={i.id} className="list-group-item px-0 d-flex justify-content-between gap-2">
+                <li
+                    key={i.id}
+                    className="list-group-item px-0 d-flex justify-content-between gap-2"
+                >
                     <span>{i.title}</span>
-                    {i.meta ? <bdi dir="ltr" className="text-body-secondary small">{i.meta}</bdi> : null}
+                    {i.meta ? (
+                        <bdi dir="ltr" className="text-body-secondary small">
+                            {i.meta}
+                        </bdi>
+                    ) : null}
                 </li>
             ))}
         </ul>
     );
 }
 
-export default function Sme({ recentActivity = [], outstandingActions = [], upcomingDeadlines = [], readinessStatus = null, referralStatus = null }: Props) {
+export default function Sme({
+    recentActivity = [],
+    outstandingActions = [],
+    upcomingDeadlines = [],
+    readinessStatus = null,
+    referralStatus = null,
+}: Props) {
     return (
         <AppLayout title="الرئيسية">
             <div className="app-page">
-                <PageHeader title="ملخص منشأتك" description="آخر النشاطات وما يحتاج إجراء منك." />
+                <PageHeader
+                    title="ملخص منشأتك"
+                    description="آخر النشاطات وما يحتاج إجراء منك."
+                />
+                <div className="app-overview-banner">
+                    <div>
+                        <h2>أعمالك اليوم، بصورة أوضح</h2>
+                        <p>سجّل عملياتك أولاً بأول، وتابع ما يحتاج اهتمامك.</p>
+                    </div>
+                    <Link href="/transactions" className="btn btn-primary">
+                        <i className="bi bi-wallet2 me-2" aria-hidden="true" />
+                        عرض المعاملات
+                    </Link>
+                </div>
+                <QuickLinks
+                    items={[
+                        {
+                            href: "/transactions",
+                            label: "المعاملات",
+                            description: "المبيعات والمصاريف والدفعات",
+                            icon: "bi-wallet2",
+                        },
+                        {
+                            href: "/reports",
+                            label: "التقارير",
+                            description: "افهم وضع منشأتك المالي",
+                            icon: "bi-bar-chart-line",
+                        },
+                        {
+                            href: "/documents",
+                            label: "المستندات",
+                            description: "كل وثائقك في مكان واحد",
+                            icon: "bi-folder2-open",
+                        },
+                    ]}
+                />
                 <div className="row g-3">
-                    <div className="col-12 col-lg-6"><SectionCard title="إجراءات مطلوبة"><List items={outstandingActions} empty="لا توجد إجراءات مطلوبة" /></SectionCard></div>
-                    <div className="col-12 col-lg-6"><SectionCard title="مواعيد امتثال قريبة"><List items={upcomingDeadlines} empty="لا توجد مواعيد قريبة" /></SectionCard></div>
-                    <div className="col-12 col-lg-6"><SectionCard title="آخر النشاط المالي"><List items={recentActivity} empty="لا يوجد نشاط مالي بعد" /></SectionCard></div>
+                    <div className="col-12 col-lg-6">
+                        <SectionCard title="إجراءات مطلوبة">
+                            <List
+                                items={outstandingActions}
+                                empty="لا توجد إجراءات مطلوبة"
+                            />
+                        </SectionCard>
+                    </div>
+                    <div className="col-12 col-lg-6">
+                        <SectionCard title="مواعيد امتثال قريبة">
+                            <List
+                                items={upcomingDeadlines}
+                                empty="لا توجد مواعيد قريبة"
+                            />
+                        </SectionCard>
+                    </div>
+                    <div className="col-12 col-lg-6">
+                        <SectionCard title="آخر النشاط المالي">
+                            <List
+                                items={recentActivity}
+                                empty="لا يوجد نشاط مالي بعد"
+                            />
+                        </SectionCard>
+                    </div>
                     <div className="col-12 col-lg-6">
                         <SectionCard title="الجاهزية والإحالة">
-                            <p className="mb-1">حالة الجاهزية: <strong>{readinessStatus ?? "غير متاحة بعد"}</strong></p>
-                            {referralStatus ? <p className="mb-0">حالة الإحالة: <strong>{referralStatus}</strong></p> : null}
+                            <p className="mb-1">
+                                حالة الجاهزية:{" "}
+                                <strong>
+                                    {readinessStatus ?? "غير متاحة بعد"}
+                                </strong>
+                            </p>
+                            {referralStatus ? (
+                                <p className="mb-0">
+                                    حالة الإحالة:{" "}
+                                    <strong>{referralStatus}</strong>
+                                </p>
+                            ) : null}
                         </SectionCard>
                     </div>
                 </div>

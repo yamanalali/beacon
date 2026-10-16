@@ -33,7 +33,11 @@ export default function Create({ roles }: CreateUserProps) {
             <div className="app-page">
                 <PageHeader title="إضافة حساب" />
                 <SectionCard title="بيانات الحساب">
-                    <form onSubmit={submit} noValidate style={{ maxWidth: "40rem" }}>
+                    <form
+                        onSubmit={submit}
+                        noValidate
+                        style={{ maxWidth: "40rem" }}
+                    >
                         <TextInput
                             id="name"
                             name="name"
@@ -55,22 +59,31 @@ export default function Create({ roles }: CreateUserProps) {
                             id="password"
                             name="password"
                             type="password"
+                            autoComplete="new-password"
                             label="كلمة المرور"
                             value={form.data.password}
                             error={form.errors.password}
-                            onChange={(value) => form.setData("password", value)}
+                            onChange={(value) =>
+                                form.setData("password", value)
+                            }
                         />
                         <TextInput
                             id="password_confirmation"
                             name="password_confirmation"
                             type="password"
+                            autoComplete="new-password"
                             label="تأكيد كلمة المرور"
                             value={form.data.password_confirmation}
                             error={form.errors.password_confirmation}
-                            onChange={(value) => form.setData("password_confirmation", value)}
+                            onChange={(value) =>
+                                form.setData("password_confirmation", value)
+                            }
                         />
                         <div className="mb-3">
-                            <label htmlFor="role" className="form-label fw-semibold">
+                            <label
+                                htmlFor="role"
+                                className="form-label fw-semibold"
+                            >
                                 الدور
                             </label>
                             <select
@@ -79,7 +92,9 @@ export default function Create({ roles }: CreateUserProps) {
                                 className={`form-select${form.errors.role ? " is-invalid" : ""}`}
                                 style={{ minHeight: "48px", fontSize: "16px" }}
                                 value={form.data.role}
-                                onChange={(event) => form.setData("role", event.target.value)}
+                                onChange={(event) =>
+                                    form.setData("role", event.target.value)
+                                }
                             >
                                 {roles.map((role) => (
                                     <option key={role.value} value={role.value}>
@@ -88,16 +103,28 @@ export default function Create({ roles }: CreateUserProps) {
                                 ))}
                             </select>
                             {form.errors.role ? (
-                                <div className="invalid-feedback d-block" role="alert">
+                                <div
+                                    className="invalid-feedback d-block"
+                                    role="alert"
+                                >
                                     {form.errors.role}
                                 </div>
                             ) : null}
                         </div>
                         <div className="d-flex gap-2">
-                            <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }} disabled={form.processing}>
+                            <button
+                                type="submit"
+                                className="btn btn-primary"
+                                style={{ minHeight: "48px" }}
+                                disabled={form.processing}
+                            >
                                 حفظ الحساب
                             </button>
-                            <Link href="/users" className="btn btn-outline-secondary" style={{ minHeight: "48px" }}>
+                            <Link
+                                href="/users"
+                                className="btn btn-outline-secondary"
+                                style={{ minHeight: "48px" }}
+                            >
                                 إلغاء
                             </Link>
                         </div>
