@@ -130,3 +130,31 @@ describe("«مقترح» badge", () => {
         expect(screen.queryByText("مقترح")).toBeNull();
     });
 });
+
+describe("suggested_note", () => {
+    const noteBox = () => screen.getByLabelText(/ملاحظة/) as HTMLInputElement;
+    const renderWith = (draft: TransactionDraft) =>
+        render(<ReviewForm draft={draft} data={initialReviewData(draft, "expense", options, null)} setData={() => {}} options={options} suggestion={null} onSubmit={() => {}} />);
+    const base: TransactionDraft = { suggested_date: null, suggested_amount: null, suggested_currency: null, suggested_counterparty: null };
+
+    it("prefills the note and shows the badge when filled", () => {
+        expect(initialReviewData({ ...base, suggested_note: "إيجار شهر تشرين" }, "expense", options, null).description).toBe("إيجار شهر تشرين");
+        renderWith({ ...base, suggested_note: "إيجار شهر تشرين" });
+        expect(noteBox().value).toBe("إيجار شهر تشرين");
+        expect(screen.getAllByText("مقترح").length).toBe(1);
+    });
+
+    it.each([null, "", "   "])("leaves the note empty with no badge for %j", (note) => {
+        expect(initialReviewData({ ...base, suggested_note: note }, "expense", options, null).description).toBe("");
+        renderWith({ ...base, suggested_note: note });
+        expect(noteBox().value).toBe("");
+        expect(screen.queryByText("مقترح")).toBeNull();
+    });
+
+    it("is safe when the server doesn't send suggested_note", () => {
+        expect(initialReviewData(base, "expense", options, null).description).toBe("");
+        renderWith(base);
+        expect(noteBox().value).toBe("");
+        expect(screen.queryByText("مقترح")).toBeNull();
+    });
+});
