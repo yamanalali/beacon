@@ -72,12 +72,17 @@ export function PreviewPanel({ ruleSet, fetcher = serverPreview, delay = 300 }: 
                 </div>
             </div>
             <div className="col-12 col-lg-7">
-                {result ? (
+                {!result ? <p className="text-muted">جارٍ الحساب…</p> : "rejected" in result ? (
+                    <div className="alert alert-warning" role="status" data-testid="preview-rejected">
+                        <strong>لا يمكن المعاينة قبل إكمال القواعد:</strong>
+                        <ul className="mb-0">{result.rejected.map((m, i) => <li key={i}>{m}</li>)}</ul>
+                    </div>
+                ) : (
                     <>
-                        {result.source === "client" ? <p className="form-text" data-testid="preview-source">محسوبة في المتصفح (خدمة المعاينة غير متاحة بعد).</p> : null}
+                        {result.source === "client" ? <p className="form-text" data-testid="preview-source">محسوبة في المتصفح (تعذّر الوصول إلى خدمة المعاينة).</p> : null}
                         <AssessmentResult breakdown={result.breakdown} />
                     </>
-                ) : <p className="text-muted">جارٍ الحساب…</p>}
+                )}
             </div>
         </div>
     );

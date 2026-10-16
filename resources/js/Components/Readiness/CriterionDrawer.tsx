@@ -81,7 +81,14 @@ function ConfigFields({ c, set, readOnly }: { c: Criterion; set: (c: Criterion) 
 }
 
 /** Side drawer (start side in RTL = right on desktop, full width on mobile) to edit one criterion. */
-export function CriterionDrawer({ criterion, pillars, onSave, onClose, readOnly }: { criterion: Criterion | null; pillars: Pillar[]; onSave: (c: Criterion) => void; onClose: () => void; readOnly?: boolean }) {
+const FieldError = ({ msg }: { msg?: string }) => (msg ? <div className="invalid-feedback d-block" role="alert">{msg}</div> : null);
+
+export function CriterionDrawer({ criterion, pillars, onSave, onClose, readOnly, errors = {}, saving }: {
+    criterion: Criterion | null; pillars: Pillar[]; onSave: (c: Criterion) => void; onClose: () => void; readOnly?: boolean;
+    /** Server validation errors (422) keyed by field, e.g. "code", "weight", "config.bands". */
+    errors?: Record<string, string>; saving?: boolean;
+}) {
+    const configErrors = Object.entries(errors).filter(([k]) => k === "_" || k === "config" || k.startsWith("config.")).map(([, v]) => v);
     const [c, setC] = useState<Criterion | null>(criterion);
     const titleId = useId();
     useEffect(() => setC(criterion), [criterion]);
@@ -105,17 +112,18 @@ export function CriterionDrawer({ criterion, pillars, onSave, onClose, readOnly 
                 </div>
                 <div className="offcanvas-body">
                     <form className="d-flex flex-column gap-3" onSubmit={(e) => { e.preventDefault(); onSave(c); }}>
-                        <div><label className="form-label" htmlFor="cr-code">الرمز</label><input id="cr-code" dir="ltr" className="form-control" value={c.code} disabled={readOnly} onChange={(e) => setC({ ...c, code: e.target.value })} /></div>
-                        <div><label className="form-label" htmlFor="cr-label">الاسم</label><input id="cr-label" className="form-control" value={c.label_ar} disabled={readOnly} onChange={(e) => setC({ ...c, label_ar: e.target.value })} /></div>
+                        <div><label className="form-label" htmlFor="cr-code">الرمز</label><input id="cr-code" dir="ltr" className="form-control" value={c.code} disabled={readOnly} onChange={(e) => setC({ ...c, code: e.target.value })} /><FieldError msg={errors.code} /></div>
+                        <div><label className="form-label" htmlFor="cr-label">الاسم</label><input id="cr-label" className="form-control" value={c.label_ar} disabled={readOnly} onChange={(e) => setC({ ...c, label_ar: e.target.value })} /><FieldError msg={errors.label_ar} /></div>
                         <div className="row g-2">
                             <div className="col-6">
                                 <label className="form-label" htmlFor="cr-pillar">المحور</label>
                                 <select id="cr-pillar" className="form-select" value={c.readiness_pillar_id ?? ""} disabled={readOnly} onChange={(e) => setC({ ...c, readiness_pillar_id: e.target.value === "" ? null : Number(e.target.value) })}>
                                     <option value="">غير مصنف</option>
-                                    {pillars.map((p) => <option key={p.id} value={p.id}>{p.label_ar || p.code}</option>)}
+                                    {pillars.filter((p) => p.id > 0).map((p) => <option key={p.id} value={p.id}>{p.label_ar || p.code}</option>)}
                                 </select>
+                                <FieldError msg={errors.readiness_pillar_id} />
                             </div>
-                            <div className="col-6"><label className="form-label" htmlFor="cr-weight">الوزن داخل المحور</label><input id="cr-weight" type="number" min={0} step="any" dir="ltr" className="form-control" value={show(c.weight)} disabled={readOnly} onChange={(e) => setC({ ...c, weight: e.target.value })} /></div>
+                            <div className="col-6"><label className="form-label" htmlFor="cr-weight">الوزن داخل المحور</label><input id="cr-weight" type="number" min={0} step="any" dir="ltr" className="form-control" value={show(c.weight)} disabled={readOnly} onChange={(e) => setC({ ...c, weight: e.target.value })} /><FieldError msg={errors.weight} /></div>
                         </div>
                         <div>
                             <label className="form-label" htmlFor="cr-type">نوع المعيار</label>
@@ -124,6 +132,7 @@ export function CriterionDrawer({ criterion, pillars, onSave, onClose, readOnly 
                             </select>
                         </div>
                         <ConfigFields c={c} set={setC} readOnly={readOnly} />
+                        {configErrors.length ? <div className="alert alert-danger py-2 small mb-0" role="alert">{configErrors.map((m, i) => <div key={i}>{m}</div>)}</div> : null}
                         <div>
                             <label className="form-label" htmlFor="cr-missing">عند غياب البيانات</label>
                             <select id="cr-missing" className="form-select" value={c.missing_data_treatment} disabled={readOnly} onChange={(e) => setC({ ...c, missing_data_treatment: e.target.value as MissingDataTreatment })}>
@@ -136,7 +145,7 @@ export function CriterionDrawer({ criterion, pillars, onSave, onClose, readOnly 
                         </div>
                         <div className="d-flex gap-2 justify-content-end border-top pt-3">
                             <button type="button" className="btn btn-outline-primary" onClick={onClose}>{readOnly ? "إغلاق" : "إلغاء"}</button>
-                            {!readOnly ? <button type="submit" className="btn btn-primary">حفظ المعيار</button> : null}
+                            {!readOnly ? <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "جارٍ الحفظ…" : "حفظ المعيار"}</button> : null}
                         </div>
                     </form>
                 </div>

@@ -1,5 +1,5 @@
 import type { ChoiceOption, Criterion, CriterionBreakdown, CriterionConfig, CriterionType, NumericBand, Pillar, PillarBreakdown, ResultOutcome, ScoreBand, ScoreBreakdown, ScoreImprovement } from "../../types/readiness";
-import type { Answers, AnswerValue, ColorToken, RuleSetDraft, RuleSetExport } from "./types";
+import { IMPLICIT_PILLAR, type Answers, type AnswerValue, type ColorToken, type RuleSetDraft, type RuleSetExport } from "./types";
 
 /**
  * Client-side mirror of the scoring described for ReadinessScorer v2. The server preview is the source of
@@ -122,19 +122,28 @@ export function bandFor(bands: ScoreBand[], score: number | null): ScoreBand | n
 }
 
 /**
- * Criteria without a known pillar go to an implicit pillar (code null).
- * TODO: BUSINESS DECISION REQUIRED - the implicit pillar's weight in the total. Placeholder: mean of explicit pillar weights (1 if none).
+ * Pillar weights, mirroring ReadinessScorer (backend #74 @ 21cfd16, manager decision in BEACON-DECISIONS.md):
+ * a pillar without an admin weight (empty/0, including the implicit pillar of pillar-less criteria) gets an equal
+ * share: 1 when no pillar has a weight, otherwise the average of the admin-set weights. Only pillars that hold
+ * criteria take part (same as the server). Criterion weights have no default: they must be > 0.
  */
+export function resolvePillarWeights(weights: (number | null)[]): number[] {
+    const set = weights.filter((w): w is number => w !== null && Number.isFinite(w) && w > 0);
+    const fallback = set.length === 0 ? 1 : set.reduce((a, b) => a + b, 0) / set.length;
+    return weights.map((w) => (w !== null && Number.isFinite(w) && w > 0 ? w : fallback));
+}
+
+/** Criteria without a known pillar go to an implicit pillar (code "_default"). Pillars without criteria are left out. */
 export function groupPillars(rs: Pick<RuleSetDraft, "pillars" | "criteria">): { pillar: Pillar | null; weight: number; criteria: Criterion[] }[] {
     const pillars = sortByOrder(rs.pillars);
     const known = new Set(pillars.map((p) => p.id));
-    const groups: { pillar: Pillar | null; weight: number; criteria: Criterion[] }[] = pillars.map((pillar) => ({ pillar, weight: num(pillar.weight), criteria: sortByOrder(rs.criteria.filter((c) => c.readiness_pillar_id === pillar.id)) }));
+    const groups: { pillar: Pillar | null; raw: number | null; criteria: Criterion[] }[] = pillars
+        .map((pillar) => ({ pillar, raw: Number.isFinite(num(pillar.weight)) ? num(pillar.weight) : null, criteria: sortByOrder(rs.criteria.filter((c) => c.readiness_pillar_id === pillar.id)) }))
+        .filter((g) => g.criteria.length > 0);
     const loose = sortByOrder(rs.criteria.filter((c) => c.readiness_pillar_id === null || !known.has(c.readiness_pillar_id)));
-    if (loose.length > 0) {
-        const ws = pillars.map((p) => num(p.weight)).filter((w) => w > 0);
-        groups.push({ pillar: null, weight: ws.length ? ws.reduce((a, b) => a + b, 0) / ws.length : 1, criteria: loose });
-    }
-    return groups;
+    if (loose.length > 0) groups.push({ pillar: null, raw: null, criteria: loose });
+    const weights = resolvePillarWeights(groups.map((g) => g.raw));
+    return groups.map((g, i) => ({ pillar: g.pillar, weight: weights[i], criteria: g.criteria }));
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -184,7 +193,7 @@ export function evaluate(rs: Pick<RuleSetDraft, "pillars" | "criteria" | "bands"
         const min = pillar && pillar.min_score !== null && pillar.min_score !== "" ? num(pillar.min_score) : null;
         const below = min !== null && score !== null && score < min;
         if (below && pillar) blocking.push(pillar.code);
-        const pb: PillarBreakdown = { code: pillar?.code ?? null, label_ar: pillar?.label_ar ?? null, weight, score, min_score: min, blocking: below, contribution: 0, criteria: rows };
+        const pb: PillarBreakdown = { code: pillar?.code ?? IMPLICIT_PILLAR, label_ar: pillar?.label_ar ?? null, weight, score, min_score: min, blocking: below, contribution: 0, criteria: rows };
         return { pb, counted };
     });
 
@@ -210,9 +219,11 @@ export function evaluate(rs: Pick<RuleSetDraft, "pillars" | "criteria" | "bands"
     return {
         score,
         band: band ? { label_ar: band.label_ar, min: band.min, max: band.max, color_token: band.color_token } : null,
-        mandatory_conditions_met: unmetMandatory.length === 0,
+        // Server: null while a mandatory criterion still needs review.
+        mandatory_conditions_met: unmetMandatory.length > 0 ? false : rs.criteria.some((c) => c.is_mandatory && needsReview.includes(c.code)) ? null : true,
         blocking,
         pillars: work.map((w) => w.pb),
+        breakdown: work.map((w) => w.pb),
         improvements,
         earned_weight: round2(earnedAll),
         counted_weight: round2(countedAll),
@@ -230,11 +241,15 @@ export const isBlocked = (b: ScoreBreakdown) => b.blocking.length > 0 || b.unmet
 
 export type ValidationIssue = { path: string; message: string };
 
-export function validateBands(bands: ScoreBand[]): ValidationIssue[] {
+/** Same text as the server publish error (backend #74). */
+export const NO_BANDS_MESSAGE = "لا يمكن نشر القواعد بدون نطاقات تصنيف.";
+
+export function validateBands(bands: ScoreBand[], forPublish = true): ValidationIssue[] {
     const out: ValidationIssue[] = [];
     const err = (message: string) => out.push({ path: "bands", message });
     if (bands.length === 0) {
-        err("أضف شرائح النتيجة لتغطي من 0 إلى 100.");
+        // Server: bands are required to publish only; preview and import allow none.
+        if (forPublish) err(NO_BANDS_MESSAGE);
         return out;
     }
     if (bands.some((b) => !Number.isFinite(num(b.min)) || !Number.isFinite(num(b.max)))) err("حدد بداية ونهاية كل شريحة.");
@@ -258,14 +273,15 @@ export function validateBands(bands: ScoreBand[]): ValidationIssue[] {
 
 const dupes = (xs: string[]) => [...new Set(xs.filter((x, i) => xs.indexOf(x) !== i))];
 
-export function validateRuleSet(rs: Pick<RuleSetDraft, "pillars" | "criteria" | "bands">): ValidationIssue[] {
+export function validateRuleSet(rs: Pick<RuleSetDraft, "pillars" | "criteria" | "bands">, forPublish = true): ValidationIssue[] {
     const out: ValidationIssue[] = [];
     const err = (path: string, message: string) => out.push({ path, message });
     if (rs.criteria.length === 0) err("criteria", "أضف معياراً واحداً على الأقل.");
     rs.pillars.forEach((p) => {
         const n = p.label_ar || p.code;
         if (!p.code.trim()) err(`pillar.${p.id}`, "لكل محور رمز.");
-        if (!(num(p.weight) > 0)) err(`pillar.${p.code}`, `وزن المحور «${n}» يجب أن يكون أكبر من صفر.`);
+        // Empty/0 = equal default share (server rule); only negative or non-numeric is an error.
+        if (p.weight !== null && p.weight !== "" && !(num(p.weight) >= 0)) err(`pillar.${p.code}`, `وزن المحور «${n}» لا يمكن أن يكون سالباً.`);
         if (p.min_score !== null && p.min_score !== "" && !(num(p.min_score) >= 0 && num(p.min_score) <= 100)) err(`pillar.${p.code}`, `الحد الأدنى للمحور «${n}» بين 0 و100.`);
     });
     dupes(rs.pillars.map((p) => p.code)).forEach((c) => err(`pillar.${c}`, `رمز المحور «${c}» مكرر.`));
@@ -291,30 +307,31 @@ export function validateRuleSet(rs: Pick<RuleSetDraft, "pillars" | "criteria" | 
         }
         if (c.type === "target_ratio" && !(c.config.target > 0)) err(path, `حدد هدفاً أكبر من صفر للمعيار «${n}».`);
     });
-    out.push(...validateBands(rs.bands));
+    out.push(...validateBands(rs.bands, forPublish));
     return out;
 }
 
-/* ---------- JSON import / export ---------- */
+/* ---------- JSON import / export (server format: ReadinessRuleSetValidator::definition) ---------- */
+
+export const EXPORT_FORMAT = "beacon.readiness.rule_set";
 
 export function exportRuleSet(rs: RuleSetDraft): RuleSetExport {
     const codeOf = new Map(rs.pillars.map((p) => [p.id, p.code]));
     return {
-        format: "beacon.readiness.rule-set",
-        version: 1,
-        rule_set: {
-            name_ar: rs.name_ar,
-            change_summary: rs.change_summary ?? null,
-            pillars: sortByOrder(rs.pillars).map(({ id: _i, readiness_rule_set_id: _r, criteria: _c, ...p }) => p),
-            criteria: sortByOrder(rs.criteria).map(({ id: _i, readiness_rule_set_id: _r, readiness_pillar_id, ...c }) => ({ ...c, pillar_code: readiness_pillar_id !== null ? codeOf.get(readiness_pillar_id) ?? null : null })),
-            bands: sortByOrder(rs.bands).map(({ id: _i, readiness_rule_set_id: _r, ...b }) => b),
-        },
+        format: EXPORT_FORMAT,
+        format_version: 1,
+        name_ar: rs.name_ar,
+        change_summary: rs.change_summary ?? null,
+        source_version_number: rs.version_number,
+        pillars: sortByOrder(rs.pillars).map((p) => ({ code: p.code, label_ar: p.label_ar, weight: num(p.weight), min_score: p.min_score === null || p.min_score === "" ? null : num(p.min_score), sort_order: p.sort_order })),
+        criteria: sortByOrder(rs.criteria).map(({ id: _i, readiness_rule_set_id: _r, readiness_pillar_id, compliance_requirement_id: _c, ...c }) => ({ ...c, weight: num(c.weight), pillar_code: readiness_pillar_id !== null ? codeOf.get(readiness_pillar_id) ?? null : null })),
+        bands: sortByOrder(rs.bands).map((b) => ({ label_ar: b.label_ar, min: num(b.min), max: num(b.max), color_token: b.color_token, sort_order: b.sort_order })),
     };
 }
 
 export type ImportResult = { ok: true; draft: RuleSetDraft; issues: ValidationIssue[] } | { ok: false; error: string };
 
-/** Parses an export into a NEW draft (local negative ids) and runs the same checks as publishing. */
+/** Parses an export file and runs the same checks as publishing (client-side, before uploading). */
 export function importRuleSet(json: string, base: { id: number; version_number: number }): ImportResult {
     let data: unknown;
     try {
@@ -322,18 +339,17 @@ export function importRuleSet(json: string, base: { id: number; version_number: 
     } catch {
         return { ok: false, error: "الملف ليس JSON صالحاً." };
     }
-    const d = data as Partial<RuleSetExport> | null;
-    if (!d || d.format !== "beacon.readiness.rule-set" || d.version !== 1 || !d.rule_set) return { ok: false, error: "صيغة الملف غير معروفة." };
-    const r = d.rule_set;
+    const r = data as Partial<RuleSetExport> | null;
+    if (!r || r.format !== EXPORT_FORMAT || r.format_version !== 1) return { ok: false, error: "صيغة الملف غير معروفة." };
     if (!Array.isArray(r.pillars) || !Array.isArray(r.criteria) || !Array.isArray(r.bands)) return { ok: false, error: "الملف ناقص: المحاور أو المعايير أو الشرائح." };
     const types = new Set<string>(CRITERION_TYPES.map((t) => t.type));
     if (r.criteria.some((c) => !types.has(c.type))) return { ok: false, error: "نوع معيار غير معروف في الملف." };
-    const pillars: Pillar[] = r.pillars.map((p, i) => ({ ...p, id: -(i + 1), readiness_rule_set_id: base.id }));
+    const pillars: Pillar[] = r.pillars.map((p, i) => ({ ...p, id: -(i + 1), readiness_rule_set_id: base.id, min_score: p.min_score ?? null }));
     const idOf = new Map(pillars.map((p) => [p.code, p.id]));
-    const criteria = r.criteria.map(({ pillar_code, ...c }, i) => ({ ...c, id: -(i + 1), readiness_rule_set_id: base.id, readiness_pillar_id: pillar_code ? idOf.get(pillar_code) ?? null : null }) as Criterion);
+    const criteria = r.criteria.map(({ pillar_code, compliance_requirement_code: _cc, ...c }, i) => ({ ...c, id: -(i + 1), readiness_rule_set_id: base.id, compliance_requirement_id: null, description_ar: c.description_ar ?? null, readiness_pillar_id: pillar_code ? idOf.get(pillar_code) ?? null : null }) as Criterion);
     const bands: ScoreBand[] = r.bands.map((b, i) => ({ ...b, id: -(i + 1), readiness_rule_set_id: base.id }));
     const draft: RuleSetDraft = { id: base.id, version_number: base.version_number, name_ar: r.name_ar ?? "", status: "draft", change_summary: r.change_summary ?? null, pillars, criteria, bands };
-    return { ok: true, draft, issues: validateRuleSet(draft) };
+    return { ok: true, draft, issues: validateRuleSet(draft, false) };
 }
 
 /** Moves one item and renumbers sort_order 0..n-1. */

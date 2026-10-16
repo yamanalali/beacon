@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bandFor, colorVar, criterionPoints, evaluate, exportRuleSet, importRuleSet, isBlocked, reorder, validateBands, validateRuleSet } from "./scoring";
+import { bandFor, colorVar, criterionPoints, evaluate, exportRuleSet, importRuleSet, isBlocked, reorder, validateBands, validateRuleSet, resolvePillarWeights } from "./scoring";
 import { bands, criteria, draft } from "./fixtures.test-data";
 
 const byCode = (c: string) => criteria.find((x) => x.code === c)!;
@@ -29,7 +29,7 @@ describe("criterionPoints", () => {
 describe("evaluate", () => {
     it("weights criteria within pillars and pillars in the total", () => {
         const b = evaluate(draft, { a1: true, a2: 15, b1: "y", b2: 50 });
-        expect(b.pillars.map((p) => [p.code, p.score])).toEqual([["A", 100], ["B", 50], [null, null]]);
+        expect(b.pillars.map((p) => [p.code, p.score])).toEqual([["A", 100], ["B", 50], ["_default", null]]);
         expect(b.score).toBeCloseTo(83.33, 2);
         expect(b.band?.label_ar).toBe("مرتفعة");
         expect(b.mandatory_conditions_met).toBe(true);
@@ -72,6 +72,28 @@ describe("evaluate", () => {
     });
 });
 
+describe("default pillar weight (backend #74)", () => {
+    it("gives unset pillars the average of the set ones (implicit pillar included)", () => {
+        expect(resolvePillarWeights([2, 1, null])).toEqual([2, 1, 1.5]);
+        expect(resolvePillarWeights([0, 4, null])).toEqual([4, 4, 4]);
+        expect(resolvePillarWeights([null, 0])).toEqual([1, 1]);
+        const b = evaluate(draft, { a1: true, a2: 15, b1: "y", b2: 50, c1: 5 });
+        expect(b.pillars.map((p) => p.weight)).toEqual([2, 1, 1.5]);
+        expect(b.score).toBeCloseTo(400 / 4.5, 2);
+    });
+    it("uses weight 1 for all when no pillar has a weight", () => {
+        const rs = { ...draft, pillars: draft.pillars.map((p) => ({ ...p, weight: "" })) };
+        const b = evaluate(rs, { a1: true, a2: 15, b1: "y", b2: 50, c1: 5 });
+        expect(b.pillars.map((p) => p.weight)).toEqual([1, 1, 1]);
+        expect(b.score).toBeCloseTo(250 / 3, 2);
+    });
+    it("leaves pillars without criteria out of the average, like the server", () => {
+        const rs = { ...draft, pillars: [...draft.pillars, { ...draft.pillars[1], id: 30, code: "E", weight: 9, sort_order: 2 }] };
+        expect(evaluate(rs, {}).pillars.map((p) => p.code)).toEqual(["A", "B", "_default"]);
+        expect(evaluate(rs, {}).pillars[2].weight).toBe(1.5);
+    });
+});
+
 describe("bands and validation", () => {
     it("finds the band with inclusive upper end on the last band", () => {
         expect(bandFor(bands, 49.99)?.label_ar).toBe("منخفضة");
@@ -88,8 +110,14 @@ describe("bands and validation", () => {
         expect(msgs).toMatch(/ليس من ألوان النظام/);
         expect(validateBands([{ ...bands[1], min: 10, max: 90 }]).map((x) => x.message).join("|")).toMatch(/من 0 إلى 10.*|.*من 90 إلى 100/);
         const v = validateRuleSet({ ...draft, pillars: [{ ...draft.pillars[0], weight: 0 }, draft.pillars[1]], criteria: [{ ...criteria[0], weight: "" }, ...criteria.slice(1)] }).map((x) => x.message).join("|");
-        expect(v).toMatch(/وزن المحور «محور أ»/);
+        expect(v).not.toMatch(/وزن المحور/); // 0 = equal default share
         expect(v).toMatch(/وزن المعيار «سجل تجاري»/);
+        const neg = validateRuleSet({ ...draft, pillars: [{ ...draft.pillars[0], weight: -1 }, draft.pillars[1]] }).map((x) => x.message).join("|");
+        expect(neg).toMatch(/وزن المحور «محور أ» لا يمكن أن يكون سالباً/);
+    });
+    it("blocks publish without bands with the server message, but not import", () => {
+        expect(validateRuleSet({ ...draft, bands: [] }).map((x) => x.message)).toContain("لا يمكن نشر القواعد بدون نطاقات تصنيف.");
+        expect(validateRuleSet({ ...draft, bands: [] }, false)).toEqual([]);
     });
     it("flags bad criterion configs", () => {
         const bad = [
@@ -126,11 +154,11 @@ describe("JSON import/export", () => {
         expect(importRuleSet("{", { id: 1, version_number: 1 })).toMatchObject({ ok: false });
         expect(importRuleSet(JSON.stringify({ format: "other" }), { id: 1, version_number: 1 })).toMatchObject({ ok: false });
         const exp = exportRuleSet(draft);
-        exp.rule_set.bands = exp.rule_set.bands.slice(0, 2);
+        exp.bands = exp.bands.slice(0, 2);
         const r = importRuleSet(JSON.stringify(exp), { id: 1, version_number: 1 });
         expect(r.ok && r.issues.some((i) => /إلى 100 غير مغطى/.test(i.message))).toBe(true);
         const t = exportRuleSet(draft);
-        (t.rule_set.criteria[0] as { type: string }).type = "formula";
+        (t.criteria[0] as { type: string }).type = "formula";
         expect(importRuleSet(JSON.stringify(t), { id: 1, version_number: 1 })).toMatchObject({ ok: false });
     });
 });

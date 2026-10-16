@@ -1,152 +1,143 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@inertiajs/react", () => ({ router: { post: vi.fn() } }));
+vi.mock("@inertiajs/react", () => ({ router: { reload: vi.fn(), post: vi.fn() } }));
 
+import type { ApiResult, BuilderActions } from "./adminApi";
 import { RuleSetBuilder } from "./RuleSetBuilder";
 import { draft } from "./fixtures.test-data";
-import type { RuleSetDraft } from "./types";
 
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => cleanup());
 
-const saved = () => {
-    const onSave = vi.fn<(rs: RuleSetDraft) => void>();
-    return { onSave, last: () => onSave.mock.calls.at(-1)![0] };
-};
+const ok: ApiResult = { ok: true };
+const fail = (message: string, errors: Record<string, string> = {}): ApiResult => ({ ok: false, message, errors });
 
-describe("RuleSetBuilder editor", () => {
+function mockActions(over: Partial<BuilderActions> = {}): BuilderActions {
+    const f = () => vi.fn().mockResolvedValue(ok);
+    return {
+        savePillar: f(), deletePillar: f(), reorderPillars: f(), saveCriterion: f(), deleteCriterion: f(), reorderCriteria: f(),
+        saveBand: f(), deleteBand: f(), reorderBands: f(), duplicate: f(), importFile: f(), publish: f(),
+        exportUrl: (rs) => `/admin/readiness/${rs.id}/export`, ...over,
+    };
+}
+
+describe("RuleSetBuilder wired to the admin API", () => {
     it("renders pillars, criteria and the implicit pillar with no warnings for a valid set", () => {
-        render(<RuleSetBuilder ruleSet={draft} previewFetcher={null} />);
+        render(<RuleSetBuilder ruleSet={draft} actions={mockActions()} previewFetcher={null} />);
         const cards = screen.getAllByTestId("pillar-card");
         expect(cards).toHaveLength(3);
         expect(within(cards[0]).getAllByTestId("criterion-row")).toHaveLength(2);
         expect(cards[2].textContent).toContain("معايير غير مصنفة");
         expect(screen.queryByTestId("validation")).toBeNull();
-        expect(within(cards[0]).getByText("إلزامي")).toBeTruthy();
+        expect(screen.getByRole("link", { name: /تصدير JSON/ }).getAttribute("href")).toBe("/admin/readiness/1/export");
     });
 
-    it("adds a pillar and shows pre-publish warnings until it has a weight", () => {
-        const s = saved();
-        render(<RuleSetBuilder ruleSet={draft} onSave={s.onSave} previewFetcher={null} />);
+    it("shows the effective equal-share weights (implicit pillar = average of set weights)", () => {
+        render(<RuleSetBuilder ruleSet={draft} actions={mockActions()} previewFetcher={null} />);
+        expect(screen.getByText(/الأوزان الفعلية/).textContent).toContain("2 / 1");
+    });
+
+    it("saves a pillar on blur and shows 422 field errors inline", async () => {
+        const savePillar = vi.fn().mockResolvedValue(fail("راجع الحقول المعلّمة.", { code: "الرمز مستخدم." }));
+        render(<RuleSetBuilder ruleSet={draft} actions={mockActions({ savePillar })} previewFetcher={null} />);
+        const card = screen.getAllByTestId("pillar-card")[0];
+        const input = within(card).getByLabelText("الرمز");
+        fireEvent.change(input, { target: { value: "B" } });
+        fireEvent.blur(input);
+        await waitFor(() => expect(within(card).getByRole("alert").textContent).toBe("الرمز مستخدم."));
+        expect(savePillar.mock.calls[0][1]).toMatchObject({ id: 10, code: "B" });
+    });
+
+    it("does not call the server on blur when nothing changed", () => {
+        const savePillar = vi.fn().mockResolvedValue(ok);
+        render(<RuleSetBuilder ruleSet={draft} actions={mockActions({ savePillar })} previewFetcher={null} />);
+        fireEvent.blur(within(screen.getAllByTestId("pillar-card")[0]).getByLabelText("الرمز"));
+        expect(savePillar).not.toHaveBeenCalled();
+    });
+
+    it("creates a new pillar without a weight (equal share) and posts it", async () => {
+        const actions = mockActions();
+        render(<RuleSetBuilder ruleSet={draft} actions={actions} previewFetcher={null} />);
         fireEvent.click(screen.getByRole("button", { name: /إضافة محور/ }));
-        expect(screen.getByTestId("validation").textContent).toMatch(/وزن المحور/);
         const card = screen.getAllByTestId("pillar-card")[2];
         fireEvent.change(within(card).getByLabelText("الرمز"), { target: { value: "C" } });
         fireEvent.change(within(card).getByLabelText("اسم المحور"), { target: { value: "محور ج" } });
-        fireEvent.change(within(card).getByLabelText("الوزن"), { target: { value: "1" } });
-        expect(screen.queryByTestId("validation")).toBeNull();
-        fireEvent.click(screen.getByRole("button", { name: "حفظ المسودة" }));
-        expect(s.last().pillars.find((p) => p.code === "C")).toMatchObject({ label_ar: "محور ج", weight: "1", sort_order: 2 });
+        expect(screen.queryByText(/وزن المحور/)).toBeNull();
+        await act(async () => { fireEvent.click(within(card).getByRole("button", { name: "حفظ المحور" })); });
+        expect((actions.savePillar as ReturnType<typeof vi.fn>).mock.calls[0][1]).toMatchObject({ code: "C", label_ar: "محور ج", weight: "" });
     });
 
-    it("reorders pillars and criteria with the move buttons and drag and drop", () => {
-        const s = saved();
-        render(<RuleSetBuilder ruleSet={draft} onSave={s.onSave} previewFetcher={null} />);
-        fireEvent.click(screen.getByRole("button", { name: "نقل محور ب للأعلى" }));
-        fireEvent.click(screen.getByRole("button", { name: "نقل نسبة التحصيل للأعلى" }));
-        fireEvent.click(screen.getByRole("button", { name: "حفظ المسودة" }));
-        let rs = s.last();
-        expect([...rs.pillars].sort((a, b) => a.sort_order - b.sort_order).map((p) => p.code)).toEqual(["B", "A"]);
-        expect(rs.criteria.filter((c) => c.readiness_pillar_id === 20).sort((a, b) => a.sort_order - b.sort_order).map((c) => c.code)).toEqual(["b2", "b1"]);
-
-        const rows = within(screen.getAllByTestId("pillar-card")[1]).getAllByTestId("criterion-row");
-        const dt = { effectAllowed: "", setData: () => {} };
-        fireEvent.dragStart(rows[1], { dataTransfer: dt });
-        fireEvent.dragOver(rows[0], { dataTransfer: dt });
-        fireEvent.drop(rows[0], { dataTransfer: dt });
-        fireEvent.click(screen.getByRole("button", { name: "حفظ المسودة" }));
-        rs = s.last();
-        expect(rs.criteria.filter((c) => c.readiness_pillar_id === 10).sort((a, b) => a.sort_order - b.sort_order).map((c) => c.code)).toEqual(["a2", "a1"]);
+    it("reorders pillars and criteria with the full id order", async () => {
+        const actions = mockActions();
+        render(<RuleSetBuilder ruleSet={draft} actions={actions} previewFetcher={null} />);
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "نقل محور ب للأعلى" })); });
+        expect(actions.reorderPillars).toHaveBeenCalledWith(expect.anything(), [20, 10]);
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "نقل أشهر السجلات للأعلى" })); });
+        expect(actions.reorderCriteria).toHaveBeenCalledWith(expect.anything(), [3, 4, 2, 1, 5]);
     });
 
-    it("edits a criterion in the side drawer, including its type config", () => {
-        const s = saved();
-        render(<RuleSetBuilder ruleSet={draft} onSave={s.onSave} previewFetcher={null} />);
-        fireEvent.click(screen.getByRole("button", { name: "تعديل نوع الحسابات" }));
-        const drawer = screen.getByTestId("criterion-drawer");
-        expect(within(drawer).getAllByTestId("choice-option")).toHaveLength(2);
-        fireEvent.click(within(drawer).getByRole("button", { name: "إضافة خيار" }));
-        fireEvent.change(within(drawer).getByLabelText("القيمة", { selector: "#op-v-2" }), { target: { value: "z" } });
-        fireEvent.change(within(drawer).getByLabelText("النص", { selector: "#op-l-2" }), { target: { value: "لا توجد" } });
-        fireEvent.change(within(drawer).getByLabelText("النقاط (0-1)", { selector: "#op-p-2" }), { target: { value: "0" } });
-        fireEvent.click(within(drawer).getByLabelText(/شرط إلزامي/));
-        fireEvent.click(within(drawer).getByRole("button", { name: "حفظ المعيار" }));
-        expect(screen.queryByTestId("criterion-drawer")).toBeNull();
-        fireEvent.click(screen.getByRole("button", { name: "حفظ المسودة" }));
-        const c = s.last().criteria.find((x) => x.code === "b1")!;
-        expect(c.is_mandatory).toBe(true);
-        expect(c.type === "choice" && c.config.options.at(-1)).toEqual({ value: "z", label_ar: "لا توجد", points: 0 });
+    it("keeps the drawer open with server errors when saving a criterion fails", async () => {
+        const saveCriterion = vi.fn().mockResolvedValue(fail("راجع الحقول المعلّمة.", { weight: "وزن المعيار يجب أن يكون أكبر من صفر." }));
+        render(<RuleSetBuilder ruleSet={draft} actions={mockActions({ saveCriterion })} previewFetcher={null} />);
+        fireEvent.click(screen.getByRole("button", { name: "تعديل سجل تجاري" }));
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "حفظ المعيار" })); });
+        expect(screen.getByText("وزن المعيار يجب أن يكون أكبر من صفر.")).toBeTruthy();
+        expect(saveCriterion.mock.calls[0][1]).toMatchObject({ id: 1, code: "a1" });
     });
 
-    it("adds a new criterion with an empty weight and switches its type", () => {
-        const s = saved();
-        render(<RuleSetBuilder ruleSet={draft} onSave={s.onSave} previewFetcher={null} />);
-        fireEvent.click(within(screen.getAllByTestId("pillar-card")[1]).getByRole("button", { name: /إضافة معيار/ }));
-        const drawer = screen.getByTestId("criterion-drawer");
-        expect((within(drawer).getByLabelText("الوزن داخل المحور") as HTMLInputElement).value).toBe("");
-        fireEvent.change(within(drawer).getByLabelText("الرمز"), { target: { value: "b3" } });
-        fireEvent.change(within(drawer).getByLabelText("الاسم"), { target: { value: "مدة السداد" } });
-        fireEvent.change(within(drawer).getByLabelText("نوع المعيار"), { target: { value: "numeric_bands" } });
-        fireEvent.click(within(drawer).getByRole("button", { name: "إضافة شريحة" }));
-        fireEvent.click(within(drawer).getByRole("button", { name: "حفظ المعيار" }));
-        expect(screen.getByTestId("validation").textContent).toMatch(/وزن المعيار «مدة السداد»/);
-        fireEvent.click(screen.getByRole("button", { name: "حفظ المسودة" }));
-        const c = s.last().criteria.find((x) => x.code === "b3")!;
-        expect(c).toMatchObject({ readiness_pillar_id: 20, type: "numeric_bands", sort_order: 2 });
+    it("disables publish without bands using the server message", () => {
+        const publish = vi.fn();
+        render(<RuleSetBuilder ruleSet={{ ...draft, bands: [] }} actions={mockActions({ publish })} previewFetcher={null} />);
+        const btn = screen.getByRole("button", { name: "اعتماد ونشر" }) as HTMLButtonElement;
+        expect(btn.disabled).toBe(true);
+        expect(btn.title).toBe("لا يمكن نشر القواعد بدون نطاقات تصنيف.");
+        expect(screen.getByTestId("validation").textContent).toContain("لا يمكن نشر القواعد بدون نطاقات تصنيف.");
     });
 
-    it("deletes a pillar and moves its criteria to the implicit pillar", () => {
-        const s = saved();
-        render(<RuleSetBuilder ruleSet={draft} onSave={s.onSave} previewFetcher={null} />);
-        fireEvent.click(screen.getByRole("button", { name: "حذف المحور محور ب" }));
-        fireEvent.click(screen.getByRole("button", { name: "حفظ المسودة" }));
-        expect(s.last().criteria.filter((c) => c.readiness_pillar_id === null).map((c) => c.code).sort()).toEqual(["b1", "b2", "c1"]);
+    it("publishes and shows a server error when it is rejected", async () => {
+        const publish = vi.fn().mockResolvedValue(fail("راجع الحقول المعلّمة.", { bands: "لا يمكن نشر القواعد بدون نطاقات تصنيف." }));
+        render(<RuleSetBuilder ruleSet={draft} actions={mockActions({ publish })} previewFetcher={null} />);
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "اعتماد ونشر" })); });
+        expect(publish).toHaveBeenCalled();
+        expect(screen.getByTestId("builder-notice").textContent).toContain("لا يمكن نشر القواعد بدون نطاقات تصنيف.");
     });
 
-    it("edits score bands with #13 colour tokens and warns about gaps", () => {
-        const s = saved();
-        render(<RuleSetBuilder ruleSet={draft} onSave={s.onSave} previewFetcher={null} />);
-        fireEvent.click(screen.getByRole("tab", { name: "شرائح النتيجة" }));
-        const rows = screen.getAllByTestId("band-row");
-        expect(rows).toHaveLength(3);
-        fireEvent.change(within(rows[2]).getByLabelText("من"), { target: { value: "85" } });
-        expect(screen.getByTestId("validation").textContent).toMatch(/فجوة بين 80 و85/);
-        fireEvent.click(within(rows[0]).getByRole("radio", { name: "رمادي (محايد)" }));
-        fireEvent.click(screen.getByRole("button", { name: "حفظ المسودة" }));
-        expect(s.last().bands.map((b) => b.color_token)).toEqual(["muted", "warning", "success"]);
+    it("shows the server message when duplicating while a draft is open (422)", async () => {
+        const duplicate = vi.fn().mockResolvedValue(fail("توجد مسودة قواعد غير منشورة."));
+        render(<RuleSetBuilder ruleSet={{ ...draft, status: "published" }} actions={mockActions({ duplicate })} previewFetcher={null} />);
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: /نسخ كمسودة جديدة/ })); });
+        expect(screen.getByTestId("builder-notice").textContent).toContain("توجد مسودة قواعد غير منشورة.");
+        expect(screen.queryByRole("button", { name: "اعتماد ونشر" })).toBeNull();
     });
 
-    it("is read-only for a published (frozen) version and offers duplicate", () => {
-        const onDuplicate = vi.fn();
-        render(<RuleSetBuilder ruleSet={{ ...draft, status: "published" }} onSave={vi.fn()} onDuplicate={onDuplicate} previewFetcher={null} />);
-        expect(screen.getByText(/معتمدة ومجمّدة/)).toBeTruthy();
-        expect(screen.queryByRole("button", { name: "حفظ المسودة" })).toBeNull();
-        expect(screen.queryByRole("button", { name: /إضافة محور/ })).toBeNull();
-        expect(screen.queryByTestId("import-input")).toBeNull();
-        expect((screen.getAllByLabelText("الوزن")[0] as HTMLInputElement).disabled).toBe(true);
-        fireEvent.click(screen.getByRole("button", { name: "عرض سجل تجاري" }));
-        expect((within(screen.getByTestId("criterion-drawer")).getByLabelText("الرمز") as HTMLInputElement).disabled).toBe(true);
-        fireEvent.click(screen.getByRole("button", { name: /نسخ كمسودة جديدة/ }));
-        expect(onDuplicate).toHaveBeenCalledTimes(1);
-    });
-
-    it("imports JSON as a draft and reports publish issues", async () => {
-        render(<RuleSetBuilder ruleSet={{ ...draft, pillars: [], criteria: [], bands: [] }} previewFetcher={null} />);
+    it("validates the JSON client-side before uploading, then shows the server import error", async () => {
+        const importFile = vi.fn().mockResolvedValue(fail("توجد مسودة قواعد غير منشورة."));
+        render(<RuleSetBuilder ruleSet={draft} actions={mockActions({ importFile })} previewFetcher={null} />);
+        const input = screen.getByTestId("import-input");
+        const bad = new File(["{"], "bad.json", { type: "application/json" });
+        await act(async () => { fireEvent.change(input, { target: { files: [bad] } }); });
+        await waitFor(() => expect(screen.getByTestId("builder-notice")).toBeTruthy());
+        expect(importFile).not.toHaveBeenCalled();
         const { exportRuleSet } = await import("./scoring");
-        const exp = exportRuleSet(draft);
-        exp.rule_set.bands = exp.rule_set.bands.slice(0, 2);
-        const file = new File([JSON.stringify(exp)], "rules.json", { type: "application/json" });
-        await act(async () => { fireEvent.change(screen.getByTestId("import-input"), { target: { files: [file] } }); });
-        expect(await screen.findByTestId("import-result")).toBeTruthy();
-        expect(screen.getByTestId("import-result").textContent).toMatch(/ملاحظة/);
-        expect(screen.getAllByTestId("pillar-card")).toHaveLength(3);
-        expect(screen.getByTestId("validation").textContent).toMatch(/إلى 100 غير مغطى/);
+        const good = new File([JSON.stringify(exportRuleSet(draft))], "rules.json", { type: "application/json" });
+        await act(async () => { fireEvent.change(input, { target: { files: [good] } }); });
+        await waitFor(() => expect(importFile).toHaveBeenCalledWith(good));
+        await waitFor(() => expect(screen.getByTestId("builder-notice").textContent).toContain("توجد مسودة قواعد غير منشورة."));
     });
 
-    it("rejects an invalid JSON file", async () => {
-        render(<RuleSetBuilder ruleSet={draft} previewFetcher={null} />);
-        const file = new File(["not json"], "x.json", { type: "application/json" });
-        await act(async () => { fireEvent.change(screen.getByTestId("import-input"), { target: { files: [file] } }); });
-        expect(await screen.findByText("الملف ليس JSON صالحاً.")).toBeTruthy();
+    it("saves a band row and shows its field error", async () => {
+        const saveBand = vi.fn().mockResolvedValue(fail("راجع الحقول المعلّمة.", { max: "الحد الأعلى غير صالح." }));
+        render(<RuleSetBuilder ruleSet={draft} actions={mockActions({ saveBand })} previewFetcher={null} />);
+        fireEvent.click(screen.getByRole("tab", { name: "شرائح النتيجة" }));
+        fireEvent.change(screen.getByLabelText(/اسم الشريحة|الاسم/, { selector: "#band-label-0" }), { target: { value: "ضعيفة" } });
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: "حفظ الشريحة 1" })); });
+        expect(saveBand.mock.calls[0][1]).toMatchObject({ id: 1, label_ar: "ضعيفة" });
+        expect(screen.getByText("الحد الأعلى غير صالح.")).toBeTruthy();
+    });
+
+    it("is read-only for a published set", () => {
+        render(<RuleSetBuilder ruleSet={{ ...draft, status: "published" }} actions={mockActions()} previewFetcher={null} />);
+        expect(screen.queryByRole("button", { name: /إضافة محور/ })).toBeNull();
+        expect(screen.getByText(/مجمّدة ولا يمكن تعديلها/)).toBeTruthy();
     });
 });

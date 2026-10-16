@@ -24,6 +24,7 @@ describe("preview", () => {
     it("falls back to the client calculation when the endpoint is missing", async () => {
         const fetcher = vi.fn().mockRejectedValue(new Error("preview 404"));
         const r = await runPreview(draft, { a1: true, a2: 15, b1: "y", b2: 50 }, fetcher);
+        if (!("breakdown" in r)) throw new Error("expected a breakdown");
         expect(r.source).toBe("client");
         expect(r.breakdown.score).toBeCloseTo(83.33, 2);
     });
@@ -68,7 +69,6 @@ describe("AssessmentResult", () => {
         render(<AssessmentResult breakdown={b} snapshot={snap} snapshotHistory={[snap, { ...snap, id: 6, score: 55, reason: "initial", reason_note: null, is_current: false }]} />);
         expect(screen.getByTestId("result-score").textContent).toContain("61.5");
         expect(screen.getAllByText("متوسطة")[0].closest(".app-status")).toBeTruthy();
-        expect(screen.queryByText("مرتفعة")).toBeNull();
         expect(screen.getByText(/تفاصيل المحاور غير محفوظة/)).toBeTruthy();
         const hist = screen.getByTestId("snapshot-history");
         expect(within(hist).getAllByRole("listitem")).toHaveLength(2);

@@ -1,26 +1,28 @@
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import type { Criterion, Pillar, ScoreBand } from "../../types/readiness";
 import { SectionCard } from "../Common/SectionCard";
 import { StatusBadge } from "../Feedback/StatusBadge";
+import { serverActions, type ApiResult, type BuilderActions } from "./adminApi";
 import { BandsEditor } from "./BandsEditor";
 import { CriterionDrawer } from "./CriterionDrawer";
 import { PreviewPanel } from "./PreviewPanel";
-import type { PreviewFetcher } from "./previewApi";
-import { CRITERION_TYPES, defaultConfig, exportRuleSet, importRuleSet, num, reorder, sortByOrder, validateRuleSet, type ValidationIssue } from "./scoring";
+import { serverPreview, type PreviewFetcher } from "./previewApi";
+import { CRITERION_TYPES, NO_BANDS_MESSAGE, defaultConfig, importRuleSet, num, reorder, resolvePillarWeights, sortByOrder, validateRuleSet } from "./scoring";
 import type { RuleSetDraft } from "./types";
 
 type Props = {
+    /** From Inertia props (ReadinessAdminController@index, backend #74). Re-synced after every save. */
     ruleSet: RuleSetDraft;
-    /** Called with the edited draft. No v2 save endpoint exists yet; the page decides what to do. */
-    onSave?: (rs: RuleSetDraft) => void;
-    /** Duplicate as a new draft (existing #4: POST /admin/readiness with copy_from_current). */
-    onDuplicate?: (rs: RuleSetDraft) => void;
+    actions?: BuilderActions;
     previewFetcher?: PreviewFetcher | null;
 };
+
+type Notice = { tone: "success" | "danger" | "warning"; text: string; list?: string[] } | null;
 
 const typeLabel = (t: string) => CRITERION_TYPES.find((x) => x.type === t)?.label_ar ?? t;
 let localId = -1000;
 const nextId = () => --localId;
+const FieldError = ({ msg }: { msg?: string }) => (msg ? <div className="invalid-feedback d-block" role="alert">{msg}</div> : null);
 
 function useDragList(onMove: (from: number, to: number) => void) {
     const from = useRef<number | null>(null);
@@ -64,86 +66,130 @@ function CriteriaList({ criteria, readOnly, onEdit, onMove, onDelete }: { criter
     );
 }
 
-export function RuleSetBuilder({ ruleSet, onSave, onDuplicate, previewFetcher }: Props) {
+export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetcher = serverPreview }: Props) {
     const [rs, setRs] = useState<RuleSetDraft>(ruleSet);
     const [editing, setEditing] = useState<Criterion | null>(null);
+    const [drawerErrors, setDrawerErrors] = useState<Record<string, string>>({});
+    const [rowErrors, setRowErrors] = useState<Record<string, Record<string, string>>>({});
+    const [busy, setBusy] = useState(false);
     const [tab, setTab] = useState<"matrix" | "bands" | "preview">("matrix");
-    const [importMsg, setImportMsg] = useState<{ error?: string; issues?: ValidationIssue[] } | null>(null);
+    const [notice, setNotice] = useState<Notice>(null);
     const fileRef = useRef<HTMLInputElement>(null);
+    useEffect(() => setRs(ruleSet), [ruleSet]);
+
     const readOnly = rs.status !== "draft";
     const issues = validateRuleSet(rs);
+    const noBands = rs.bands.filter((b) => b.id > 0).length === 0;
     const pillars = sortByOrder(rs.pillars);
+    const serverPillar = (id: number) => ruleSet.pillars.find((p) => p.id === id);
+    const serverBand = (id: number) => ruleSet.bands.find((b) => b.id === id);
 
-    const setPillars = (ps: Pillar[]) => setRs((r) => ({ ...r, pillars: ps }));
-    const patchPillar = (id: number, patch: Partial<Pillar>) => setPillars(rs.pillars.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-    const movePillar = (from: number, to: number) => setPillars(reorder(rs.pillars, from, to));
+    /** Runs an action; field errors go to `key`, everything else to the notice. */
+    const run = async (p: Promise<ApiResult>, key?: string, okText?: string): Promise<boolean> => {
+        setBusy(true);
+        const r = await p;
+        setBusy(false);
+        if (r.ok) {
+            if (key) setRowErrors((e) => { const n = { ...e }; delete n[key]; return n; });
+            setNotice(okText ? { tone: "success", text: okText } : null);
+            return true;
+        }
+        if (key && Object.keys(r.errors).length) setRowErrors((e) => ({ ...e, [key]: r.errors }));
+        else setNotice({ tone: "danger", text: r.message, list: Object.values(r.errors) });
+        return false;
+    };
+
+    // ---- pillars ----
+    const patchPillar = (id: number, patch: Partial<Pillar>) => setRs((r) => ({ ...r, pillars: r.pillars.map((p) => (p.id === id ? { ...p, ...patch } : p)) }));
+    const pillarDirty = (p: Pillar) => { const s = serverPillar(p.id); return !s || s.code !== p.code || s.label_ar !== p.label_ar || String(s.weight ?? "") !== String(p.weight ?? "") || String(s.min_score ?? "") !== String(p.min_score ?? ""); };
+    const savePillar = (p: Pillar) => { if (pillarDirty(p)) void run(actions.savePillar(rs, p), `pillar:${p.id}`); };
+    const movePillar = (from: number, to: number) => {
+        const next = reorder(rs.pillars, from, to);
+        setRs((r) => ({ ...r, pillars: next }));
+        const ids = next.map((p) => p.id).filter((id) => id > 0);
+        if (ids.length) void run(actions.reorderPillars(rs, ids));
+    };
     const dragPillar = useDragList(movePillar);
+    // Manager decision: a new pillar starts without a weight = equal share until the admin sets one.
+    const addPillar = () => setRs((r) => ({ ...r, pillars: [...r.pillars, { id: nextId(), readiness_rule_set_id: r.id, code: "", label_ar: "", weight: "", min_score: null, sort_order: r.pillars.length }] }));
+    const removePillar = (p: Pillar) => {
+        if (p.id < 0) setRs((r) => ({ ...r, pillars: r.pillars.filter((x) => x.id !== p.id) }));
+        else void run(actions.deletePillar(p));
+    };
+
+    // ---- criteria ----
     const inPillar = (pid: number | null) => sortByOrder(rs.criteria.filter((c) => (pid === null ? c.readiness_pillar_id === null || !rs.pillars.some((p) => p.id === c.readiness_pillar_id) : c.readiness_pillar_id === pid)));
     const moveCriterion = (pid: number | null) => (from: number, to: number) => {
-        const moved = reorder(inPillar(pid), from, to);
-        const byId = new Map(moved.map((c) => [c.id, c]));
-        setRs((r) => ({ ...r, criteria: r.criteria.map((c) => byId.get(c.id) ?? c) }));
+        const moved = new Map(reorder(inPillar(pid), from, to).map((c) => [c.id, c]));
+        const merged = rs.criteria.map((c) => moved.get(c.id) ?? c);
+        setRs((r) => ({ ...r, criteria: merged }));
+        // The server wants every criterion id of the set, in display order (pillar order, then implicit).
+        const order = [...pillars.map((p) => p.id), null].flatMap((id) => sortByOrder(merged.filter((c) => (id === null ? !rs.pillars.some((p) => p.id === c.readiness_pillar_id) : c.readiness_pillar_id === id))));
+        void run(actions.reorderCriteria(rs, order.map((c) => c.id)));
     };
-    const saveCriterion = (c: Criterion) => {
-        setRs((r) => {
-            const exists = r.criteria.some((x) => x.id === c.id);
-            const sort_order = exists ? c.sort_order : r.criteria.filter((x) => x.readiness_pillar_id === c.readiness_pillar_id).length;
-            return { ...r, criteria: exists ? r.criteria.map((x) => (x.id === c.id ? c : x)) : [...r.criteria, { ...c, sort_order }] };
-        });
-        setEditing(null);
+    const saveCriterion = async (c: Criterion) => {
+        setBusy(true);
+        const r = await actions.saveCriterion(rs, c);
+        setBusy(false);
+        if (r.ok) { setEditing(null); setDrawerErrors({}); setNotice(null); return; }
+        setDrawerErrors(Object.keys(r.errors).length ? r.errors : { _: r.message });
     };
     const newCriterion = (pid: number | null): Criterion => ({
         id: nextId(), readiness_rule_set_id: rs.id, readiness_pillar_id: pid, code: "", label_ar: "", description_ar: null,
-        // Weight and missing-data treatment are Beacon decisions: weight starts empty (fails validation until set).
+        // Criterion weight has no default (server requires > 0).
         // TODO: BUSINESS DECISION REQUIRED - default missing-data treatment for new criteria (placeholder: needs_review, the most conservative).
         weight: "", is_mandatory: false, missing_data_treatment: "needs_review", compliance_requirement_id: null, sort_order: 0, ...defaultConfig("boolean"),
     }) as Criterion;
-    const addPillar = () => setPillars([...rs.pillars, { id: nextId(), readiness_rule_set_id: rs.id, code: "", label_ar: "", weight: "", min_score: null, sort_order: rs.pillars.length }]);
-    const removePillar = (p: Pillar) => setRs((r) => ({ ...r, pillars: r.pillars.filter((x) => x.id !== p.id), criteria: r.criteria.map((c) => (c.readiness_pillar_id === p.id ? { ...c, readiness_pillar_id: null } : c)) }));
+    const openEditor = (c: Criterion | null) => { setDrawerErrors({}); setEditing(c); };
 
-    const doExport = () => {
-        const blob = new Blob([JSON.stringify(exportRuleSet(rs), null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `readiness-rules-v${rs.version_number}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
+    // ---- bands ----
+    const bandDirty = (b: ScoreBand) => { const s = serverBand(b.id); return !s || s.label_ar !== b.label_ar || String(s.min) !== String(b.min) || String(s.max) !== String(b.max) || s.color_token !== b.color_token; };
+    const bandErrors: Record<number, Record<string, string>> = {};
+    for (const b of rs.bands) if (rowErrors[`band:${b.id}`]) bandErrors[b.id] = rowErrors[`band:${b.id}`];
+
+    // ---- set level ----
     const doImport = async (file: File) => {
-        const res = importRuleSet(await file.text(), { id: rs.id, version_number: rs.version_number });
-        if (!res.ok) return setImportMsg({ error: res.error });
-        setRs(res.draft);
-        setImportMsg({ issues: res.issues });
+        const parsed = importRuleSet(await file.text(), { id: rs.id, version_number: rs.version_number });
+        if (!parsed.ok) return setNotice({ tone: "danger", text: parsed.error });
+        if (parsed.issues.length) return setNotice({ tone: "warning", text: "الملف لا يجتاز فحص القواعد، أصلحه ثم أعد الاستيراد:", list: parsed.issues.map((i) => i.message) });
+        await run(actions.importFile(file), undefined, "تم استيراد القواعد كمسودة جديدة.");
     };
+    const publishBlocked = readOnly || issues.length > 0 || noBands || rs.pillars.some((p) => p.id < 0) || rs.bands.some((b) => b.id < 0);
+    const publish = () => { if (!publishBlocked) void run(actions.publish(rs), undefined, "تم اعتماد القواعد ونشرها."); };
 
     const pillarSection = (p: Pillar | null, i: number) => {
         const pid = p?.id ?? null;
-        const crit = inPillar(pid);
+        const crit = p && p.id < 0 ? [] : inPillar(pid);
         if (!p && crit.length === 0) return null;
+        const e = p ? rowErrors[`pillar:${p.id}`] ?? {} : {};
         return (
-            <div key={pid ?? "implicit"} className="app-mobile-record" data-testid="pillar-card" {...(p && !readOnly ? dragPillar(i) : {})}>
+            <div key={pid ?? "implicit"} className="app-mobile-record" data-testid="pillar-card" {...(p && p.id > 0 && !readOnly ? dragPillar(i) : {})}>
                 <div className="fw-semibold d-flex flex-wrap align-items-center gap-2">
                     {p && !readOnly ? <i className="bi bi-grip-vertical text-muted" aria-hidden="true" style={{ cursor: "grab" }} /> : null}
-                    <span className="flex-grow-1">{p ? p.label_ar || p.code || "محور بلا اسم" : "معايير غير مصنفة"}</span>
-                    {p && !readOnly ? <MoveButtons index={i} count={pillars.length} onMove={movePillar} label={p.label_ar || "المحور"} /> : null}
+                    <span className="flex-grow-1">{p ? p.label_ar || p.code || "محور جديد" : "معايير غير مصنفة"}</span>
+                    {p && p.id > 0 && !readOnly ? <MoveButtons index={i} count={pillars.length} onMove={movePillar} label={p.label_ar || "المحور"} /> : null}
                     {p && !readOnly ? <button type="button" className="app-icon-button" aria-label={`حذف المحور ${p.label_ar || p.code}`} onClick={() => removePillar(p)}><i className="bi bi-trash" aria-hidden="true" /></button> : null}
                 </div>
                 {p ? (
-                    <div className="row g-2 mb-3">
-                        <div className="col-6 col-md-3"><label className="form-label" htmlFor={`p-code-${p.id}`}>الرمز</label><input id={`p-code-${p.id}`} dir="ltr" className="form-control" value={p.code} disabled={readOnly} onChange={(e) => patchPillar(p.id, { code: e.target.value })} /></div>
-                        <div className="col-6 col-md-4"><label className="form-label" htmlFor={`p-label-${p.id}`}>اسم المحور</label><input id={`p-label-${p.id}`} className="form-control" value={p.label_ar} disabled={readOnly} onChange={(e) => patchPillar(p.id, { label_ar: e.target.value })} /></div>
-                        <div className="col-6 col-md-2"><label className="form-label" htmlFor={`p-weight-${p.id}`}>الوزن</label><input id={`p-weight-${p.id}`} type="number" min={0} step="any" dir="ltr" className="form-control" value={String(p.weight)} disabled={readOnly} onChange={(e) => patchPillar(p.id, { weight: e.target.value })} /></div>
-                        <div className="col-6 col-md-3"><label className="form-label" htmlFor={`p-min-${p.id}`}>الحد الأدنى (اختياري)</label><input id={`p-min-${p.id}`} type="number" min={0} max={100} step="any" dir="ltr" className="form-control" value={p.min_score === null ? "" : String(p.min_score)} disabled={readOnly} onChange={(e) => patchPillar(p.id, { min_score: e.target.value === "" ? null : e.target.value })} /></div>
+                    <div className="row g-2 mb-3" onBlur={(ev) => { if (p.id > 0 && !ev.currentTarget.contains(ev.relatedTarget as Node | null)) savePillar(rs.pillars.find((x) => x.id === p.id) ?? p); }}>
+                        <div className="col-6 col-md-3"><label className="form-label" htmlFor={`p-code-${p.id}`}>الرمز</label><input id={`p-code-${p.id}`} dir="ltr" className="form-control" value={p.code} disabled={readOnly} onChange={(ev) => patchPillar(p.id, { code: ev.target.value })} /><FieldError msg={e.code} /></div>
+                        <div className="col-6 col-md-4"><label className="form-label" htmlFor={`p-label-${p.id}`}>اسم المحور</label><input id={`p-label-${p.id}`} className="form-control" value={p.label_ar} disabled={readOnly} onChange={(ev) => patchPillar(p.id, { label_ar: ev.target.value })} /><FieldError msg={e.label_ar} /></div>
+                        <div className="col-6 col-md-2"><label className="form-label" htmlFor={`p-weight-${p.id}`}>الوزن</label><input id={`p-weight-${p.id}`} type="number" min={0} step="any" dir="ltr" className="form-control" placeholder="متساوٍ" value={p.weight === null ? "" : String(p.weight)} disabled={readOnly} onChange={(ev) => patchPillar(p.id, { weight: ev.target.value })} /><FieldError msg={e.weight} /></div>
+                        <div className="col-6 col-md-3"><label className="form-label" htmlFor={`p-min-${p.id}`}>الحد الأدنى (اختياري)</label><input id={`p-min-${p.id}`} type="number" min={0} max={100} step="any" dir="ltr" className="form-control" value={p.min_score === null ? "" : String(p.min_score)} disabled={readOnly} onChange={(ev) => patchPillar(p.id, { min_score: ev.target.value === "" ? null : ev.target.value })} /><FieldError msg={e.min_score} /></div>
+                        {p.id < 0 ? <div className="col-12"><button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void run(actions.savePillar(rs, p), `pillar:${p.id}`)}>حفظ المحور</button></div> : null}
                     </div>
-                ) : <p className="form-text">تُحسب كمحور ضمني. اربطها بمحور من نافذة التعديل.</p>}
-                <CriteriaList criteria={crit} readOnly={readOnly} onEdit={setEditing} onMove={moveCriterion(pid)} onDelete={(c) => setRs((r) => ({ ...r, criteria: r.criteria.filter((x) => x.id !== c.id) }))} />
-                {!readOnly ? <button type="button" className="btn btn-outline-primary btn-sm mt-3" onClick={() => setEditing(newCriterion(pid))}><i className="bi bi-plus-lg" aria-hidden="true" /> إضافة معيار</button> : null}
+                ) : <p className="form-text">تُحسب كمحور ضمني بوزن متساوٍ. اربطها بمحور من نافذة التعديل.</p>}
+                {p && p.id < 0 ? null : (
+                    <>
+                        <CriteriaList criteria={crit} readOnly={readOnly} onEdit={openEditor} onMove={moveCriterion(pid)} onDelete={(c) => void run(actions.deleteCriterion(c))} />
+                        {!readOnly ? <button type="button" className="btn btn-outline-primary btn-sm mt-3" onClick={() => openEditor(newCriterion(pid))}><i className="bi bi-plus-lg" aria-hidden="true" /> إضافة معيار</button> : null}
+                    </>
+                )}
             </div>
         );
     };
 
-    const weightSum = pillars.reduce((s, p) => s + (num(p.weight) > 0 ? num(p.weight) : 0), 0);
+    const effective = resolvePillarWeights(pillars.map((p) => (Number.isFinite(num(p.weight)) ? num(p.weight) : null)));
 
     return (
         <div className="d-flex flex-column gap-3" data-testid="rule-set-builder">
@@ -154,26 +200,25 @@ export function RuleSetBuilder({ ruleSet, onSave, onDuplicate, previewFetcher }:
                     <StatusBadge label={rs.status === "draft" ? "مسودة" : rs.status === "published" ? "معتمدة (مجمّدة)" : "مؤرشفة"} tone={rs.status === "draft" ? "warning" : rs.status === "published" ? "success" : "neutral"} />
                 </span>
                 <span className="d-flex flex-wrap gap-2">
-                    <button type="button" className="btn btn-outline-primary" onClick={doExport}><i className="bi bi-download" aria-hidden="true" /> تصدير JSON</button>
-                    {!readOnly ? (
-                        <>
-                            <button type="button" className="btn btn-outline-primary" onClick={() => fileRef.current?.click()}><i className="bi bi-upload" aria-hidden="true" /> استيراد JSON</button>
-                            <input ref={fileRef} type="file" accept="application/json,.json" className="d-none" aria-label="ملف القواعد" data-testid="import-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) void doImport(f); e.target.value = ""; }} />
-                        </>
-                    ) : null}
-                    {onDuplicate ? <button type="button" className="btn btn-outline-primary" onClick={() => onDuplicate(rs)}><i className="bi bi-copy" aria-hidden="true" /> نسخ كمسودة جديدة</button> : null}
-                    {onSave && !readOnly ? <button type="button" className="btn btn-primary" onClick={() => onSave(rs)}>حفظ المسودة</button> : null}
+                    <a className="btn btn-outline-primary" href={actions.exportUrl(rs)} download><i className="bi bi-download" aria-hidden="true" /> تصدير JSON</a>
+                    <button type="button" className="btn btn-outline-primary" disabled={busy} onClick={() => fileRef.current?.click()}><i className="bi bi-upload" aria-hidden="true" /> استيراد JSON</button>
+                    <input ref={fileRef} type="file" accept="application/json,.json" className="d-none" aria-label="ملف القواعد" data-testid="import-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) void doImport(f); e.target.value = ""; }} />
+                    <button type="button" className="btn btn-outline-primary" disabled={busy} onClick={() => void run(actions.duplicate(rs), undefined, "تم إنشاء مسودة جديدة من هذه النسخة.")}><i className="bi bi-copy" aria-hidden="true" /> نسخ كمسودة جديدة</button>
+                    {!readOnly ? <button type="button" className="btn btn-primary" disabled={publishBlocked || busy} title={noBands ? NO_BANDS_MESSAGE : undefined} onClick={publish}>اعتماد ونشر</button> : null}
                 </span>
             </div>
 
-            {readOnly ? <div className="alert alert-info mb-0" role="status">هذه النسخة معتمدة ومجمّدة ولا يمكن تعديلها. انسخها كمسودة لإجراء تغييرات.</div> : null}
-            {importMsg?.error ? <div className="alert alert-danger mb-0" role="alert">{importMsg.error}</div> : null}
-            {importMsg?.issues ? <div className={`alert ${importMsg.issues.length ? "alert-warning" : "alert-success"} mb-0`} role="status" data-testid="import-result">{importMsg.issues.length ? `تم الاستيراد كمسودة مع ${importMsg.issues.length} ملاحظة يجب إصلاحها قبل الاعتماد.` : "تم الاستيراد كمسودة ويمكن اعتمادها."}</div> : null}
-
-            {!readOnly && issues.length > 0 ? (
+            {readOnly ? <div className="alert alert-info mb-0" role="status">هذه النسخة {rs.status === "published" ? "معتمدة" : "مؤرشفة"} ومجمّدة ولا يمكن تعديلها. انسخها كمسودة لإجراء تغييرات.</div> : null}
+            {notice ? (
+                <div className={`alert alert-${notice.tone} mb-0`} role={notice.tone === "success" ? "status" : "alert"} data-testid="builder-notice">
+                    {notice.text}
+                    {notice.list?.length ? <ul className="mb-0">{notice.list.map((m, i) => <li key={i}>{m}</li>)}</ul> : null}
+                </div>
+            ) : null}
+            {!readOnly && (issues.length > 0 || noBands) ? (
                 <div className="alert alert-warning mb-0" role="status" data-testid="validation">
                     <strong>قبل الاعتماد:</strong>
-                    <ul className="mb-0">{issues.map((x, i) => <li key={i}>{x.message}</li>)}</ul>
+                    <ul className="mb-0">{[...new Set([...issues.map((x) => x.message), ...(noBands ? [NO_BANDS_MESSAGE] : [])])].map((m, i) => <li key={i}>{m}</li>)}</ul>
                 </div>
             ) : null}
 
@@ -187,7 +232,7 @@ export function RuleSetBuilder({ ruleSet, onSave, onDuplicate, previewFetcher }:
 
             {tab === "matrix" ? (
                 <SectionCard title="المحاور والمعايير">
-                    <p className="form-text mt-0">مجموع أوزان المحاور: <bdi dir="ltr">{weightSum}</bdi>. الأوزان نسبية؛ النتيجة من 100.</p>
+                    <p className="form-text mt-0">المحور بلا وزن يأخذ حصة متساوية (متوسط الأوزان المحددة، أو 1 إن لم يُحدد أي وزن). الأوزان الفعلية: <bdi dir="ltr">{effective.map((w) => Math.round(w * 100) / 100).join(" / ") || "-"}</bdi></p>
                     <div className="d-flex flex-column gap-3">
                         {pillars.length === 0 && rs.criteria.length === 0 ? <p className="text-muted mb-0">لا توجد محاور بعد.</p> : null}
                         {pillars.map((p, i) => pillarSection(p, i))}
@@ -196,23 +241,26 @@ export function RuleSetBuilder({ ruleSet, onSave, onDuplicate, previewFetcher }:
                     {!readOnly ? (
                         <div className="d-flex flex-wrap gap-2 mt-3">
                             <button type="button" className="btn btn-primary" onClick={addPillar}><i className="bi bi-plus-lg" aria-hidden="true" /> إضافة محور</button>
-                            {pillars.length === 0 ? <button type="button" className="btn btn-outline-primary" onClick={() => setEditing(newCriterion(null))}>إضافة معيار بلا محور</button> : null}
+                            <button type="button" className="btn btn-outline-primary" onClick={() => openEditor(newCriterion(null))}>إضافة معيار بلا محور</button>
                         </div>
                     ) : null}
                 </SectionCard>
             ) : null}
             {tab === "bands" ? (
                 <SectionCard title="شرائح النتيجة">
-                    <BandsEditor bands={rs.bands} ruleSetId={rs.id} readOnly={readOnly} onChange={(bands: ScoreBand[]) => setRs((r) => ({ ...r, bands }))} />
+                    <BandsEditor bands={rs.bands} ruleSetId={rs.id} readOnly={readOnly} errors={bandErrors} dirty={bandDirty}
+                        onChange={(bands: ScoreBand[]) => setRs((r) => ({ ...r, bands }))}
+                        onSaveRow={(b) => void run(actions.saveBand(rs, b), `band:${b.id}`)}
+                        onDeleteRow={(b) => void run(actions.deleteBand(b))} />
                 </SectionCard>
             ) : null}
             {tab === "preview" ? (
                 <SectionCard title="معاينة الحساب">
-                    <PreviewPanel ruleSet={rs} fetcher={previewFetcher} />
+                    <PreviewPanel ruleSet={ruleSet} fetcher={previewFetcher} />
                 </SectionCard>
             ) : null}
 
-            <CriterionDrawer criterion={editing} pillars={pillars} readOnly={readOnly} onClose={() => setEditing(null)} onSave={saveCriterion} />
+            <CriterionDrawer criterion={editing} pillars={pillars} readOnly={readOnly} errors={drawerErrors} saving={busy} onClose={() => openEditor(null)} onSave={(c) => void saveCriterion(c)} />
         </div>
     );
 }

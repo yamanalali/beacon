@@ -30,15 +30,23 @@ export type Answers = Record<string, AnswerValue>;
 /** Snapshot plus an optional stored breakdown (not sent by the backend yet). */
 export type SnapshotWithBreakdown = ReadinessScoreSnapshot & { breakdown?: ScoreBreakdown | null };
 
-/** JSON import/export envelope (no backend endpoint yet). */
+/** Export/import file = ReadinessRuleSetValidator::definition (backend #74). */
 export type RuleSetExport = {
-    format: "beacon.readiness.rule-set";
-    version: 1;
-    rule_set: {
-        name_ar: string;
-        change_summary: string | null;
-        pillars: Omit<Pillar, "id" | "readiness_rule_set_id" | "criteria">[];
-        criteria: (Omit<Criterion, "id" | "readiness_rule_set_id" | "readiness_pillar_id"> & { pillar_code: string | null; type: CriterionType })[];
-        bands: Omit<ScoreBand, "id" | "readiness_rule_set_id">[];
-    };
+    format: "beacon.readiness.rule_set";
+    format_version: 1;
+    name_ar: string;
+    change_summary: string | null;
+    source_version_number?: number | null;
+    pillars: { code: string; label_ar: string; weight: number | string; min_score: number | string | null; sort_order: number }[];
+    criteria: (Omit<Criterion, "id" | "readiness_rule_set_id" | "readiness_pillar_id" | "compliance_requirement_id"> & { pillar_code: string | null; compliance_requirement_code?: string | null; type: CriterionType })[];
+    bands: { label_ar: string; min: number | string; max: number | string; color_token: string; sort_order: number }[];
 };
+
+/** POST /admin/readiness/{ruleSet}/preview body item (backend #74; mirrors its readiness.ts PreviewAnswer). */
+export type PreviewAnswer = { criterion_id: number; outcome?: "met" | "not_met" | "missing" | "needs_review" | null; value?: unknown };
+
+/** Server band as sent by #74 evaluate(): `name` mirrors label_ar. */
+export type BreakdownBand = NonNullable<ScoreBreakdown["band"]> & { name?: string };
+
+/** Implicit pillar code used by the backend scorer (ReadinessScorer::IMPLICIT_PILLAR). */
+export const IMPLICIT_PILLAR = "_default";
