@@ -4,6 +4,7 @@ namespace App\Ai\Http\Controllers;
 
 use App\Ai\Voice\SpeechToText;
 use App\Ai\Voice\VoiceDraftParser;
+use App\Support\SuggestedDateWarning;
 use App\Contracts\TransactionCategorizer;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
@@ -121,6 +122,8 @@ class VoiceDraftController extends Controller
                 'items_mismatch' => (bool) ($p['items_mismatch'] ?? false),
                 // Arabic hint when the amount wording is ambiguous («3000 الاف») or items ≠ total.
                 'suggested_amount_warning' => $p['amount_warning'] ?? null,
+                // Arabic hint when the date is in the future or older than ai.review.old_date_days; never blocks.
+                'suggested_date_warning' => SuggestedDateWarning::for($p['date'] ?? null),
                 'raw_text' => $text,
             ],
             'type' => $type,

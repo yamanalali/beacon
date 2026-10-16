@@ -80,4 +80,10 @@ return [
         'table_pass' => (bool) $env('AI_OCR_TABLE_PASS', true),
         'line_pass_max_lines' => (int) $env('AI_OCR_LINE_PASS_MAX_LINES', 60),
     ],
+
+    // Review form: warn (never block) when an OCR/voice suggested date is in the future or older than this.
+    // TODO: BUSINESS DECISION REQUIRED - approved threshold for an implausibly old date (default 365 days).
+    'review' => [
+        'old_date_days' => (int) $env('AI_REVIEW_OLD_DATE_DAYS', 365),
+    ],
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\SuggestedDateWarning;
 use App\Ai\Ocr\ReceiptLineItemParser;
 use App\Ai\Support\PaginatedProps;
 use App\Actions\Bookkeeping\ConfirmReceiptExtractionAction;
@@ -113,6 +114,9 @@ class ReceiptExtractionController extends Controller
                     : ($extraction->suggested_amount === null
                         ? 'لم نتمكن من قراءة الإجمالي من الفاتورة، أدخل المبلغ يدوياً.'
                         : ($mismatch ? 'البنود لا تطابق الإجمالي أو الكمية × السعر (قد يكون بسبب ضريبة أو خصم أو قراءة خاطئة)، تأكد من المبلغ.' : null)),
+                // Arabic hint: future date or older than ai.review.old_date_days (never blocks saving).
+                'suggested_date_warning' => $extraction->status !== ExtractionStatus::PendingReview || $extraction->extractor === 'manual' ? null
+                    : SuggestedDateWarning::for($extraction->suggested_date?->toDateString()),
                 // Invoice number at the start of the note (BEACON-DECISIONS 2026-10-16 «رقم الفاتورة»); no extra column.
                 'suggested_note' => $extraction->suggested_invoice_number !== null ? 'فاتورة رقم '.$extraction->suggested_invoice_number : null,
                 'document' => DocumentController::row($extraction->document),
