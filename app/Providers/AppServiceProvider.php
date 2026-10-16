@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Http\Middleware\ArabicThrottleRequests;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Models\FinancialTransaction;
+use App\Navigation\PageAccess;
 use App\Policies\TransactionPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Routing\Middleware\ThrottleRequests;
@@ -27,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(FinancialTransaction::class, TransactionPolicy::class);
+        PageAccess::register();
 
         $this->app->make('router')->aliasMiddleware('role', EnsureUserHasRole::class);
 

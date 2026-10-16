@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Navigation\NavigationBuilder;
 use BackedEnum;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -45,6 +46,7 @@ class HandleInertiaRequests extends Middleware
             'dir' => $locale === 'ar' ? 'rtl' : 'ltr',
             'auth' => [
                 'user' => $this->sharedUser($request),
+                'navigation' => fn () => app(NavigationBuilder::class)->build($request->user(), $request),
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
