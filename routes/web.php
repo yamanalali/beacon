@@ -18,6 +18,7 @@ Route::middleware('auth')->group(function () {
 
 foreach ([
     __DIR__.'/auth.php',
+    __DIR__.'/mfa.php',
     __DIR__.'/enterprises.php',
     __DIR__.'/advisory.php',
     __DIR__.'/transactions.php',
