@@ -37,6 +37,7 @@ export type BeaconSharedProps = PageProps & {
     };
     flash?: {
         success?: string | null;
+        warning?: string | null;
         info?: string | null;
         created_document_id?: string | null;
     };
