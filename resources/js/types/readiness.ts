@@ -70,16 +70,18 @@ export interface CriterionBreakdown {
     label_ar: string;
     type: CriterionType;
     value: unknown;
-    /** 0..1, null when excluded / missing. */
+    /** 0..1, null when excluded / needs review. */
     points: number | null;
     weight: number;
+    /** Points added to the overall score (0..100 scale). */
     contribution: number;
+    /** Reported outcome (before the missing-data treatment is applied). */
     outcome: ResultOutcome;
 }
 
 export interface PillarBreakdown {
-    /** null for the implicit pillar holding pillar-less criteria. */
-    code: string | null;
+    /** '_default' for the implicit pillar holding pillar-less criteria (its label_ar is null). */
+    code: string;
     label_ar: string | null;
     weight: number;
     score: number | null;
@@ -97,10 +99,14 @@ export interface ScoreImprovement {
 
 export interface ScoreBreakdown {
     score: number | null;
-    band: Pick<ScoreBand, 'label_ar' | 'min' | 'max' | 'color_token'> | null;
-    mandatory_conditions_met: boolean;
+    /** `name` mirrors label_ar (stored in the snapshot band column). */
+    band: (Pick<ScoreBand, 'label_ar' | 'min' | 'max' | 'color_token'> & { name?: string }) | null;
+    /** null while a mandatory criterion still needs review. */
+    mandatory_conditions_met: boolean | null;
     blocking: string[];
     pillars: PillarBreakdown[];
+    /** Same array as `pillars`. */
+    breakdown: PillarBreakdown[];
     improvements: ScoreImprovement[];
     earned_weight: number;
     counted_weight: number;
@@ -108,4 +114,15 @@ export interface ScoreBreakdown {
     needs_review: string[];
     missing: string[];
     unmet: string[];
+}
+
+export interface PreviewAnswer {
+    criterion_id: number;
+    outcome?: ResultOutcome | null;
+    value?: unknown;
+}
+
+/** POST /admin/readiness/{ruleSet}/preview response. */
+export interface PreviewResponse {
+    evaluation: ScoreBreakdown;
 }
