@@ -26,6 +26,15 @@ class WhisperConfigTest extends TestCase
                 return false;
             }
 
+            protected function modelExists(string $path): bool
+
+            {
+
+                return true;
+
+            }
+
+
             protected function makeProcess(array $command): Process
             {
                 $this->cmd = $command;
@@ -97,5 +106,13 @@ class WhisperConfigTest extends TestCase
         config(['ai.voice.whisper_correct' => false]);
         $this->run_();
         $this->assertSame('دفعت همس مياه الفا', $this->text);
+    }
+
+    public function test_missing_model_file_fails_without_running_whisper(): void
+    {
+        config(['ai.voice.whisper_model' => '/nonexistent/ggml-x.bin']);
+        $w = new WhisperCppTranscriber;
+        $this->assertNull($w->transcribe('/tmp/a.wav', 'audio/wav'));
+        $this->assertSame('failed', $w->failureReason);
     }
 }

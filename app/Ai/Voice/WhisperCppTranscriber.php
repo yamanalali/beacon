@@ -29,12 +29,24 @@ class WhisperCppTranscriber implements SpeechToText
         $this->failureReason = null;
         // whisper.cpp writes <base>.txt as UTF-8; reading the file avoids console
         // code-page mangling of stdout on Windows (Arabic -> "????").
+        $model = self::modelPath();
+        if (! $this->modelExists($model)) {
+            Log::warning('Whisper model file not found; set WHISPER_MODEL to the .bin path', ['model' => $model]);
+            $this->failureReason = 'failed';
+
+            return null;
+        }
+        $timeout = (int) config('ai.voice.timeout', 120);
+        // Whisper runs inside the request; PHP's default 30s limit would cut it first.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit($timeout + 15);
+        }
         $base = tempnam(sys_get_temp_dir(), 'stt_');
         $txt = $base.'.txt';
         try {
             $p = $this->makeProcess([
                 (string) config('ai.voice.whisper_path', 'whisper-cli'),
-                '-m', self::modelPath(),
+                '-m', $model,
                 '-f', $path,
                 '-l', self::LANGUAGE, // fixed: never auto-detect
                 '-nt', '-np',
@@ -42,7 +54,7 @@ class WhisperCppTranscriber implements SpeechToText
                 ...$this->threadArgs(),
                 ...$this->promptArgs(),
             ]);
-            $p->setTimeout((float) config('ai.voice.timeout', 120));
+            $p->setTimeout((float) $timeout);
             $p->run();
             if (! $p->isSuccessful()) {
                 Log::warning('Whisper STT failed', ['exit' => $p->getExitCode(), 'error' => mb_substr($p->getErrorOutput(), 0, 300)]);
@@ -110,6 +122,11 @@ class WhisperCppTranscriber implements SpeechToText
         }
 
         return $model;
+    }
+
+    protected function modelExists(string $path): bool
+    {
+        return is_file($path);
     }
 
     /** @return list<string> */
