@@ -1,7 +1,8 @@
 import type { FormEvent } from "react";
 import { SelectInput } from "../Forms/SelectInput";
 import { TextInput } from "../Forms/TextInput";
-import type { BookkeepingOptions } from "../../types/bookkeeping";
+import type { BookkeepingOptions, SuggestedTransactionItem } from "../../types/bookkeeping";
+import { ItemsEditor, rowsFromSuggested, toItemsPayload, type ItemRow } from "./ItemsEditor";
 import { Money } from "../Common/Money";
 import { parseAmount } from "../../lib/money";
 
@@ -21,6 +22,10 @@ export type TransactionDraft = {
     suggested_transaction_type?: string | null;
     /** Free-text note the provider read (voice). Optional: older servers don't send it. */
     suggested_note?: string | null;
+    /** Where the suggested currency came from; 'default' = enterprise default, not read/spoken. */
+    suggested_currency_source?: string | null;
+    /** Line items read from the receipt/voice (optional; unread values are null). */
+    suggested_items?: SuggestedTransactionItem[] | null;
 };
 
 export type ReviewFormData = {
@@ -33,7 +38,14 @@ export type ReviewFormData = {
     paid_amount: string;
     counterparty: string;
     description: string;
+    /** Optional line items (editor rows); sent as `items[]` via reviewPayload. */
+    items: ItemRow[];
 };
+
+/** Submit payload: editor rows → `items[]` (fully empty rows dropped). */
+export function reviewPayload(data: ReviewFormData) {
+    return { ...data, items: toItemsPayload(data.items) };
+}
 
 export type CategorySuggestion = { category: string; label: string; needs_review: boolean } | null;
 
@@ -76,6 +88,7 @@ export function initialReviewData(draft: TransactionDraft, type: string, options
         paid_amount: "",
         counterparty: draft.suggested_counterparty ?? "",
         description: typeof draft.suggested_note === "string" && draft.suggested_note.trim() !== "" ? draft.suggested_note : "",
+        items: rowsFromSuggested(draft.suggested_items),
     };
 }
 
@@ -101,7 +114,7 @@ export function ReviewForm({
     setData: (patch: Partial<ReviewFormData>) => void;
     options: BookkeepingOptions;
     suggestion: CategorySuggestion;
-    errors?: Partial<Record<keyof ReviewFormData, string>>;
+    errors?: Partial<Record<keyof ReviewFormData, string>> & Record<string, string | undefined>;
     processing?: boolean;
     onSubmit: () => void;
     onReject?: () => void;
@@ -168,6 +181,9 @@ export function ReviewForm({
                 <div className="col-5">
                     <SelectInput id="currency" label="العملة" required placeholder="اختر" value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />
                     <Suggested show={isPrefilled(draft.suggested_currency, data.currency)} />
+                {draft.suggested_currency_source === "default" && isPrefilled(draft.suggested_currency, data.currency) ? (
+                    <div className="form-text" data-testid="currency-default-hint">العملة الافتراضية، تأكد منها</div>
+                ) : null}
                 </div>
             </div>
             <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" required placeholder="اختر" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
@@ -185,6 +201,7 @@ export function ReviewForm({
             {data.payment_status === "partially_paid" ? (
                 <TextInput id="paid_amount" name="paid_amount" label="المبلغ المدفوع الآن" value={data.paid_amount} onChange={(v) => setData({ paid_amount: v })} error={errors.paid_amount} inputMode="decimal" />
             ) : null}
+            <ItemsEditor rows={data.items} onChange={(items) => setData({ items })} currency={data.currency} amount={data.amount} errors={errors} disabled={processing} />
             <TextInput id="description" name="description" label="ملاحظة (اختياري)" value={data.description} onChange={(v) => setData({ description: v })} error={errors.description} />
             <Suggested show={isPrefilled(draft.suggested_note, data.description)} />
 

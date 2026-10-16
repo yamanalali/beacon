@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReviewForm, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
+import { ReviewForm, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, reviewPayload, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
 
 const options: BookkeepingOptions = {
@@ -156,5 +156,68 @@ describe("suggested_note", () => {
         renderWith(base);
         expect(noteBox().value).toBe("");
         expect(screen.queryByText("مقترح")).toBeNull();
+    });
+});
+
+describe("suggested_items in the review form", () => {
+    const base: TransactionDraft = { suggested_date: "2026-10-01", suggested_amount: "3000", suggested_currency: "SYP", suggested_counterparty: null };
+    function ItemsHarness({ draft, onSubmit }: { draft: TransactionDraft; onSubmit: (p: ReturnType<typeof reviewPayload>) => void }) {
+        const [data, set] = useState(initialReviewData(draft, "expense", options, null));
+        return <ReviewForm draft={draft} data={data} setData={(p) => set((d) => ({ ...d, ...p }))} options={options} suggestion={null} onSubmit={() => onSubmit(reviewPayload(data))} />;
+    }
+
+    it("prefills rows from suggested_items with «مقترح» badges; nulls stay empty", () => {
+        render(<ItemsHarness draft={{ ...base, suggested_items: [{ description: "قماش", quantity: 2, unit_price: 1500, total: null }, { description: "خيوط", quantity: null, unit_price: null, total: 0 }] }} onSubmit={() => {}} />);
+        expect((screen.getByLabelText("الوصف — البند 1") as HTMLInputElement).value).toBe("قماش");
+        expect((screen.getByLabelText("الإجمالي — البند 1") as HTMLInputElement).value).toBe("3000");
+        expect((screen.getByLabelText("الكمية — البند 2") as HTMLInputElement).value).toBe("");
+        expect((screen.getByLabelText("سعر الوحدة — البند 2") as HTMLInputElement).value).toBe("");
+        const editor = screen.getByTestId("items-editor");
+        // row 1: description, quantity, unit_price; row 2: description, total (0 is a real value)
+        expect(editor.querySelectorAll(".app-status--warning").length).toBe(5);
+        fireEvent.change(screen.getByLabelText("الوصف — البند 1"), { target: { value: "قماش قطني" } });
+        expect(editor.querySelectorAll(".app-status--warning").length).toBe(4);
+    });
+
+    it("no suggested_items (missing or null) → no rows, items: [] in payload", () => {
+        const onSubmit = vi.fn();
+        render(<ItemsHarness draft={{ ...base, suggested_items: null }} onSubmit={onSubmit} />);
+        expect(screen.getByText("لا توجد بنود")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ items: [] }));
+        expect(initialReviewData(base, "expense", options, null).items).toEqual([]);
+    });
+
+    it("sends items[] and still allows saving when the items total mismatches", () => {
+        const onSubmit = vi.fn();
+        render(<ItemsHarness draft={{ ...base, suggested_amount: "3500", suggested_items: [{ description: "قماش", quantity: 2, unit_price: 1500, total: null }] }} onSubmit={onSubmit} />);
+        fireEvent.click(screen.getByRole("button", { name: /إضافة بند/ }));
+        expect(screen.getByTestId("items-mismatch")).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
+        expect(onSubmit.mock.calls[0][0].items).toEqual([{ description: "قماش", quantity: "2", unit_price: "1500" }]);
+    });
+});
+
+
+describe("suggested_currency_source hint", () => {
+    const base: TransactionDraft = { suggested_date: "2026-10-01", suggested_amount: "3000", suggested_currency: "USD", suggested_counterparty: null };
+    const hint = "العملة الافتراضية، تأكد منها";
+
+    it("shows the hint next to the مقترح badge when the currency is the enterprise default", () => {
+        render(<Harness draft={{ ...base, suggested_currency_source: "default" }} onSubmit={vi.fn()} />);
+        expect(screen.getByTestId("currency-default-hint").textContent).toBe(hint);
+    });
+
+    it("does not show the hint when the currency was spoken", () => {
+        render(<Harness draft={{ ...base, suggested_currency_source: "spoken" }} onSubmit={vi.fn()} />);
+        expect(screen.queryByText(hint)).toBeNull();
+    });
+
+    it("does not show the hint when the source is missing or null", () => {
+        render(<Harness draft={base} onSubmit={vi.fn()} />);
+        expect(screen.queryByText(hint)).toBeNull();
+        cleanup();
+        render(<Harness draft={{ ...base, suggested_currency_source: null }} onSubmit={vi.fn()} />);
+        expect(screen.queryByText(hint)).toBeNull();
     });
 });

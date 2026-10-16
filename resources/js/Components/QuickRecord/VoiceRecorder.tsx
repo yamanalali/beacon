@@ -1,6 +1,6 @@
 import { router } from "@inertiajs/react";
 import { useState } from "react";
-import { ReviewForm as TransactionDraftReview, initialReviewData, type ReviewFormData } from "../Transactions/ReviewForm";
+import { ReviewForm as TransactionDraftReview, initialReviewData, reviewPayload, type ReviewFormData } from "../Transactions/ReviewForm";
 import { MAX_SECONDS, useWavRecorder } from "./useWavRecorder";
 import { sendVoice, type VoiceDraftResponse } from "./voiceApi";
 
@@ -48,7 +48,7 @@ export function VoiceRecorder({ voiceUrl, manualUrl, onDone, send = sendVoice }:
                     sourceLabel="التسجيل الصوتي"
                     onSubmit={() => {
                         setSaving(true);
-                        router.post(res.confirm.url, data, {
+                        router.post(res.confirm.url, reviewPayload(data), {
                             onError: (e) => setErrors(e as typeof errors),
                             onSuccess: () => onDone?.(),
                             onFinish: () => setSaving(false),
