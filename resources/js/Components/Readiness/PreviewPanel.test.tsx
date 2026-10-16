@@ -63,7 +63,7 @@ describe("AssessmentResult", () => {
         expect(screen.queryByTestId("radar")).toBeNull();
     });
 
-    const snap: SnapshotWithBreakdown = { id: 7, score: "61.5", band: "متوسطة", mandatory_conditions_met: true, reason: "recalculation", reason_note: "تحديث القواعد", rule_set_version: 3, config_hash: "h", is_current: true, computed_at: "2026-10-16 12:00", computed_by: "مستشار" };
+    const snap: SnapshotWithBreakdown = { id: 7, score: "61.5", band_detail: null, band: "متوسطة", mandatory_conditions_met: true, reason: "recalculation", reason_note: "تحديث القواعد", rule_set_version: 3, config_hash: "h", is_current: true, computed_at: "2026-10-16 12:00", computed_by: "مستشار" };
 
     it("reads score and band from the frozen snapshot, not the live breakdown", () => {
         render(<AssessmentResult breakdown={b} snapshot={snap} snapshotHistory={[snap, { ...snap, id: 6, score: 55, reason: "initial", reason_note: null, is_current: false }]} />);
