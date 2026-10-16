@@ -14,7 +14,7 @@ use RuntimeException;
  * Modular: add new demo areas as separate seeders in the list below
  * (e.g. readiness/referral, AI demo data).
  *
- * Note: MFI institution linking is skipped — no institutions table on main yet.
+ * DemoMfiSeeder: demo MFI institution, linked demo MFI user, one consented shared referral.
  */
 class DemoSeeder extends Seeder
 {
@@ -32,6 +32,7 @@ class DemoSeeder extends Seeder
             DemoUsersSeeder::class,
             DemoEnterpriseSeeder::class,
             DemoFinanceSeeder::class,
+            DemoMfiSeeder::class,
         ]);
     }
 }
