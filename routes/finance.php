@@ -15,6 +15,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/documents/{document:public_id}/extractions', [ReceiptExtractionController::class, 'store'])
         ->middleware('throttle:20,1')
         ->name('documents.extractions.store');
+    Route::get('/enterprises/{enterprise:public_id}/extractions/pending', [ReceiptExtractionController::class, 'pending'])
+        ->name('enterprises.extractions.pending');
     Route::get('/extractions/{extraction:public_id}', [ReceiptExtractionController::class, 'show'])
         ->name('extractions.show');
     Route::post('/extractions/{extraction:public_id}/confirm', [ReceiptExtractionController::class, 'confirm'])

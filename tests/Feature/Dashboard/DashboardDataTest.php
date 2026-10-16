@@ -206,7 +206,7 @@ class DashboardDataTest extends TestCase
         }
 
         $this->assertStringContainsString('/compliance', $byKey['overdue_compliance']['href']);
-        $this->assertStringContainsString('/documents', $byKey['pending_reviews']['href']);
+        $this->assertSame(route('enterprises.extractions.pending', $this->mine), $byKey['pending_reviews']['href']);
         $this->assertStringContainsString('/ai/pages/escalations', $byKey['open_escalations']['href']);
     }
 }
