@@ -1,92 +1,86 @@
-import { router, useForm } from "@inertiajs/react";
+import { useState } from "react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { TextInput } from "../../Components/Forms/TextInput";
+import { R, mutate } from "../../Components/Readiness/adminApi";
+import { RuleSetBuilder } from "../../Components/Readiness/RuleSetBuilder";
+import type { RuleSetDraft } from "../../Components/Readiness/types";
 
-type Criterion = { id: number; code: string; label_ar: string; weight: number; is_mandatory: boolean; missing_data_treatment_label: string; compliance_requirement_code: string | null };
-type RuleSet = { id: number; version_number: number; name_ar: string; status: string; status_label: string; change_summary: string | null; published_at: string | null; criteria: Criterion[] };
-type Props = { ruleSets: RuleSet[]; treatments: Record<string, string>; complianceRequirements: { id: number; code: string }[] };
+/** Props of ReadinessAdminController@index (backend #74). */
+type AdminRuleSet = RuleSetDraft & { status_label: string; published_at: string | null };
+type Props = { ruleSets: AdminRuleSet[]; treatments: Record<string, string>; complianceRequirements: { id: number; code: string }[] };
 
-function CriterionForm({ ruleSet, treatments, complianceRequirements }: { ruleSet: RuleSet } & Omit<Props, "ruleSets">) {
-    const form = useForm({ code: "", label_ar: "", weight: "", is_mandatory: false, missing_data_treatment: "", compliance_requirement_id: "" });
+const tone = (s: string) => (s === "draft" ? "warning" : s === "published" ? "success" : "neutral");
 
+function NewDraftForm({ hasDraft }: { hasDraft: boolean }) {
+    const [name, setName] = useState("");
+    const [summary, setSummary] = useState("");
+    const [copy, setCopy] = useState(true);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [message, setMessage] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
     return (
         <form
-            className="border-top pt-3 mt-3"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
                 e.preventDefault();
-                form.post(`/admin/readiness/${ruleSet.id}/criteria`, { preserveScroll: true, onSuccess: () => form.reset() });
+                setBusy(true);
+                const r = await mutate("POST", R.store(), { name_ar: name, change_summary: summary || null, copy_from_current: copy });
+                setBusy(false);
+                if (r.ok) { setName(""); setSummary(""); setErrors({}); setMessage(null); return; }
+                setErrors(r.errors);
+                setMessage(Object.keys(r.errors).length ? null : r.message);
             }}
         >
-            <TextInput id={`code-${ruleSet.id}`} name="code" label="رمز المعيار" value={form.data.code} onChange={(v) => form.setData("code", v)} error={form.errors.code} />
-            <TextInput id={`label-${ruleSet.id}`} name="label_ar" label="اسم المعيار" value={form.data.label_ar} onChange={(v) => form.setData("label_ar", v)} error={form.errors.label_ar} />
-            <TextInput id={`weight-${ruleSet.id}`} name="weight" type="number" label="الوزن" value={form.data.weight} onChange={(v) => form.setData("weight", v)} error={form.errors.weight} />
-            <div className="mb-3">
-                <label className="form-label mb-1 fw-semibold" htmlFor={`treat-${ruleSet.id}`}>معاملة البيانات الناقصة</label>
-                <select id={`treat-${ruleSet.id}`} className="form-select" style={{ minHeight: "48px" }} value={form.data.missing_data_treatment} onChange={(e) => form.setData("missing_data_treatment", e.target.value)}>
-                    <option value="">اختر حسب قرار بيكون</option>
-                    {Object.entries(treatments).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </select>
-            </div>
-            <div className="mb-3">
-                <label className="form-label mb-1 fw-semibold" htmlFor={`req-${ruleSet.id}`}>مرتبط بمتطلب امتثال (اختياري)</label>
-                <select id={`req-${ruleSet.id}`} className="form-select" style={{ minHeight: "48px" }} value={form.data.compliance_requirement_id} onChange={(e) => form.setData("compliance_requirement_id", e.target.value)}>
-                    <option value="">بدون</option>
-                    {complianceRequirements.map((r) => <option key={r.id} value={r.id}>{r.code}</option>)}
-                </select>
-            </div>
+            {hasDraft ? <div className="alert alert-info py-2" role="status">توجد مسودة مفتوحة. انشرها أو احذفها قبل إنشاء مسودة جديدة.</div> : null}
+            {message ? <div className="alert alert-danger py-2" role="alert">{message}</div> : null}
+            <TextInput id="rs-name" name="name_ar" label="اسم مجموعة القواعد" value={name} onChange={setName} error={errors.name_ar} />
+            <TextInput id="rs-summary" name="change_summary" label="ملخص التغيير (اختياري)" value={summary} onChange={setSummary} error={errors.change_summary} />
             <div className="form-check mb-3">
-                <input id={`mand-${ruleSet.id}`} type="checkbox" className="form-check-input" checked={form.data.is_mandatory} onChange={(e) => form.setData("is_mandatory", e.target.checked)} />
-                <label htmlFor={`mand-${ruleSet.id}`} className="form-check-label">شرط إلزامي</label>
+                <input id="rs-copy" type="checkbox" className="form-check-input" checked={copy} onChange={(e) => setCopy(e.target.checked)} />
+                <label className="form-check-label" htmlFor="rs-copy">ابدأ بنسخة من القواعد المعتمدة الحالية</label>
             </div>
-            <button type="submit" className="btn btn-outline-primary" style={{ minHeight: "48px" }}>إضافة معيار</button>
+            <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>إنشاء مسودة</button>
         </form>
     );
 }
 
-export default function Admin({ ruleSets, treatments, complianceRequirements }: Props) {
-    const form = useForm({ name_ar: "", change_summary: "", copy_from_current: true });
+export default function Admin({ ruleSets }: Props) {
+    const initial = ruleSets.find((s) => s.status === "draft") ?? ruleSets.find((s) => s.status === "published") ?? ruleSets[0];
+    const [selectedId, setSelectedId] = useState<number | null>(initial?.id ?? null);
+    const selected = ruleSets.find((s) => s.id === selectedId) ?? initial ?? null;
+    const hasDraft = ruleSets.some((s) => s.status === "draft");
 
     return (
         <AppLayout title="قواعد الجاهزية">
-            <div className="app-page">
-                <PageHeader title="قواعد تقييم الجاهزية" description="المعايير والأوزان تُعتمد من بيكون. النسخ المنشورة لا تُعدّل." />
-                <SectionCard title="نسخة قواعد جديدة">
-                    <form onSubmit={(e) => { e.preventDefault(); form.post("/admin/readiness", { preserveScroll: true }); }}>
-                        <TextInput id="name_ar" name="name_ar" label="الاسم" value={form.data.name_ar} onChange={(v) => form.setData("name_ar", v)} error={form.errors.name_ar} />
-                        <TextInput id="change_summary" name="change_summary" label="ملخص التغيير" value={form.data.change_summary} onChange={(v) => form.setData("change_summary", v)} />
-                        <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }}>إنشاء مسودة</button>
-                    </form>
-                </SectionCard>
-                <div className="mt-4 d-flex flex-column gap-3">
-                    {ruleSets.length === 0 ? <EmptyState title="لا توجد قواعد بعد. بانتظار اعتماد بيكون." /> : null}
-                    {ruleSets.map((set) => (
-                        <article key={set.id} className="border rounded p-3 bg-white">
-                            <div className="d-flex justify-content-between flex-wrap gap-2">
-                                <strong>{set.name_ar} (نسخة {set.version_number})</strong>
-                                <StatusBadge label={set.status_label} tone={set.status === "published" ? "success" : "warning"} />
-                            </div>
-                            <ul className="mt-2">
-                                {set.criteria.map((c) => (
-                                    <li key={c.id}>
-                                        {c.label_ar} - الوزن {c.weight}{c.is_mandatory ? " - إلزامي" : ""} - {c.missing_data_treatment_label}
-                                        {set.status === "draft" ? (
-                                            <button type="button" className="btn btn-link btn-sm" onClick={() => router.delete(`/admin/readiness/criteria/${c.id}`, { preserveScroll: true })}>حذف</button>
-                                        ) : null}
+            <PageHeader title="قواعد الجاهزية" description="محاور ومعايير وأوزان وشرائح تقييم جاهزية المنشآت. النسخ المعتمدة مجمّدة." />
+            <div className="row g-3">
+                <div className="col-12 col-lg-3 d-flex flex-column gap-3">
+                    <SectionCard title="النسخ">
+                        {ruleSets.length === 0 ? (
+                            <EmptyState title="لا توجد قواعد بعد" description="أنشئ مسودة أولى لبدء إعداد مصفوفة التقييم." />
+                        ) : (
+                            <ul className="list-unstyled d-flex flex-column gap-2 mb-0">
+                                {ruleSets.map((s) => (
+                                    <li key={s.id}>
+                                        <button type="button" className={`app-mobile-record w-100 text-start border-0${selected?.id === s.id ? " active" : ""}`} aria-pressed={selected?.id === s.id} onClick={() => setSelectedId(s.id)}>
+                                            <span className="d-flex flex-wrap align-items-center gap-2">
+                                                <span className="fw-semibold flex-grow-1">{s.name_ar}</span>
+                                                <StatusBadge label={s.status_label} tone={tone(s.status)} />
+                                            </span>
+                                            <span className="small text-muted">v<bdi dir="ltr">{s.version_number}</bdi></span>
+                                        </button>
                                     </li>
                                 ))}
                             </ul>
-                            {set.status === "draft" ? (
-                                <>
-                                    <button type="button" className="btn btn-primary" style={{ minHeight: "44px" }} onClick={() => router.post(`/admin/readiness/${set.id}/publish`, {}, { preserveScroll: true })}>اعتماد ونشر</button>
-                                    <CriterionForm ruleSet={set} treatments={treatments} complianceRequirements={complianceRequirements} />
-                                </>
-                            ) : null}
-                        </article>
-                    ))}
+                        )}
+                    </SectionCard>
+                    <SectionCard title="مسودة جديدة"><NewDraftForm hasDraft={hasDraft} /></SectionCard>
+                </div>
+                <div className="col-12 col-lg-9">
+                    {selected ? <RuleSetBuilder key={selected.id} ruleSet={selected} /> : null}
                 </div>
             </div>
         </AppLayout>
