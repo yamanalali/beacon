@@ -4,18 +4,19 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
+use App\Models\Concerns\HasTwoFactor;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 /**
- * TODO: BUSINESS DECISION REQUIRED — MFA for BEACON_ADMIN and TECHNICAL_ADMIN needs an approved operational policy (factor type, recovery codes, grace period). Do not implement MFA.
+ * Admin MFA (TOTP) lives in HasTwoFactor and is off unless config('mfa.enabled'). TODO: BUSINESS DECISION REQUIRED - roles, factor types, grace period, lost-device recovery (see config/mfa.php).
  */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasTwoFactor, Notifiable;
 
     /**
      * The attributes that are mass assignable.

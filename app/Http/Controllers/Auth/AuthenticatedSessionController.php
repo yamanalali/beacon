@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\TwoFactor\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,21 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
+
+        $user = $request->user();
+
+        if ($user !== null && app(TwoFactorService::class)->challengeRequired($user)) {
+            // Password is valid, but no session is granted until the second factor passes.
+            Auth::guard('web')->logout();
+            $request->session()->regenerate();
+            $request->session()->put(TwoFactorChallengeController::SESSION_USER, $user->getKey());
+            $request->session()->put(
+                TwoFactorChallengeController::SESSION_EXPIRES,
+                now()->addMinutes((int) config('mfa.challenge_ttl_minutes', 5))->timestamp,
+            );
+
+            return redirect()->route('two-factor.challenge');
+        }
 
         $request->session()->regenerate();
 
