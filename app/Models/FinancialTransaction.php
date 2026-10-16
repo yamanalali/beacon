@@ -86,7 +86,30 @@ class FinancialTransaction extends Model
      */
     public function itemsMismatch(): bool
     {
-        return $this->items->isNotEmpty() && $this->itemsTotalMinor() !== $this->amountMinor();
+        if ($this->items->isEmpty()) {
+            return false;
+        }
+
+        $total = '0';
+        foreach ($this->items as $item) {
+            $total = bcadd($total, (string) ($item->getAttributes()['total'] ?? '0'), 6);
+        }
+
+        $diff = bcsub($total, (string) ($this->getAttributes()['amount'] ?? '0'), 6);
+        if (bccomp($diff, '0', 6) < 0) {
+            $diff = bcmul($diff, '-1', 6);
+        }
+
+        return bccomp($diff, self::itemsTolerance((string) $this->currency), 6) > 0;
+    }
+
+    /**
+     * Allowed |items total - amount|: half the smallest unit of the currency
+     * (SYP has no fractional unit in practice → 0.5; others → 0.005).
+     */
+    public static function itemsTolerance(string $currency): string
+    {
+        return strtoupper($currency) === 'SYP' ? '0.5' : '0.005';
     }
 
     public function documents(): HasMany
