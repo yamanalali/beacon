@@ -4,6 +4,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
+import { AssessmentResult } from "../../Components/Readiness/AssessmentResult";
 
 type Result = {
     id: number;
@@ -91,12 +92,17 @@ function ResultRow({ result, assessmentId, outcomes, people, canEdit }: { result
     );
 }
 
-export default function Assessment({ enterprise, assessment, evaluation, results, outcomes, people, canEdit, disclaimer }: Props) {
+export default function Assessment({ enterprise, assessment, evaluation, results, outcomes, people, canEdit, disclaimer, result = null, snapshot = null, snapshotHistory = [], canRecalculate = false }: Props) {
     return (
         <AppLayout title="تقييم الجاهزية">
             <div className="app-page">
                 <PageHeader title="تقييم الجاهزية" description={`${enterprise.business_name} - ${assessment.rule_set.name_ar} (نسخة ${assessment.rule_set.version_number})`} />
                 <div className="alert alert-info">{disclaimer}</div>
+                {result || snapshot ? (
+                    <SectionCard title="نتيجة الجاهزية">
+                        <AssessmentResult result={result} snapshot={snapshot} snapshotHistory={snapshotHistory} canRecalculate={canRecalculate} assessmentId={assessment.public_id} />
+                    </SectionCard>
+                ) : null}
                 <SectionCard title="أساس التقييم">
                     <p className="mb-1">النتيجة: {evaluation.score !== null ? `${evaluation.score} من 100` : "غير محسوبة"}</p>
                     <p className="mb-1">الأوزان المستوفاة {evaluation.earned_weight} من أصل {evaluation.counted_weight} محسوبة.</p>

@@ -2,8 +2,24 @@ import { useState } from "react";
 import { router } from "@inertiajs/react";
 import type { PillarBreakdown, ScoreBreakdown } from "../../types/readiness";
 import { StatusBadge } from "../Feedback/StatusBadge";
-import { bandTone, isBlocked } from "./scoring";
-import type { SnapshotWithBreakdown } from "./types";
+import type { ReadinessScoreSnapshot, ReadinessScoreSnapshotWithResult, ReadinessSnapshotResult } from "../../types/readiness-snapshot";
+import { bandTone } from "./scoring";
+
+/** One null-safe view over a live breakdown or a snapshot `result` (old snapshots: null keys / []). */
+type View = {
+    score: number | null; band: { label_ar: string | null; name?: string | null; color_token: string | null } | null;
+    mandatory: boolean | null; pillars: PillarBreakdown[]; blocking: string[]; unmet_mandatory: string[];
+    needs_review: string[]; missing: string[]; unmet: string[]; improvements: ScoreBreakdown["improvements"];
+};
+const arr = <T,>(v: T[] | null | undefined): T[] => (Array.isArray(v) ? v : []);
+export function toView(r: ReadinessSnapshotResult | ScoreBreakdown | null | undefined): View | null {
+    if (!r) return null;
+    const pillars = arr(r.pillars).length ? arr(r.pillars) : arr((r as ReadinessSnapshotResult).breakdown);
+    return {
+        score: r.score ?? null, band: r.band ?? null, mandatory: r.mandatory_conditions_met ?? null, pillars: pillars.map((p) => ({ ...p, criteria: arr(p.criteria) })),
+        blocking: arr(r.blocking), unmet_mandatory: arr(r.unmet_mandatory), needs_review: arr(r.needs_review), missing: arr(r.missing), unmet: arr(r.unmet), improvements: arr(r.improvements),
+    };
+}
 
 const fmt = (n: number | string | null | undefined) => (n === null || n === undefined || n === "" ? "-" : Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 }));
 
@@ -37,26 +53,30 @@ function Bar({ value, danger }: { value: number | null; danger?: boolean }) {
     );
 }
 
-export function BandBadge({ band, label }: { band?: ScoreBreakdown["band"]; label?: string | null }) {
-    const text = band?.label_ar ?? label;
+export function BandBadge({ band, label }: { band?: { label_ar?: string | null; name?: string | null; color_token?: string | null } | null; label?: string | null }) {
+    const text = band?.label_ar || band?.name || label;
     if (!text) return <StatusBadge label="بلا شريحة" tone="neutral" />;
     return <StatusBadge label={text} tone={bandTone(band?.color_token)} />;
 }
 
 type Props = {
-    /** Live/preview breakdown. On the assessment page the snapshot's own values win. */
+    /** Live/preview breakdown (builder preview). */
     breakdown?: ScoreBreakdown | null;
-    snapshot?: SnapshotWithBreakdown | null;
-    snapshotHistory?: SnapshotWithBreakdown[];
+    /** Top-level `result` prop of the assessment page (#75): frozen for finalized, live for drafts. Wins over everything. */
+    result?: ReadinessSnapshotResult | null;
+    snapshot?: ReadinessScoreSnapshotWithResult | null;
+    snapshotHistory?: ReadinessScoreSnapshot[];
     canRecalculate?: boolean;
     assessmentId?: string;
 };
 
-export function AssessmentResult({ breakdown: live, snapshot, snapshotHistory = [], canRecalculate, assessmentId }: Props) {
-    const breakdown = snapshot ? snapshot.breakdown ?? null : live ?? null;
-    const score = snapshot ? snapshot.score : breakdown?.score ?? null;
-    const mandatory = snapshot ? snapshot.mandatory_conditions_met : breakdown ? breakdown.unmet_mandatory.length === 0 && breakdown.mandatory_conditions_met : null;
+export function AssessmentResult({ breakdown: live, result, snapshot, snapshotHistory = [], canRecalculate, assessmentId }: Props) {
+    const breakdown = toView(result ?? snapshot?.result ?? (snapshot ? null : live));
+    const score = breakdown?.score ?? (snapshot?.score !== undefined && snapshot?.score !== null ? Number(snapshot.score) : null);
+    const mandatory = breakdown ? (breakdown.unmet_mandatory.length > 0 ? false : breakdown.mandatory) : snapshot?.mandatory_conditions_met ?? null;
+    const band = breakdown?.band ?? snapshot?.band_detail ?? null;
     const unmetMandatory = new Set(breakdown?.unmet_mandatory ?? []);
+    const blocked = !!breakdown && (breakdown.blocking.length > 0 || breakdown.unmet_mandatory.length > 0);
     const [reason, setReason] = useState("");
     const [asking, setAsking] = useState(false);
 
@@ -74,12 +94,12 @@ export function AssessmentResult({ breakdown: live, snapshot, snapshotHistory = 
                         <p className="h2 mb-0" data-testid="result-score"><bdi dir="ltr">{fmt(score)}</bdi> <span className="fs-6 text-muted">من 100</span></p>
                     </div>
                     <div className="d-flex flex-wrap gap-2">
-                        <BandBadge band={breakdown?.band} label={snapshot?.band} />
+                        <BandBadge band={band} label={snapshot?.band} />
                         <StatusBadge label={mandatory === true ? "الشروط الإلزامية مستوفاة" : mandatory === false ? "شرط إلزامي غير مستوفى" : "الشروط الإلزامية بانتظار المراجعة"} tone={mandatory === true ? "success" : mandatory === false ? "danger" : "warning"} />
                     </div>
                 </div>
                 <p className="form-text mb-0 mt-2">النتيجة استشارية وليست موافقة تمويل.</p>
-                {breakdown && isBlocked(breakdown) ? (
+                {breakdown && blocked ? (
                     <div className="alert alert-danger mt-3 mb-0" role="alert" data-testid="blocking">
                         <strong>النتيجة محجوبة:</strong>
                         <ul className="mb-0">
@@ -90,7 +110,14 @@ export function AssessmentResult({ breakdown: live, snapshot, snapshotHistory = 
                 ) : null}
             </div>
 
-            {breakdown ? (
+            {breakdown && breakdown.needs_review.length > 0 ? (
+                <div className="app-mobile-record" data-testid="needs-review">
+                    <div className="fw-semibold">بانتظار المراجعة</div>
+                    <ul className="mb-0">{breakdown.needs_review.map((code) => <li key={code}>{labelOf(breakdown, code)}</li>)}</ul>
+                </div>
+            ) : null}
+
+            {breakdown && breakdown.pillars.length > 0 ? (
                 <>
                     <div className="row g-3">
                         {breakdown.pillars.length >= 3 ? (
@@ -137,7 +164,7 @@ export function AssessmentResult({ breakdown: live, snapshot, snapshotHistory = 
                         </div>
                     ) : null}
                 </>
-            ) : snapshot ? <p className="text-muted mb-0">تفاصيل المحاور غير محفوظة في هذه اللقطة.</p> : null}
+            ) : snapshot || result !== undefined ? <p className="text-muted mb-0" data-testid="no-breakdown">تفاصيل المحاور غير محفوظة في هذه اللقطة.</p> : null}
 
             {snapshot && canRecalculate ? (
                 <div className="app-mobile-record" data-testid="recalculate">
@@ -166,7 +193,7 @@ export function AssessmentResult({ breakdown: live, snapshot, snapshotHistory = 
                                 <span><bdi dir="ltr">{s.computed_at ?? "-"}</bdi></span>
                                 <span className="d-flex flex-wrap gap-2 align-items-center">
                                     <bdi dir="ltr">{fmt(s.score)}</bdi>
-                                    {s.band ? <span>{s.band}</span> : null}
+                                    {s.band_detail || s.band ? <BandBadge band={s.band_detail} label={s.band} /> : null}
                                     <StatusBadge label={s.reason === "initial" ? "أول احتساب" : "إعادة احتساب"} tone="neutral" />
                                     {s.is_current ? <StatusBadge label="الحالية" tone="success" /> : null}
                                     {s.rule_set_version !== null ? <span className="small text-muted">قواعد v{s.rule_set_version}</span> : null}
@@ -182,7 +209,7 @@ export function AssessmentResult({ breakdown: live, snapshot, snapshotHistory = 
     );
 }
 
-function labelOf(b: ScoreBreakdown, code: string): string {
+function labelOf(b: View, code: string): string {
     for (const p of b.pillars) for (const c of p.criteria) if (c.code === code) return c.label_ar;
     return code;
 }
