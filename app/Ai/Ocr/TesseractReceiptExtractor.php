@@ -25,7 +25,7 @@ class TesseractReceiptExtractor implements ReceiptExtractor
 {
     public const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/tiff', 'image/bmp', 'image/gif'];
 
-    public function __construct(private readonly ReceiptTextParser $parser) {}
+    public function __construct(private readonly ReceiptTextParser $parser, private ?ImagePreprocessor $preprocessor = null) {}
 
     public function name(): string
     {
@@ -48,7 +48,7 @@ class TesseractReceiptExtractor implements ReceiptExtractor
             $tmp = tempnam(sys_get_temp_dir(), 'ocr_');
             file_put_contents($tmp, $contents);
 
-            $raw = $this->run($tmp);
+            $raw = $this->ocrFile($tmp);
         } catch (Throwable $e) {
             Log::warning('Tesseract OCR unavailable', ['document_id' => $document->id, 'error' => $e->getMessage()]);
 
@@ -62,14 +62,32 @@ class TesseractReceiptExtractor implements ReceiptExtractor
         return $raw === null ? new ReceiptExtractionResult(failed: true) : $this->parser->parse($raw);
     }
 
+    /** Optional preprocessing (temp files always removed), then Tesseract. */
+    public function ocrFile(string $imagePath): ?string
+    {
+        if (! config('ai.ocr.preprocess', false)) {
+            return $this->run($imagePath);
+        }
+        $pre = $this->preprocessor ??= new ImagePreprocessor;
+        try {
+            return $this->run($pre->prepare($imagePath));
+        } finally {
+            $pre->cleanup();
+        }
+    }
+
     /** Returns OCR text, or null when the binary is missing/failed. */
     public function run(string $imagePath): ?string
     {
-        $process = $this->makeProcess([
+        $command = [
             (string) config('ai.ocr.tesseract_path', 'tesseract'),
             $imagePath, 'stdout',
             '-l', (string) config('ai.ocr.tesseract_langs', 'ara+eng'),
-        ]);
+        ];
+        if (($psm = config('ai.ocr.psm')) !== null && $psm !== '') {
+            $command = [...$command, '--psm', (string) (int) $psm];
+        }
+        $process = $this->makeProcess($command);
         $process->setTimeout((float) config('ai.ocr.timeout', 30));
         $process->run();
 

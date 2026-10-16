@@ -116,6 +116,20 @@ TESSERACT_LANGS=ara+eng
 
 Linux: `sudo apt install tesseract-ocr tesseract-ocr-ara`.
 
+### OCR image preprocessing (optional ImageMagick)
+
+`AI_OCR_PREPROCESS=true` (default in local) cleans the image before Tesseract: it fixes orientation with Tesseract OSD (90/180/270°), converts to grayscale, upscales small images, normalises contrast and deskews. It uses the ImageMagick CLI when installed, otherwise PHP GD (no deskew), otherwise it skips the step. Temp files are always deleted. `TESSERACT_PSM=6` is the default.
+
+Windows: install ImageMagick from https://imagemagick.org/script/download.php#windows (the `x64 dynamic` installer) and tick **Add application directory to your system path**. If it isn't on PATH, set `MAGICK_PATH="C:\Program Files\ImageMagick-7.x.x-Q16-HDRI\magick.exe"`. Linux: `sudo apt install imagemagick`.
+
+Benchmark (synthetic receipts, not in the test suite):
+
+```
+python3 scripts/ocr-benchmark/generate.py storage/app/ocr-benchmark 12
+php artisan ocr:benchmark --preprocess=0 --psm= --by-variant   # baseline
+php artisan ocr:benchmark --preprocess=1 --psm=6 --by-variant  # current default
+```
+
 ## AI data sharing (section 54)
 
 AI features stay **disabled in production** until `allowed_data` in `config/operations.php` is filled with the approved fields for each processor (`ai_assistant`, `ocr`, `insights`) and the processor is approved (`BEACON_DPA_*_APPROVED`). Every outbound AI call goes through `DataControl::assertCanShare`; when sharing is not approved no provider call is made and the feature falls back to its manual / "AI unavailable" path.
