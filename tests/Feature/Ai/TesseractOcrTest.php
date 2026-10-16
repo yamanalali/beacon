@@ -31,10 +31,18 @@ class TesseractOcrTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Static `--list-langs` cache must not leak in from other OCR tests (order-dependent flake).
+        TesseractReceiptExtractor::flushLanguageCache();
         Storage::fake('local');
         $this->enterprise = Enterprise::query()->create(['business_name' => 'منشأة', 'location' => 'damascus']);
         $this->sme = $this->userWithRole(UserRole::SmeUser);
         $this->enterprise->members()->attach($this->sme->id);
+    }
+
+    protected function tearDown(): void
+    {
+        TesseractReceiptExtractor::flushLanguageCache();
+        parent::tearDown();
     }
 
     private function upload(string $name = 'r.jpg'): Document
@@ -61,6 +69,12 @@ class TesseractOcrTest extends TestCase
                 $this->commands[] = $command;
 
                 return new Process(['php', '-r', 'fwrite(STDOUT, base64_decode($argv[1])); exit((int) $argv[2]);', base64_encode((string) $this->out), (string) $this->exit]);
+            }
+
+            protected function makeLanguageProcess(array $command): Process
+            {
+                // Independent of the host tesseract install: both required languages present.
+                return new Process(['php', '-r', 'echo "ara\neng\n";']);
             }
         };
     }
