@@ -22,6 +22,8 @@ export type TransactionDraft = {
     suggested_transaction_type?: string | null;
     /** Free-text note the provider read (voice). Optional: older servers don't send it. */
     suggested_note?: string | null;
+    /** Receipt OCR: invoice number. The server already prefixes suggested_note with «فاتورة رقم X». */
+    suggested_invoice_number?: string | null;
     /** Where the suggested currency came from; 'default' = enterprise default, not read/spoken. */
     suggested_currency_source?: string | null;
     /** Line items read from the receipt/voice (optional; unread values are null). */
@@ -42,13 +44,28 @@ export type ReviewFormData = {
     paid_amount: string;
     counterparty: string;
     description: string;
+    /** Invoice number (no backend column): kept in the note as a «فاتورة رقم X» prefix. */
+    invoice_number: string;
     /** Optional line items (editor rows); sent as `items[]` via reviewPayload. */
     items: ItemRow[];
 };
 
 /** Submit payload: editor rows → `items[]` (fully empty rows dropped). */
+export const INVOICE_PREFIX = "فاتورة رقم";
+const PREFIX_RE = new RegExp(`^\\s*${INVOICE_PREFIX}\\s+\\S+(?:\\s*[-–—،,:]\\s*|\\s+|$)`);
+
+/** Replaces/removes the leading «فاتورة رقم X» of a note so it always matches `invoiceNumber` (never duplicated). */
+export function withInvoicePrefix(note: string, invoiceNumber: string): string {
+    const rest = note.replace(PREFIX_RE, "").trim();
+    const n = invoiceNumber.trim();
+    if (!n) return rest;
+    return rest ? `${INVOICE_PREFIX} ${n} - ${rest}` : `${INVOICE_PREFIX} ${n}`;
+}
+
 export function reviewPayload(data: ReviewFormData) {
-    return { ...data, items: toItemsPayload(data.items) };
+    const { invoice_number, ...rest } = data;
+    const description = invoice_number.trim() ? withInvoicePrefix(data.description, invoice_number) : data.description;
+    return { ...rest, description, items: toItemsPayload(data.items) };
 }
 
 export type CategorySuggestion = { category: string; label: string; needs_review: boolean } | null;
@@ -92,6 +109,7 @@ export function initialReviewData(draft: TransactionDraft, type: string, options
         paid_amount: "",
         counterparty: draft.suggested_counterparty ?? "",
         description: typeof draft.suggested_note === "string" && draft.suggested_note.trim() !== "" ? draft.suggested_note : "",
+        invoice_number: typeof draft.suggested_invoice_number === "string" ? draft.suggested_invoice_number.trim() : "",
         items: rowsFromSuggested(draft.suggested_items),
     };
 }
@@ -218,6 +236,9 @@ export function ReviewForm({
             ) : null}
             {showMismatch ? <MismatchNote total={itemsTotal(data.items)} amount={data.amount} currency={data.currency} className="mb-2" testId="review-items-mismatch" /> : null}
             <ItemsEditor rows={data.items} onChange={(items) => setData({ items })} currency={data.currency} amount={data.amount} errors={errors} disabled={processing} hideMismatch />
+            <TextInput id="invoice_number" name="invoice_number" label="رقم الفاتورة" value={data.invoice_number}
+                onChange={(v) => setData({ invoice_number: v, description: withInvoicePrefix(data.description, v) })} />
+            <Suggested show={isPrefilled(draft.suggested_invoice_number, data.invoice_number)} />
             <TextInput id="description" name="description" label="ملاحظة (اختياري)" value={data.description} onChange={(v) => setData({ description: v })} error={errors.description} />
             <Suggested show={isPrefilled(draft.suggested_note, data.description)} />
 

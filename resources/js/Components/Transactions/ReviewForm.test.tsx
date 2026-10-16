@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReviewForm, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, reviewPayload, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
+import { ReviewForm, withInvoicePrefix, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, reviewPayload, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
 
 const options: BookkeepingOptions = {
@@ -284,5 +284,55 @@ describe("voice amount warning, items mismatch and rent prefill", () => {
         expect(screen.getByTestId("review-items-mismatch")).toBeTruthy();
         fireEvent.change(screen.getByDisplayValue("إيجار محل (شهري)"), { target: { value: "إيجار محل" } });
         expect(screen.queryByTestId("review-items-mismatch")).toBeNull();
+    });
+});
+describe("invoice number", () => {
+    const ocr: TransactionDraft = {
+        suggested_date: "2026-10-16", suggested_amount: "41500", suggested_currency: "SYP", suggested_counterparty: null,
+        suggested_invoice_number: "INV-77", suggested_note: "فاتورة رقم INV-77",
+    };
+
+    it("keeps one «فاتورة رقم X» prefix", () => {
+        expect(withInvoicePrefix("", "INV-1")).toBe("فاتورة رقم INV-1");
+        expect(withInvoicePrefix("فاتورة رقم INV-1", "INV-1")).toBe("فاتورة رقم INV-1");
+        expect(withInvoicePrefix("فاتورة رقم INV-1 - شراء أقمشة", "INV-2")).toBe("فاتورة رقم INV-2 - شراء أقمشة");
+        expect(withInvoicePrefix("شراء أقمشة", "77")).toBe("فاتورة رقم 77 - شراء أقمشة");
+        expect(withInvoicePrefix("فاتورة رقم 5 شراء", "")).toBe("شراء");
+        expect(withInvoicePrefix("شراء", " ")).toBe("شراء");
+    });
+
+    it("shows the suggested number with the badge and the server note is not duplicated", () => {
+        const onSubmit = vi.fn();
+        render(<Harness draft={ocr} onSubmit={onSubmit} />);
+        const field = screen.getByLabelText("رقم الفاتورة") as HTMLInputElement;
+        expect(field.value).toBe("INV-77");
+        let el: Element | null = field; while (el && !el.nextElementSibling) el = el.parentElement;
+        expect(el?.nextElementSibling?.textContent ?? "").toContain("مقترح");
+        fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
+        const payload = reviewPayload(onSubmit.mock.calls[0][0]);
+        expect(payload.description).toBe("فاتورة رقم INV-77");
+        expect("invoice_number" in payload).toBe(false);
+    });
+
+    it("syncs the note prefix when the number is edited or cleared", () => {
+        const onSubmit = vi.fn();
+        render(<Harness draft={{ ...ocr, suggested_note: "فاتورة رقم INV-77 - أقمشة" }} onSubmit={onSubmit} />);
+        fireEvent.change(screen.getByLabelText("رقم الفاتورة"), { target: { value: "INV-78" } });
+        expect((screen.getByLabelText(/ملاحظة/) as HTMLInputElement).value).toBe("فاتورة رقم INV-78 - أقمشة");
+        fireEvent.change(screen.getByLabelText("رقم الفاتورة"), { target: { value: "" } });
+        expect((screen.getByLabelText(/ملاحظة/) as HTMLInputElement).value).toBe("أقمشة");
+        fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
+        expect(reviewPayload(onSubmit.mock.calls[0][0]).description).toBe("أقمشة");
+    });
+
+    it("prepends on submit when the user typed a number and a note without the prefix", () => {
+        const onSubmit = vi.fn();
+        render(<Harness draft={{ ...ocr, suggested_invoice_number: null, suggested_note: null }} onSubmit={onSubmit} />);
+        expect((screen.getByLabelText("رقم الفاتورة") as HTMLInputElement).value).toBe("");
+        fireEvent.change(screen.getByLabelText(/ملاحظة/), { target: { value: "توصيل" } });
+        fireEvent.change(screen.getByLabelText("رقم الفاتورة"), { target: { value: "12" } });
+        fireEvent.change(screen.getByLabelText(/ملاحظة/), { target: { value: "توصيل" } });
+        fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
+        expect(reviewPayload(onSubmit.mock.calls[0][0]).description).toBe("فاتورة رقم 12 - توصيل");
     });
 });
