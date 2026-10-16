@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Ai;
 
+use App\Ai\Models\KnowledgeArticle;
 use App\Enums\UserRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -22,7 +23,7 @@ class KnowledgeBaseTest extends TestCase
         $id = $this->actingAs($admin)->postJson(route('ai.knowledge.store'), $this->payload())
             ->assertCreated()->assertJsonPath('status', 'draft')->assertJsonMissingPath('id')->json('public_id');
         $this->assertMatchesRegularExpression('/^[0-9A-HJKMNP-TV-Z]{26}$/', $id);
-        $numericId = \App\Ai\Models\KnowledgeArticle::query()->where('public_id', $id)->value('id');
+        $numericId = KnowledgeArticle::query()->where('public_id', $id)->value('id');
         $this->postJson('/ai/admin/knowledge/'.$numericId.'/publish')->assertNotFound();
 
         $this->postJson(route('ai.knowledge.publish', $id))->assertOk()->assertJsonPath('status', 'published');

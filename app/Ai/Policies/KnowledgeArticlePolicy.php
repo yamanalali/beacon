@@ -2,7 +2,6 @@
 
 namespace App\Ai\Policies;
 
-use App\Ai\Models\KnowledgeArticle;
 use App\Enums\UserRole;
 use App\Models\User;
 
