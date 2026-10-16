@@ -64,6 +64,31 @@ php artisan db:seed --class=DemoSeeder
 
 This creates one active account per role (emails/roles are in `config/demo.php`) plus a demo enterprise with finance data. The seeder is idempotent and refuses to run outside `APP_ENV=local`. No passwords are stored in the repository: the password is whatever you set in `DEMO_PASSWORD`; the full local credentials list is kept on the developer machine in `Desktop\DEMO-ACCOUNTS.md`.
 
+## Voice draft transaction (local Whisper)
+
+Off by default (`AI_VOICE_ENABLED=false`). When it's on, the user uploads a short voice note. It gets transcribed and parsed into a **suggested** transaction that the user reviews and saves through the normal transaction form. Nothing is ever saved automatically, and the recording is deleted right after transcription, including when transcription fails.
+
+- `AI_STT_DRIVER=whisper` (default) uses the local [whisper.cpp](https://github.com/ggml-org/whisper.cpp) CLI. The audio stays on the server, so it needs no `DataControl` approval.
+- `AI_STT_DRIVER=provider` uses the external AI provider. It goes through `DataControl::assertCanShare('speech_to_text', ['voice_recording'])`, which is off by default.
+- TODO: BUSINESS DECISION REQUIRED: languages (Arabic MSA + Levantine assumed), the STT provider (local Whisper assumed), and recording retention (immediate deletion assumed).
+- whisper.cpp reads WAV/MP3/OGG/FLAC. Browser `webm` recordings may need converting (ffmpeg) or recording as WAV.
+
+```
+AI_VOICE_ENABLED=true
+AI_STT_DRIVER=whisper
+WHISPER_PATH=whisper-cli
+WHISPER_MODEL=/full/path/ggml-small.bin
+WHISPER_LANGUAGE=ar
+```
+
+### Windows install (whisper.cpp)
+
+1. From https://github.com/ggml-org/whisper.cpp/releases, download `whisper-bin-x64.zip` and unzip it to `C:\whisper`. It contains `whisper-cli.exe`.
+2. Download a multilingual model (it must not be an `.en` model), e.g. `ggml-small.bin` from https://huggingface.co/ggerganov/whisper.cpp/tree/main, into `C:\whisper\models`.
+3. In `.env`, set `WHISPER_PATH="C:\whisper\whisper-cli.exe"` and `WHISPER_MODEL="C:\whisper\models\ggml-small.bin"`, plus `AI_VOICE_ENABLED=true`.
+4. Test it with `C:\whisper\whisper-cli.exe -m C:\whisper\models\ggml-small.bin -f sample.wav -l ar -nt`.
+5. Run `php artisan config:clear`.
+
 ## Free local receipt OCR (Tesseract)
 
 Receipt OCR (section 15) can run fully **locally** with [Tesseract](https://github.com/tesseract-ocr/tesseract). The image is processed on Beacon's own server and never leaves it, so Tesseract is **not** a third-party processor and needs **no** `allowed_data` / `DataControl` approval. Any *external* OCR/AI provider still goes through `DataControl::assertCanShare`.
