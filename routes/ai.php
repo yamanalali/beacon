@@ -1,5 +1,6 @@
 <?php
 
+use App\Ai\Http\Controllers\AiPageController;
 use App\Ai\Http\Controllers\AssistantController;
 use App\Ai\Http\Controllers\FinanceAiController;
 use App\Ai\Http\Controllers\KnowledgeArticleController;
@@ -19,7 +20,16 @@ Route::middleware('auth')->prefix('ai')->name('ai.')->group(function () {
         Route::get('/enterprises/{enterprise:public_id}/insights', [FinanceAiController::class, 'insights'])
             ->middleware('throttle:ai-insights')->name('finance.insights');
         Route::get('/knowledge/published', [KnowledgeArticleController::class, 'published'])->name('knowledge.published');
+
+        // Inertia pages (frontend builds the components).
+        Route::get('/pages/assistant', [AiPageController::class, 'assistant'])->name('pages.assistant');
+        Route::get('/pages/escalations', [AiPageController::class, 'escalations'])->name('pages.escalations.index');
+        Route::get('/pages/escalations/{escalation}', [AiPageController::class, 'showEscalation'])->name('pages.escalations.show');
+        Route::get('/pages/knowledge', [AiPageController::class, 'published'])->name('pages.knowledge.published');
     });
+
+    Route::get('/admin/knowledge/page', [AiPageController::class, 'manage'])
+        ->middleware('role:beacon_admin')->name('pages.knowledge.index');
 
     Route::middleware('role:beacon_admin')->prefix('admin/knowledge')->name('knowledge.')->group(function () {
         Route::get('/', [KnowledgeArticleController::class, 'index'])->name('index');

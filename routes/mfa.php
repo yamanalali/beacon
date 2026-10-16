@@ -3,8 +3,8 @@
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSettingsController;
 use App\Http\Middleware\EnsureAdminMfaAvailable;
-use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureMfaEnabled;
+use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
 // Admin MFA (section 53). All routes 404 unless config('mfa.enabled') is true.
