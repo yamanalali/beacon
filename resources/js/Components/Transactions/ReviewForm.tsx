@@ -45,13 +45,29 @@ export function confidencePercent(c: TransactionDraft["confidence"]): number | n
     return Math.round(n <= 1 ? n * 100 : n);
 }
 
-export function initialReviewData(draft: TransactionDraft, type: string, options: BookkeepingOptions, suggestion: CategorySuggestion, today = new Date().toISOString().slice(0, 10)): ReviewFormData {
+type TypeOption = { value: string; label: string };
+
+/** Fields the user must fill when the reader could not (never defaulted to today / base currency). */
+export const REQUIRED_FIELDS = ["transaction_date", "currency"] as const;
+export function missingRequired(data: ReviewFormData): (typeof REQUIRED_FIELDS)[number][] {
+    return REQUIRED_FIELDS.filter((k) => !data[k]);
+}
+
+/**
+ * Initial form values from a draft. Unread date/currency stay empty (user must choose);
+ * type comes from suggested_transaction_type and category from category_suggestion when valid.
+ */
+export function initialReviewData(draft: TransactionDraft, type: string, options: BookkeepingOptions, suggestion: CategorySuggestion, typeOptions?: TypeOption[]): ReviewFormData {
+    const allowed = typeOptions?.length ? typeOptions : options.types;
+    const resolvedType = draft.suggested_transaction_type && allowed.some((t) => t.value === draft.suggested_transaction_type) ? draft.suggested_transaction_type : type;
+    const cats = options.categories[resolvedType];
+    const category = suggestion?.category && (!cats || cats.length === 0 || cats.some((c) => c.value === suggestion.category)) ? suggestion.category : "";
     return {
-        type: draft.suggested_transaction_type && options.types.some((t) => t.value === draft.suggested_transaction_type) ? draft.suggested_transaction_type : type,
-        transaction_date: draft.suggested_date ?? today,
+        type: resolvedType,
+        transaction_date: draft.suggested_date ?? "",
         amount: draft.suggested_amount ?? "",
-        currency: draft.suggested_currency ?? options.default_currency,
-        category: suggestion?.category ?? "",
+        currency: draft.suggested_currency ?? "",
+        category,
         payment_status: "paid",
         paid_amount: "",
         counterparty: draft.suggested_counterparty ?? "",
@@ -89,7 +105,9 @@ export function ReviewForm({
     // Server decides (needs_review); no client-side confidence threshold.
     const low = draft.needs_review === true;
     const categories = options.categories[data.type] ?? [];
-    const submit = (e: FormEvent) => { e.preventDefault(); onSubmit(); };
+    const missing = missingRequired(data);
+    const submit = (e: FormEvent) => { e.preventDefault(); if (missing.length === 0) onSubmit(); };
+    const missingLabels = missing.map((k) => (k === "currency" ? "العملة" : "التاريخ")).join("، ");
 
     return (
         <form onSubmit={submit} noValidate aria-describedby="review-hint">
@@ -124,6 +142,7 @@ export function ReviewForm({
                         </label>
                     ))}
                 </div>
+                <Suggested show={!!draft.suggested_transaction_type && data.type === draft.suggested_transaction_type} />
                 {errors.type ? <div className="invalid-feedback d-block" role="alert">{errors.type}</div> : null}
             </fieldset>
 
@@ -133,18 +152,19 @@ export function ReviewForm({
                     <Suggested show={!!draft.suggested_amount && data.amount === draft.suggested_amount} />
                 </div>
                 <div className="col-5">
-                    <SelectInput id="currency" label="العملة" value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />
+                    <SelectInput id="currency" label="العملة" required placeholder="اختر" value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />
+                    <Suggested show={!!draft.suggested_currency && data.currency === draft.suggested_currency} />
                 </div>
             </div>
-            <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
+            <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" required placeholder="اختر" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
             <Suggested show={!!draft.suggested_date && data.transaction_date === draft.suggested_date} />
             <TextInput id="counterparty" name="counterparty" label="المورد أو الزبون" value={data.counterparty} onChange={(v) => setData({ counterparty: v })} error={errors.counterparty} />
             <Suggested show={!!draft.suggested_counterparty && data.counterparty === draft.suggested_counterparty} />
             <SelectInput id="category" label="التصنيف" value={data.category} options={categories} placeholder="اختر التصنيف" onChange={(v) => setData({ category: v })} error={errors.category} />
-            {suggestion && data.category === suggestion.category ? (
+            {suggestion && data.category && data.category === suggestion.category ? (
                 <p className="small text-body-secondary mt-n2">
-                    <i className="bi bi-stars me-1" aria-hidden="true" />
-                    تصنيف مقترح: {suggestion.label}{suggestion.needs_review ? " (يحتاج مراجعة)" : ""}
+                    <Suggested show />
+                    <span className="ms-1">{suggestion.label}{suggestion.needs_review ? " (يحتاج مراجعة)" : ""}</span>
                 </p>
             ) : null}
             <SelectInput id="payment_status" label="هل تم الدفع؟" value={data.payment_status} options={options.payment_statuses} onChange={(v) => setData({ payment_status: v })} error={errors.payment_status} />
@@ -153,8 +173,14 @@ export function ReviewForm({
             ) : null}
             <TextInput id="description" name="description" label="ملاحظة (اختياري)" value={data.description} onChange={(v) => setData({ description: v })} error={errors.description} />
 
+            {missing.length > 0 ? (
+                <p id="review-missing" className="small text-danger mb-2" role="status">
+                    <i className="bi bi-exclamation-circle me-1" aria-hidden="true" />
+                    أكمل الحقول المطلوبة قبل التأكيد: {missingLabels}
+                </p>
+            ) : null}
             <div className="d-flex flex-column flex-sm-row gap-2 mt-2">
-                <button type="submit" className="btn btn-primary flex-grow-1 flex-sm-grow-0" style={{ minHeight: "48px" }} disabled={processing}>
+                <button type="submit" className="btn btn-primary flex-grow-1 flex-sm-grow-0" style={{ minHeight: "48px" }} disabled={processing || missing.length > 0} aria-describedby={missing.length > 0 ? "review-missing" : undefined}>
                     <i className="bi bi-check2 me-2" aria-hidden="true" />
                     {processing ? "جارٍ الحفظ..." : "تأكيد وحفظ العملية"}
                 </button>

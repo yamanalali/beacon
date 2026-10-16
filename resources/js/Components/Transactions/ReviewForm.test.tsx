@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReviewForm, confidencePercent, hasSuggestions, initialReviewData, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
+import { ReviewForm, confidencePercent, hasSuggestions, initialReviewData, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
 
 const options: BookkeepingOptions = {
@@ -15,7 +15,7 @@ const empty: TransactionDraft = { suggested_date: null, suggested_amount: null, 
 const read: TransactionDraft = { suggested_date: "2026-10-01", suggested_amount: "1250.50", suggested_currency: "USD", suggested_counterparty: "مكتبة النور", confidence: 0.42, needs_review: true };
 
 function Harness({ draft, onSubmit = () => {} }: { draft: TransactionDraft; onSubmit?: (d: ReviewFormData) => void }) {
-    const [data, set] = useState(initialReviewData(draft, "expense", options, { category: "rent", label: "إيجار", needs_review: false }, "2026-10-16"));
+    const [data, set] = useState(initialReviewData(draft, "expense", options, { category: "rent", label: "إيجار", needs_review: false }));
     return <ReviewForm draft={draft} data={data} setData={(p) => set((d) => ({ ...d, ...p }))} options={options}
         suggestion={{ category: "rent", label: "إيجار", needs_review: false }} onSubmit={() => onSubmit(data)} onReject={() => {}} />;
 }
@@ -29,9 +29,18 @@ describe("helpers", () => {
         expect(confidencePercent("87")).toBe(87);
         expect(confidencePercent(null)).toBeNull();
     });
-    it("prefills from the draft, falling back to today and the default currency", () => {
-        const d = initialReviewData(empty, "income", options, null, "2026-10-16");
-        expect(d).toMatchObject({ type: "income", transaction_date: "2026-10-16", amount: "", currency: "SYP", category: "", counterparty: "" });
+    it("never defaults unread date/currency to today or the base currency", () => {
+        const d = initialReviewData(empty, "income", options, null);
+        expect(d).toMatchObject({ type: "income", transaction_date: "", amount: "", currency: "", category: "", counterparty: "" });
+        expect(missingRequired(d)).toEqual(["transaction_date", "currency"]);
+        expect(missingRequired(initialReviewData(read, "expense", options, null))).toEqual([]);
+    });
+    it("prefills type from suggested_transaction_type (incl. server typeOptions) and category from the suggestion", () => {
+        const sugg = { category: "sales", label: "مبيعات", needs_review: false };
+        expect(initialReviewData({ ...empty, suggested_transaction_type: "income" }, "expense", options, sugg)).toMatchObject({ type: "income", category: "sales" });
+        expect(initialReviewData({ ...empty, suggested_transaction_type: "sale" }, "expense", options, null, [{ value: "sale", label: "بيع" }]).type).toBe("sale");
+        // A suggestion not valid for the resolved type is not prefilled.
+        expect(initialReviewData(empty, "expense", options, sugg).category).toBe("");
         expect(initialReviewData({ ...empty, suggested_transaction_type: "income" }, "expense", options, null).type).toBe("income");
         expect(initialReviewData({ ...empty, suggested_transaction_type: "bogus" }, "expense", options, null).type).toBe("expense");
     });
@@ -42,7 +51,8 @@ describe("ReviewForm", () => {
         render(<Harness draft={empty} />);
         expect(screen.getByText("إدخال يدوي")).toBeTruthy();
         expect((screen.getByLabelText("المبلغ") as HTMLInputElement).value).toBe("");
-        expect(screen.queryByText("مقترح")).toBeNull();
+        // Only the category suggestion is badged; no read fields.
+        expect(screen.getAllByText("مقترح").length).toBe(1);
     });
 
     it("prefills OCR values, marks them suggested and warns on low confidence", () => {
@@ -51,9 +61,10 @@ describe("ReviewForm", () => {
         expect(screen.getByText("42%")).toBeTruthy();
         expect((screen.getByLabelText("المبلغ") as HTMLInputElement).value).toBe("1250.50");
         expect((screen.getByLabelText("المورد أو الزبون") as HTMLInputElement).value).toBe("مكتبة النور");
-        expect(screen.getAllByText("مقترح").length).toBe(3);
-        fireEvent.change(screen.getByLabelText("المبلغ"), { target: { value: "1300" } });
-        expect(screen.getAllByText("مقترح").length).toBe(2);
+        // amount, currency, date, counterparty, category
+        expect(screen.getAllByText("مقترح").length).toBe(5);
+        fireEvent.change(screen.getByLabelText(/المبلغ/), { target: { value: "1300" } });
+        expect(screen.getAllByText("مقترح").length).toBe(4);
     });
 
     it("low confidence alone does not warn; only server needs_review does", () => {
@@ -71,5 +82,26 @@ describe("ReviewForm", () => {
         fireEvent.change(screen.getByLabelText("التصنيف"), { target: { value: "sales" } });
         fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
         expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ type: "income", category: "sales", amount: "1250.50", currency: "USD" }));
+    });
+
+    it("leaves unread date/currency empty with 'اختر', marks them required and blocks confirm", () => {
+        const onSubmit = vi.fn();
+        render(<Harness draft={{ ...read, suggested_date: null, suggested_currency: null }} onSubmit={onSubmit} />);
+        const currency = screen.getByLabelText(/العملة/) as HTMLSelectElement;
+        const date = screen.getByLabelText(/التاريخ/) as HTMLInputElement;
+        expect(currency.value).toBe("");
+        expect(currency.options[0].textContent).toBe("اختر");
+        expect(currency.required).toBe(true);
+        expect(date.value).toBe("");
+        expect(date.required).toBe(true);
+        const confirm = screen.getByRole("button", { name: /تأكيد وحفظ/ }) as HTMLButtonElement;
+        expect(confirm.disabled).toBe(true);
+        expect(screen.getByText(/أكمل الحقول المطلوبة/).textContent).toContain("العملة");
+        fireEvent.submit(confirm.closest("form")!);
+        expect(onSubmit).not.toHaveBeenCalled();
+        fireEvent.change(currency, { target: { value: "SYP" } });
+        fireEvent.change(date, { target: { value: "2026-10-15" } });
+        expect(confirm.disabled).toBe(false);
+        expect(screen.queryByText(/أكمل الحقول المطلوبة/)).toBeNull();
     });
 });
