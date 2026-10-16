@@ -152,7 +152,7 @@ class VoiceDraftParser
      * Suggested line items in the OCR shape {description, quantity, unit_price, total}.
      * 1) «كل شهر X» + period «لمدة N ...» → ONE item (qty N, unit X); the transaction stays one.
      * 2) «2 كرسي بـ500 وطاولة بـ1000» → one item per good; «بـX» after a quantity is the UNIT price.
-     *    TODO: BUSINESS DECISION REQUIRED — «2 كرسي بـ500» could mean 500 in total; we assume unit price.
+     *    Decided: unit price, not total (BEACON-DECISIONS.md, 2026-10-16, «2 كرسي بـ500» = سعر الوحدة).
      *
      * @return array{0: list<array{description:?string,quantity:int|float|null,unit_price:int|float|null,total:int|float|null}>, 1: list<float>}
      */
