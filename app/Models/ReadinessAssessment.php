@@ -7,6 +7,7 @@ use App\Models\Concerns\ImmutableOnceLocked;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ReadinessAssessment extends Model
 {
@@ -53,6 +54,16 @@ class ReadinessAssessment extends Model
     public function assessor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assessed_by');
+    }
+
+    public function snapshots(): HasMany
+    {
+        return $this->hasMany(ReadinessAssessmentSnapshot::class)->orderBy('id');
+    }
+
+    public function currentSnapshot(): HasOne
+    {
+        return $this->hasOne(ReadinessAssessmentSnapshot::class)->where('is_current', true)->latestOfMany();
     }
 
     public function isFinalized(): bool
