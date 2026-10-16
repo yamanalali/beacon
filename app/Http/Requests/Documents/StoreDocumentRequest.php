@@ -29,6 +29,7 @@ class StoreDocumentRequest extends FormRequest
             ],
             'title' => ['nullable', 'string', 'max:150'],
             'transaction' => ['nullable', 'string', 'size:26'],
+            'extract' => ['sometimes', 'boolean'],
         ];
     }
 
