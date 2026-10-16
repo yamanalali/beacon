@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Actions\Bookkeeping;
+
+use App\Actions\Audit\RecordAuditLog;
+use App\Contracts\ReceiptExtractor;
+use App\Enums\ExtractionStatus;
+use App\Models\Document;
+use App\Models\FinancialTransaction;
+use App\Models\ReceiptExtraction;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+
+class StartReceiptExtractionAction
+{
+    public function __construct(
+        private readonly ReceiptExtractor $extractor,
+        private readonly RecordAuditLog $audit,
+    ) {}
+
+    public function execute(User $actor, Document $document): ReceiptExtraction
+    {
+        abort_unless($actor->can('create', [FinancialTransaction::class, $document->enterprise]), 403);
+
+        try {
+            $result = $this->extractor->extract($document);
+        } catch (Throwable $e) {
+            // OCR failure must never block manual entry.
+            Log::warning('Receipt extraction failed', ['document_id' => $document->id, 'error' => $e->getMessage()]);
+            $result = \App\Services\Ai\ReceiptExtractionResult::empty();
+        }
+
+        $currencies = array_keys(config('bookkeeping.currencies'));
+
+        $extraction = new ReceiptExtraction;
+        $extraction->enterprise_id = $document->enterprise_id;
+        $extraction->document_id = $document->id;
+        $extraction->status = ExtractionStatus::PendingReview;
+        $extraction->extractor = $this->extractor->name();
+        $extraction->suggested_date = $result->transactionDate;
+        $extraction->suggested_amount = $result->amount !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $result->amount) ? $result->amount : null;
+        $extraction->suggested_currency = in_array($result->currency, $currencies, true) ? $result->currency : null;
+        $extraction->suggested_counterparty = $result->counterparty !== null ? mb_substr($result->counterparty, 0, 150) : null;
+        $extraction->confidence = $result->confidence;
+        // Always reviewed by a human; flag stays true unless provider is confident AND complete.
+        $extraction->needs_review = true;
+        $extraction->created_by = $actor->id;
+        $extraction->save();
+
+        $this->audit->record($actor, 'receipt_extraction.created', $extraction, [
+            'document_id' => $document->id,
+            'extractor' => $extraction->extractor,
+        ]);
+
+        return $extraction;
+    }
+}
