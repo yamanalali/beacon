@@ -5,6 +5,7 @@ import { DesktopSidebar } from "./DesktopSidebar";
 import { DesktopTopbar } from "./DesktopTopbar";
 import { MobileAppHeader } from "./MobileAppHeader";
 import { MobileBottomNavigation } from "./MobileBottomNavigation";
+import { ConnectionStatus } from "../Components/Feedback/ConnectionStatus";
 
 export default function AppLayout({ title, children }: { title: string; children: React.ReactNode }) {
     const { locale, dir, flash } = usePage().props;
@@ -22,6 +23,7 @@ export default function AppLayout({ title, children }: { title: string; children
             </a>
             <DesktopSidebar />
             <div className="app-frame d-flex flex-column flex-grow-1">
+                <ConnectionStatus />
                 <MobileAppHeader title={title} />
                 <DesktopTopbar title={title} />
                 <main id="main-content" className="app-content flex-grow-1">

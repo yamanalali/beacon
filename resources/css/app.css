@@ -427,3 +427,10 @@ a:hover {
         padding-inline: 32px;
     }
 }
+
+/* Keyboard focus for clickable DataTable rows/cards */
+.app-row-action:focus-visible {
+    outline: 3px solid var(--app-primary);
+    outline-offset: -3px;
+}
+
