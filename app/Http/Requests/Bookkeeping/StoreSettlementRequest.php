@@ -2,13 +2,18 @@
 
 namespace App\Http\Requests\Bookkeeping;
 
+use App\Models\FinancialTransaction;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSettlementRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        $transaction = $this->route('transaction');
+
+        return $this->user() !== null
+            && $transaction instanceof FinancialTransaction
+            && $this->user()->can('settle', $transaction);
     }
 
     /**

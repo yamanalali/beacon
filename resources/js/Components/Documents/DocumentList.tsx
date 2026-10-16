@@ -1,7 +1,8 @@
+import { router } from "@inertiajs/react";
 import { EmptyState } from "../Feedback/EmptyState";
 import type { DocumentRow } from "../../types/bookkeeping";
 
-export function DocumentList({ documents }: { documents: DocumentRow[] }) {
+export function DocumentList({ documents, canExtract = false }: { documents: DocumentRow[]; canExtract?: boolean }) {
     if (documents.length === 0) {
         return <EmptyState title="لا توجد مستندات بعد" />;
     }
@@ -27,6 +28,16 @@ export function DocumentList({ documents }: { documents: DocumentRow[] }) {
                         <a className="btn btn-outline-primary" style={{ minHeight: "44px" }} href={`/documents/${doc.public_id}/preview`} target="_blank" rel="noopener noreferrer">
                             عرض
                         </a>
+                    ) : null}
+                    {canExtract && !doc.transaction_public_id ? (
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ minHeight: "44px" }}
+                            onClick={() => router.post(`/documents/${doc.public_id}/extractions`)}
+                        >
+                            تسجيل كعملية
+                        </button>
                     ) : null}
                     <a className="btn btn-outline-secondary" style={{ minHeight: "44px" }} href={`/documents/${doc.public_id}/download`}>
                         تنزيل

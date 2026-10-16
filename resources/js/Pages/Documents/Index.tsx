@@ -11,10 +11,12 @@ export default function Index({
     enterprise,
     documents,
     can_upload,
+    can_extract,
 }: {
     enterprise: EnterpriseRef;
     documents: { data: DocumentRow[]; links: PaginationLink[] };
     can_upload: boolean;
+    can_extract: boolean;
 }) {
     return (
         <AppLayout title="المستندات">
@@ -35,7 +37,7 @@ export default function Index({
                     ) : null}
                     <div className={can_upload ? "col-12 col-lg-8" : "col-12"}>
                         <SectionCard title="كل المستندات">
-                            <DocumentList documents={documents.data} />
+                            <DocumentList documents={documents.data} canExtract={can_extract} />
                             <Pagination links={documents.links} />
                         </SectionCard>
                     </div>

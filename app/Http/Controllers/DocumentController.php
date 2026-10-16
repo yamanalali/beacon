@@ -57,6 +57,7 @@ class DocumentController extends Controller
             ],
             'documents' => $documents,
             'can_upload' => $request->user()->can('upload', [Document::class, $enterprise]),
+            'can_extract' => $request->user()->can('create', [FinancialTransaction::class, $enterprise]),
         ]);
     }
 

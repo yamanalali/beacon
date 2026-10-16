@@ -25,7 +25,7 @@ export const homeItem: NavItem = {
 
 export const mobileSoonItems: NavItem[] = [
     { key: "transactions", label: "المعاملات", icon: "bi-cash-stack", href: "/transactions" },
-    { key: "reports", label: "التقارير", icon: "bi-file-earmark-text" },
+    { key: "reports", label: "التقارير", icon: "bi-file-earmark-text", href: "/reports" },
     { key: "readiness", label: "الجاهزية", icon: "bi-shield-check" },
 ];
 
@@ -47,7 +47,7 @@ export const desktopGroups: { label: string; items: NavItem[] }[] = [
         label: "المالية",
         items: [
             { key: "transactions", label: "المعاملات", icon: "bi-cash-stack", href: "/transactions" },
-            { key: "reports", label: "التقارير", icon: "bi-file-earmark-text" },
+            { key: "reports", label: "التقارير", icon: "bi-file-earmark-text", href: "/reports" },
         ],
     },
     {

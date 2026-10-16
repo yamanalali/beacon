@@ -4,6 +4,9 @@ namespace App\Http\Requests\Bookkeeping;
 
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
+use App\Models\Enterprise;
+use App\Models\FinancialTransaction;
+use App\Models\ReceiptExtraction;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,8 +14,23 @@ class StoreTransactionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Authorization is enforced in the controller/action with TransactionPolicy.
-        return $this->user() !== null;
+        // Authorize before validation so unauthorized users get 403, not field errors.
+        // Controllers/actions re-check with TransactionPolicy as well.
+        $user = $this->user();
+        if ($user === null) {
+            return false;
+        }
+
+        $enterprise = $this->route('enterprise');
+        $transaction = $this->route('transaction');
+        $extraction = $this->route('extraction');
+
+        return match (true) {
+            $enterprise instanceof Enterprise => $user->can('create', [FinancialTransaction::class, $enterprise]),
+            $transaction instanceof FinancialTransaction => $user->can('correct', $transaction),
+            $extraction instanceof ReceiptExtraction => $user->can('create', [FinancialTransaction::class, $extraction->enterprise]),
+            default => false,
+        };
     }
 
     /**
