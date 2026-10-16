@@ -19,6 +19,8 @@ return [
     'currencies' => [
         'SYP' => 'ليرة سورية',
         'USD' => 'دولار أمريكي',
+        // Recognised from receipts only; never converted (manager decision).
+        'AED' => 'درهم إماراتي',
     ],
 
     'default_currency' => 'SYP',
