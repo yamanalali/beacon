@@ -1,11 +1,54 @@
-import { Link } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
+import { DataTable, type Column, type Paginator } from "../../Components/Data/DataTable";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
-import { DocumentList } from "../../Components/Documents/DocumentList";
 import { DocumentUploader } from "../../Components/Documents/DocumentUploader";
-import { Pagination, type PaginationLink } from "../../Components/Navigation/Pagination";
 import type { DocumentRow, EnterpriseRef } from "../../types/bookkeeping";
+
+const columns = (canExtract: boolean): Column<DocumentRow>[] => [
+    {
+        key: "title",
+        header: "المستند",
+        primary: true,
+        cell: (doc) => (
+            <a href={`/documents/${doc.public_id}`} className="fw-semibold">
+                <i className={`bi ${doc.is_image ? "bi-file-earmark-image" : "bi-file-earmark-pdf"} me-2`} aria-hidden="true" />
+                {doc.title}
+            </a>
+        ),
+    },
+    { key: "uploaded_at", header: "تاريخ الرفع", cell: (doc) => <bdi dir="ltr">{doc.uploaded_at ?? "—"}</bdi>, numeric: true },
+    { key: "size_kb", header: "الحجم (ك.ب)", cell: (doc) => doc.size_kb, numeric: true, hideOnMobile: true },
+    { key: "uploader_name", header: "رفعه", cell: (doc) => doc.uploader_name ?? "—", hideOnMobile: true },
+    {
+        key: "transaction",
+        header: "العملية",
+        cell: (doc) => (doc.transaction_public_id ? <a href={`/transactions/${doc.transaction_public_id}`}>مرتبط بعملية</a> : "—"),
+    },
+    {
+        key: "actions",
+        header: "",
+        hideable: false,
+        cell: (doc) => (
+            <div className="d-flex flex-wrap gap-1">
+                {doc.is_previewable ? (
+                    <a className="btn btn-outline-primary btn-sm" style={{ minHeight: "40px" }} href={`/documents/${doc.public_id}/preview`} target="_blank" rel="noopener noreferrer">
+                        عرض
+                    </a>
+                ) : null}
+                {canExtract && !doc.transaction_public_id ? (
+                    <button type="button" className="btn btn-primary btn-sm" style={{ minHeight: "40px" }} onClick={() => router.post(`/documents/${doc.public_id}/extractions`)}>
+                        تسجيل كعملية
+                    </button>
+                ) : null}
+                <a className="btn btn-outline-secondary btn-sm" style={{ minHeight: "40px" }} href={`/documents/${doc.public_id}/download`}>
+                    تنزيل
+                </a>
+            </div>
+        ),
+    },
+];
 
 export default function Index({
     enterprise,
@@ -14,7 +57,7 @@ export default function Index({
     can_extract,
 }: {
     enterprise: EnterpriseRef;
-    documents: { data: DocumentRow[]; links: PaginationLink[] };
+    documents: Paginator<DocumentRow>;
     can_upload: boolean;
     can_extract: boolean;
 }) {
@@ -37,8 +80,13 @@ export default function Index({
                     ) : null}
                     <div className={can_upload ? "col-12 col-lg-8" : "col-12"}>
                         <SectionCard title="كل المستندات">
-                            <DocumentList documents={documents.data} canExtract={can_extract} />
-                            <Pagination links={documents.links} />
+                            <DataTable
+                                caption="كل المستندات"
+                                columns={columns(can_extract)}
+                                rowKey={(doc) => doc.public_id}
+                                emptyTitle="لا توجد مستندات بعد"
+                                server={{ paginator: documents, only: ["documents"] }}
+                            />
                         </SectionCard>
                     </div>
                 </div>

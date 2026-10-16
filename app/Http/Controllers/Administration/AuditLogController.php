@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Administration;
 
+use App\Ai\Support\PaginatedProps;
 use App\Actions\Audit\RecordAuditLog;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
@@ -29,7 +30,7 @@ class AuditLogController extends Controller
             ->through(fn (AuditLog $log): array => $this->row($log));
 
         return Inertia::render('Administration/AuditLogs/Index', [
-            'logs' => $logs,
+            'logs' => PaginatedProps::from($logs),
             'filters' => $filters + ['action' => '', 'actor' => '', 'target_type' => '', 'from' => '', 'to' => ''],
             'actions' => AuditLog::query()->distinct()->orderBy('action')->pluck('action'),
             'target_types' => AuditLog::query()->distinct()->orderBy('target_type')->pluck('target_type'),

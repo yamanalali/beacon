@@ -2,7 +2,7 @@ import { router } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
-import { EmptyState } from "../../Components/Feedback/EmptyState";
+import { DataTable, type Column } from "../../Components/Data/DataTable";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 
 type Run = {
@@ -20,6 +20,27 @@ type Run = {
 };
 type Props = { config: { enabled: boolean; time: string; retention_days: number | null; separate_key: boolean }; runs: Run[] };
 
+const tone = (r: Run) => (r.status === "succeeded" ? "success" : r.status === "failed" ? "danger" : "warning");
+
+const columns: Column<Run>[] = [
+    { key: "id", header: "#", cell: (r) => <bdi dir="ltr">#{r.id}</bdi>, numeric: true, sortable: true },
+    { key: "type_label", header: "النوع", cell: (r) => `${r.type_label}${r.backup_run_id ? ` للنسخة #${r.backup_run_id}` : ""}`, primary: true, sortable: true },
+    { key: "status_label", header: "الحالة", cell: (r) => <StatusBadge label={r.pruned ? "محذوفة حسب مدة الاحتفاظ" : r.status_label} tone={tone(r)} />, sortable: true },
+    { key: "finished_at", header: "الانتهاء", cell: (r) => <bdi dir="ltr">{r.finished_at ?? "—"}</bdi>, numeric: true, sortable: true },
+    { key: "triggered_by", header: "بواسطة", cell: (r) => r.triggered_by, hideOnMobile: true },
+    { key: "size_bytes", header: "الحجم", cell: (r) => (r.size_bytes ? <bdi dir="ltr">{Math.round(r.size_bytes / 1024)} KB</bdi> : "—"), numeric: true, sortable: true, hideOnMobile: true },
+    { key: "error", header: "الخطأ", cell: (r) => (r.error ? <small className="text-danger">{r.error}</small> : "—"), hideOnMobile: true },
+    {
+        key: "actions",
+        header: "",
+        hideable: false,
+        cell: (r) =>
+            r.type === "backup" && r.status === "succeeded" && !r.pruned ? (
+                <button type="button" className="btn btn-outline-primary btn-sm" style={{ minHeight: "44px" }} onClick={() => router.post(`/operations/backups/${r.id}/restore-test`)}>اختبار الاستعادة</button>
+            ) : null,
+    },
+];
+
 export default function Backups({ config, runs }: Props) {
     return (
         <AppLayout title="النسخ الاحتياطي">
@@ -33,20 +54,7 @@ export default function Backups({ config, runs }: Props) {
                     <button type="button" className="btn btn-primary" style={{ minHeight: "48px" }} onClick={() => router.post("/operations/backups")}>إنشاء نسخة الآن</button>
                 </SectionCard>
                 <div className="mt-3 d-flex flex-column gap-2">
-                    {runs.length === 0 ? <EmptyState title="لا توجد عمليات بعد" /> : null}
-                    {runs.map((r) => (
-                        <article key={r.id} className="border rounded p-3 bg-white">
-                            <div className="d-flex justify-content-between flex-wrap gap-2">
-                                <strong>#{r.id} {r.type_label}{r.backup_run_id ? ` للنسخة #${r.backup_run_id}` : ""}</strong>
-                                <StatusBadge label={r.pruned ? "محذوفة حسب مدة الاحتفاظ" : r.status_label} tone={r.status === "succeeded" ? "success" : r.status === "failed" ? "danger" : "warning"} />
-                            </div>
-                            <small className="d-block">{r.finished_at} - {r.triggered_by}{r.size_bytes ? ` - ${Math.round(r.size_bytes / 1024)} KB` : ""}</small>
-                            {r.error ? <small className="d-block text-danger">{r.error}</small> : null}
-                            {r.type === "backup" && r.status === "succeeded" && !r.pruned ? (
-                                <button type="button" className="btn btn-outline-primary btn-sm mt-2" style={{ minHeight: "44px" }} onClick={() => router.post(`/operations/backups/${r.id}/restore-test`)}>اختبار الاستعادة</button>
-                            ) : null}
-                        </article>
-                    ))}
+                    <DataTable caption="عمليات النسخ والاستعادة" columns={columns} rows={runs} rowKey={(r) => r.id} defaultSort={{ key: "id", direction: "desc" }} emptyTitle="لا توجد عمليات بعد" />
                 </div>
             </div>
         </AppLayout>

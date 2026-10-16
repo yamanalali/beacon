@@ -1,14 +1,13 @@
 import { Link, router } from "@inertiajs/react";
 import { useState } from "react";
+import { DataTable, type Column, type Paginator } from "../../Components/Data/DataTable";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
-import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { PaymentStatusBadge } from "../../Components/Financial/PaymentStatusBadge";
 import { SelectInput } from "../../Components/Forms/SelectInput";
 import { TextInput } from "../../Components/Forms/TextInput";
-import { Pagination, type PaginationLink } from "../../Components/Navigation/Pagination";
 import type { BookkeepingOptions, EnterpriseRef, TransactionRow } from "../../types/bookkeeping";
 
 type Filters = {
@@ -29,6 +28,47 @@ function Amount({ row }: { row: TransactionRow }) {
     );
 }
 
+function filterQuery(f: Filters): Record<string, string | undefined> {
+    return {
+        search: f.search || undefined,
+        type: f.type || undefined,
+        payment_status: f.payment_status || undefined,
+        from: f.from || undefined,
+        to: f.to || undefined,
+        show_corrected: f.show_corrected ? "1" : undefined,
+    };
+}
+
+const columns: Column<TransactionRow>[] = [
+    { key: "transaction_date", header: "التاريخ", cell: (row) => <bdi dir="ltr">{row.transaction_date}</bdi>, numeric: true },
+    { key: "type_label", header: "النوع", cell: (row) => `${row.type_label} · ${row.category_label}`, primary: true },
+    { key: "category_label", header: "التصنيف", cell: (row) => row.category_label, hideOnMobile: true, defaultHidden: true },
+    { key: "counterparty", header: "الجهة", cell: (row) => row.counterparty ?? "—" },
+    { key: "amount", header: "المبلغ", cell: (row) => <Amount row={row} />, numeric: true },
+    { key: "outstanding", header: "المتبقي", cell: (row) => <bdi dir="ltr">{row.outstanding}</bdi>, numeric: true, hideOnMobile: true },
+    {
+        key: "payment_status",
+        header: "حالة الدفع",
+        cell: (row) => (
+            <div className="d-flex flex-wrap gap-1">
+                <PaymentStatusBadge status={row.payment_status} label={row.payment_status_label} />
+                {row.is_superseded ? <StatusBadge label={row.status_label} tone="neutral" /> : null}
+            </div>
+        ),
+    },
+    {
+        key: "actions",
+        header: "",
+        hideable: false,
+        hideOnMobile: true,
+        cell: (row) => (
+            <Link href={`/transactions/${row.public_id}`} className="btn btn-outline-primary btn-sm" style={{ minHeight: "40px" }} onClick={(e) => e.stopPropagation()}>
+                التفاصيل
+            </Link>
+        ),
+    },
+];
+
 export default function Index({
     enterprise,
     transactions,
@@ -37,7 +77,7 @@ export default function Index({
     can_create,
 }: {
     enterprise: EnterpriseRef;
-    transactions: { data: TransactionRow[]; links: PaginationLink[] };
+    transactions: Paginator<TransactionRow>;
     filters: Filters;
     options: BookkeepingOptions;
     can_create: boolean;
@@ -128,74 +168,15 @@ export default function Index({
                     </SectionCard>
                 </div>
 
-                {transactions.data.length === 0 ? (
-                    <EmptyState title="لا توجد عمليات مسجلة" />
-                ) : (
-                    <>
-                        <div className="d-lg-none d-flex flex-column gap-2">
-                            {transactions.data.map((row) => (
-                                <Link key={row.public_id} href={`/transactions/${row.public_id}`} className="card text-decoration-none text-body p-3">
-                                    <div className="d-flex justify-content-between align-items-start gap-2 mb-1">
-                                        <span className="fw-semibold">
-                                            {row.type_label} · {row.category_label}
-                                        </span>
-                                        <Amount row={row} />
-                                    </div>
-                                    <p className="mb-2 small text-body-secondary">
-                                        {row.transaction_date}
-                                        {row.counterparty ? ` · ${row.counterparty}` : ""}
-                                    </p>
-                                    <div className="d-flex flex-wrap gap-2">
-                                        <PaymentStatusBadge status={row.payment_status} label={row.payment_status_label} />
-                                        {row.is_superseded ? <StatusBadge label={row.status_label} tone="neutral" /> : null}
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                        <div className="d-none d-lg-block table-responsive">
-                            <table className="table align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>التاريخ</th>
-                                        <th>النوع</th>
-                                        <th>التصنيف</th>
-                                        <th>الجهة</th>
-                                        <th>المبلغ</th>
-                                        <th>المتبقي</th>
-                                        <th>حالة الدفع</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {transactions.data.map((row) => (
-                                        <tr key={row.public_id} className={row.is_superseded ? "text-body-secondary" : undefined}>
-                                            <td>{row.transaction_date}</td>
-                                            <td>{row.type_label}</td>
-                                            <td>{row.category_label}</td>
-                                            <td>{row.counterparty ?? "—"}</td>
-                                            <td>
-                                                <Amount row={row} />
-                                            </td>
-                                            <td dir="ltr">{row.outstanding}</td>
-                                            <td>
-                                                <div className="d-flex flex-wrap gap-1">
-                                                    <PaymentStatusBadge status={row.payment_status} label={row.payment_status_label} />
-                                                    {row.is_superseded ? <StatusBadge label={row.status_label} tone="neutral" /> : null}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <Link href={`/transactions/${row.public_id}`} className="btn btn-outline-primary btn-sm" style={{ minHeight: "40px" }}>
-                                                    التفاصيل
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <Pagination links={transactions.links} />
-                    </>
-                )}
+                <DataTable
+                    caption="المعاملات"
+                    columns={columns}
+                    rowKey={(row) => row.public_id}
+                    rowLabel={(row) => `${row.type_label} ${row.transaction_date}`}
+                    onRowClick={(row) => router.visit(`/transactions/${row.public_id}`)}
+                    emptyTitle="لا توجد عمليات مسجلة"
+                    server={{ paginator: transactions, url: base, query: filterQuery(filters), only: ["transactions", "filters"] }}
+                />
             </div>
         </AppLayout>
     );

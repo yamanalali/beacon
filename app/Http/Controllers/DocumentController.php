@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Support\PaginatedProps;
 use App\Actions\Audit\RecordAuditLog;
 use App\Actions\Documents\StoreDocumentAction;
 use App\Enums\UserRole;
@@ -49,6 +50,7 @@ class DocumentController extends Controller
             ->latest()
             ->latest('id')
             ->paginate(20)
+            ->withQueryString()
             ->through(fn (Document $d): array => self::row($d));
 
         return Inertia::render('Documents/Index', [
@@ -56,7 +58,7 @@ class DocumentController extends Controller
                 'public_id' => $enterprise->public_id,
                 'business_name' => $enterprise->business_name,
             ],
-            'documents' => $documents,
+            'documents' => PaginatedProps::from($documents),
             'can_upload' => $request->user()->can('upload', [Document::class, $enterprise]),
             'can_extract' => $request->user()->can('create', [FinancialTransaction::class, $enterprise]),
         ]);
