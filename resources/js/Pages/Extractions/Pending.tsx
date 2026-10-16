@@ -4,6 +4,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import type { EnterpriseRef } from "../../types/bookkeeping";
+import { Money } from "../../Components/Common/Money";
 
 export type PendingExtractionRow = {
     public_id: string;
@@ -34,7 +35,7 @@ const columns: Column<PendingExtractionRow>[] = [
         key: "suggested_amount",
         header: "المبلغ المقترح",
         numeric: true,
-        cell: (x) => (x.suggested_amount ? <bdi dir="ltr">{`${x.suggested_amount} ${x.suggested_currency ?? ""}`.trim()}</bdi> : "—"),
+        cell: (x) => (x.suggested_amount ? <Money amount={x.suggested_amount} currency={x.suggested_currency} /> : "—"),
     },
     { key: "needs_review", header: "التدقيق", cell: (x) => (x.needs_review ? "تحتاج تدقيقاً" : "—"), hideOnMobile: true },
     {

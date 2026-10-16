@@ -2,6 +2,8 @@ import type { FormEvent } from "react";
 import { SelectInput } from "../Forms/SelectInput";
 import { TextInput } from "../Forms/TextInput";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
+import { Money } from "../Common/Money";
+import { parseAmount } from "../../lib/money";
 
 /**
  * Provider-agnostic draft of a transaction (OCR receipt today, voice later).
@@ -155,6 +157,11 @@ export function ReviewForm({
                 <div className="col-7">
                     <TextInput id="amount" name="amount" label="المبلغ" value={data.amount} onChange={(v) => setData({ amount: v })} error={errors.amount} inputMode="decimal" />
                     <Suggested show={isPrefilled(draft.suggested_amount, data.amount)} />
+                    {data.currency && parseAmount(data.amount) !== null ? (
+                        <div className="form-text mt-n2" data-testid="amount-preview">
+                            سيُحفظ: <Money amount={data.amount} currency={data.currency} />
+                        </div>
+                    ) : null}
                 </div>
                 <div className="col-5">
                     <SelectInput id="currency" label="العملة" required placeholder="اختر" value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />

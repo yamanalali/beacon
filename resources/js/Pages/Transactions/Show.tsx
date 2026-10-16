@@ -10,6 +10,7 @@ import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { PaymentStatusBadge } from "../../Components/Financial/PaymentStatusBadge";
 import { TextInput } from "../../Components/Forms/TextInput";
 import type { DocumentRow, EnterpriseRef, TransactionRow } from "../../types/bookkeeping";
+import { Money } from "../../Components/Common/Money";
 
 type Detail = TransactionRow & {
     creator_name: string | null;
@@ -77,8 +78,8 @@ export default function Show({
                     <div className="col-12 col-lg-6">
                         <SectionCard title="البيانات">
                             <Line label="التاريخ" value={transaction.transaction_date} />
-                            <Line label="المبلغ" value={<span dir="ltr">{transaction.amount} {transaction.currency}</span>} />
-                            <Line label="المتبقي" value={<span dir="ltr">{transaction.outstanding} {transaction.currency}</span>} />
+                            <Line label="المبلغ" value={<Money amount={transaction.amount} currency={transaction.currency} />} />
+                            <Line label="المتبقي" value={<Money amount={transaction.outstanding} currency={transaction.currency} />} />
                             <Line label="حالة الدفع" value={<PaymentStatusBadge status={transaction.payment_status} label={transaction.payment_status_label} />} />
                             <Line label="الحالة" value={<StatusBadge label={transaction.status_label} tone={transaction.is_superseded ? "neutral" : "success"} />} />
                             <Line label="الزبون أو المورد" value={transaction.counterparty} />
@@ -104,9 +105,7 @@ export default function Show({
                                                 {s.settlement_date}
                                                 {s.note ? ` · ${s.note}` : ""}
                                             </span>
-                                            <span dir="ltr" className="fw-semibold">
-                                                {s.amount} {transaction.currency}
-                                            </span>
+                                            <Money amount={s.amount} currency={transaction.currency} className="fw-semibold" />
                                         </li>
                                     ))}
                                 </ul>
