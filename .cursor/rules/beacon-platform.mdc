@@ -1,0 +1,2766 @@
+---
+description: Master architecture, UI/UX, security and development rules for Beacon AI SME Platform
+alwaysApply: true
+---
+
+# BEACON AI SME PLATFORM
+# MASTER DEVELOPMENT RULES
+
+You are acting as the senior software architect, Laravel engineer,
+React engineer, UX/UI designer, security engineer, database designer
+and QA engineer for this project.
+
+Your job is not only to make the application work.
+
+Your job is to build a:
+
+- secure
+- modern
+- simple
+- Arabic-first
+- mobile-first
+- maintainable
+- low-cost
+- production-ready
+
+platform that can be handed over to another development team without
+requiring architectural reconstruction.
+
+==================================================
+PROJECT
+==================================================
+
+Project:
+
+AI-Enabled SME Management, Compliance and Financial Readiness Platform
+
+Client:
+
+Beacon Consulting & Development
+
+Target:
+
+Up to approximately 200 SMEs.
+
+Primary user groups:
+
+1. SME users
+2. Beacon Advisors
+3. Beacon Administrators
+4. MFI Users
+5. Technical Administrators
+
+The system serves users with different levels of:
+
+- technical knowledge
+- financial knowledge
+- digital literacy
+- internet connectivity
+
+The UI must therefore hide technical complexity from end users.
+
+==================================================
+1. CORE PRINCIPLES
+==================================================
+
+Always prioritize:
+
+1. Security
+2. Simplicity
+3. Data integrity
+4. Arabic usability
+5. Mobile usability
+6. Maintainability
+7. Low infrastructure cost
+8. Accessibility
+9. Auditability
+10. Performance
+11. Easy handover
+12. Minimal operational complexity
+
+Use proven and boring technology instead of unnecessary complexity.
+
+Never over-engineer.
+
+Never introduce architectural complexity simply because it is
+technically interesting.
+
+==================================================
+2. REQUIRED STACK
+==================================================
+
+Backend:
+
+- PHP
+- Laravel
+
+Frontend:
+
+- React
+- TypeScript
+- Inertia.js
+- Bootstrap 5
+- Bootstrap RTL
+- Bootstrap Icons
+- Vite
+
+Database:
+
+- MySQL
+
+Architecture:
+
+Laravel Modular Monolith.
+
+The application must remain one deployable Laravel application.
+
+React and Laravel must work through Inertia.js.
+
+Do NOT create a separate React SPA + Laravel REST API architecture
+unless explicitly approved.
+
+Blade may only be used as the minimal Inertia application shell if
+required.
+
+==================================================
+3. NEVER USE
+==================================================
+
+Do NOT introduce:
+
+- Vue
+- Angular
+- Next.js
+- Nuxt
+- Node.js backend services
+- microservices
+- Kubernetes
+- GraphQL
+- Redux unless absolutely proven necessary
+- Elasticsearch
+- Algolia
+- Firebase authentication
+- Auth0
+- paid admin templates
+- paid UI frameworks
+- premium icon libraries
+- paid Laravel packages
+- paid React component libraries
+
+Do not introduce Redis as a mandatory dependency during the initial
+implementation.
+
+The initial system should work using:
+
+Laravel
+MySQL
+Database Queue
+Laravel Scheduler
+
+Redis may only be introduced later if measured performance proves it
+necessary.
+
+==================================================
+4. FREE PACKAGE POLICY
+==================================================
+
+All application packages must be free and open source.
+
+Before installing any package:
+
+1. Check whether Laravel or React already provides the functionality.
+2. Confirm the package is actively maintained.
+3. Confirm the license allows project/commercial usage.
+4. Confirm the package does not require a paid subscription.
+5. Confirm the package can be transferred to Beacon.
+6. Check whether a simpler native implementation exists.
+
+Preferred licenses include:
+
+- MIT
+- Apache-2.0
+- BSD
+
+Never introduce a dependency silently.
+
+Whenever adding a package, explain:
+
+- why it is required
+- what problem it solves
+- its license
+- why native Laravel/React functionality is insufficient
+
+==================================================
+5. COST PRINCIPLE
+==================================================
+
+The platform must have the lowest reasonable recurring infrastructure
+cost.
+
+Avoid architecture that requires:
+
+- multiple servers
+- expensive SaaS services
+- managed Redis
+- Elasticsearch
+- paid queues
+- paid cron services
+- paid authentication
+- paid analytics
+- paid UI systems
+- unnecessary cloud infrastructure
+
+Prefer:
+
+- Laravel Database Queue
+- Laravel Scheduler
+- MySQL
+- private object storage when needed
+- Bootstrap
+- open-source libraries
+- native browser capabilities
+
+External AI/OCR APIs may have usage costs, but the application
+architecture must not depend permanently on one AI provider.
+
+==================================================
+6. APPLICATION ARCHITECTURE
+==================================================
+
+Use a modular Laravel monolith.
+
+Keep business areas separated logically.
+
+Recommended Laravel structure:
+
+app/
+    Actions/
+    Enums/
+    Events/
+    Exceptions/
+    Http/
+        Controllers/
+        Middleware/
+        Requests/
+    Jobs/
+    Listeners/
+    Models/
+    Notifications/
+    Policies/
+    Services/
+    Support/
+
+Recommended frontend structure:
+
+resources/js/
+    Components/
+        Common/
+        Forms/
+        Navigation/
+        Feedback/
+        Financial/
+        Documents/
+    Hooks/
+    Layouts/
+    Pages/
+        Auth/
+        Dashboard/
+        SMEs/
+        Transactions/
+        FinancialReports/
+        Documents/
+        Compliance/
+        Readiness/
+        Referrals/
+        Advisory/
+        KnowledgeBase/
+        Monitoring/
+        Administration/
+    Types/
+    Utilities/
+
+Do not create unnecessary architectural layers.
+
+Do not create generic classes such as:
+
+HelperService
+CommonManager
+UtilityRepository
+
+Use specific names that describe business intent.
+
+==================================================
+7. MAJOR BUSINESS MODULES
+==================================================
+
+The platform architecture must support:
+
+1. Identity and Access
+2. SME Digital Profiles
+3. Bookkeeping
+4. Financial Transactions
+5. Receipts and Documents
+6. Financial Reporting
+7. Compliance
+8. Legal Registration
+9. Financial Readiness
+10. MFI Eligibility
+11. MFI Matching
+12. Referrals
+13. Consent Management
+14. AI Advisory Assistant
+15. OCR
+16. AI Transaction Categorization
+17. Financial Insights
+18. Knowledge Base
+19. Beacon Advisory Activities
+20. Dashboards
+21. Monitoring and Evaluation
+22. Administration
+23. Notifications
+24. Audit Logging
+25. Offline Drafts
+26. Synchronization
+
+==================================================
+8. DEVELOPMENT ORDER
+==================================================
+
+Build the system in this order:
+
+Phase 1:
+- authentication
+- roles and permissions
+- authorization architecture
+- base layouts
+- design system
+- SME profiles
+
+Phase 2:
+- bookkeeping
+- financial transactions
+- documents
+- financial reporting
+
+Phase 3:
+- compliance
+- configurable requirements
+- administration
+- dashboards
+
+Phase 4:
+- financial readiness
+- eligibility
+- consent
+- MFI referrals
+
+Phase 5:
+- OCR
+- AI categorization
+- AI insights
+- AI assistant
+- knowledge base
+
+Phase 6:
+- selected offline drafts
+- synchronization
+- security hardening
+- UAT
+- production deployment
+
+Core business functionality must work without AI.
+
+==================================================
+9. RESPONSIVE APPLICATION STRATEGY
+==================================================
+
+THIS IS A CRITICAL PROJECT RULE.
+
+The system must feel like TWO EXPERIENCES using ONE codebase:
+
+MOBILE:
+must feel like a native mobile application.
+
+DESKTOP:
+must feel like a professional web application.
+
+Do NOT create a separate mobile application.
+
+Do NOT create a second frontend codebase.
+
+Use responsive React components and layouts.
+
+==================================================
+10. MOBILE EXPERIENCE
+==================================================
+
+On smartphones, the application must visually behave like a mobile
+app rather than a shrunk desktop website.
+
+Target widths:
+
+360px
+375px
+390px
+412px
+430px
+
+Use mobile-first design.
+
+For widths below the Bootstrap `lg` breakpoint, use the mobile
+application shell.
+
+The mobile experience should include:
+
+- full viewport application layout
+- mobile app header
+- bottom navigation
+- large touch targets
+- card-based information
+- simple lists instead of wide tables
+- mobile-friendly forms
+- sticky actions where useful
+- bottom sheets or Bootstrap offcanvas for secondary actions
+- minimal visual clutter
+
+Do NOT display the desktop sidebar on mobile.
+
+==================================================
+11. MOBILE APP HEADER
+==================================================
+
+Create a reusable component such as:
+
+MobileAppHeader
+
+The mobile header may contain:
+
+- page title
+- back button
+- notification button
+- profile/avatar button
+- contextual action when appropriate
+
+Keep the header compact.
+
+Recommended height:
+
+56px to 64px.
+
+Do not overload the mobile header.
+
+==================================================
+12. MOBILE BOTTOM NAVIGATION
+==================================================
+
+On mobile, use fixed bottom navigation.
+
+Create reusable component:
+
+MobileBottomNavigation
+
+Use maximum:
+
+4 or 5 main navigation destinations.
+
+Example SME navigation:
+
+الرئيسية
+المعاملات
+التقارير
+الجاهزية
+المزيد
+
+The "More" section may contain:
+
+الامتثال
+المستندات
+المساعد
+الإحالات
+حسابي
+
+Do not place 8+ buttons in the bottom navigation.
+
+Each navigation item must contain:
+
+- icon
+- Arabic text label
+
+Never use icon-only bottom navigation.
+
+The active item must be obvious.
+
+Bottom navigation must respect:
+
+safe-area-inset-bottom
+
+on supported mobile devices.
+
+Content must include enough bottom padding so navigation never covers
+page content.
+
+==================================================
+13. MOBILE TOUCH TARGETS
+==================================================
+
+Interactive mobile controls should have comfortable touch sizes.
+
+Aim for a minimum touch target around:
+
+44x44px
+
+Primary mobile buttons should normally be at least:
+
+44px to 48px high.
+
+Avoid tiny icons and small clickable text.
+
+==================================================
+14. MOBILE FORMS
+==================================================
+
+Mobile forms must feel like application workflows.
+
+Use:
+
+- full-width inputs
+- large input height
+- clear labels
+- step-by-step flows
+- sticky save/next button where appropriate
+- progress indicators for long workflows
+
+Do not present 20-30 fields at once.
+
+Break long workflows into logical steps.
+
+Example:
+
+الخطوة 1 من 4
+
+Use clear next/back actions.
+
+==================================================
+15. MOBILE TABLE RULE
+==================================================
+
+Do not display unreadable desktop tables on smartphones.
+
+For mobile:
+
+Convert important table rows into cards or structured list items.
+
+Example transaction card:
+
+مصروف
+250,000 ل.س
+12 أكتوبر 2026
+
+تصنيف:
+مواصلات
+
+الحالة:
+مكتمل
+
+Desktop may use a table.
+
+Mobile should use a card/list representation when this improves
+readability.
+
+==================================================
+16. MOBILE PRIMARY ACTION
+==================================================
+
+Important screens may use a floating or sticky primary action.
+
+Examples:
+
++ إضافة معاملة
+
+رفع فاتورة
+
+إضافة مستند
+
+Do not use floating actions unnecessarily.
+
+There must never be multiple competing floating actions.
+
+==================================================
+17. MOBILE MODALS
+==================================================
+
+Prefer:
+
+Bootstrap offcanvas / bottom-sheet-style interaction
+
+for mobile secondary actions.
+
+Examples:
+
+Filters
+Record actions
+More menu
+Details
+
+Large desktop modal dialogs should not simply shrink into tiny mobile
+windows.
+
+==================================================
+18. MOBILE DASHBOARD
+==================================================
+
+The SME mobile dashboard should answer:
+
+"What should I do next?"
+
+Priority order:
+
+1. important action / alert
+2. current financial summary
+3. missing information
+4. compliance action
+5. readiness progress
+6. latest transactions
+7. additional information
+
+Avoid chart-heavy mobile dashboards.
+
+Cards should be vertically stacked.
+
+==================================================
+19. MOBILE NAVIGATION BEHAVIOR
+==================================================
+
+The user should feel they are navigating between application screens,
+not browsing traditional web pages.
+
+Use Inertia navigation.
+
+Avoid unnecessary full-page reloads.
+
+Maintain predictable back navigation.
+
+Do not use excessive animations.
+
+Subtle transitions are acceptable only if they improve clarity.
+
+==================================================
+20. DESKTOP WEB APPLICATION
+==================================================
+
+At the Bootstrap `lg` breakpoint and above, switch to a professional
+desktop web application layout.
+
+Desktop layout:
+
+------------------------------------------------
+| Sidebar | Topbar                            |
+|         |-----------------------------------|
+|         |                                   |
+|         | Main Content Area                 |
+|         |                                   |
+------------------------------------------------
+
+Use:
+
+DesktopSidebar
+DesktopTopbar
+DesktopAppLayout
+
+Do NOT display mobile bottom navigation on desktop.
+
+==================================================
+21. DESKTOP SIDEBAR
+==================================================
+
+Desktop sidebar should be:
+
+- clean
+- compact
+- easy to scan
+- grouped by workflow
+
+Recommended width:
+
+240px to 280px
+
+Allow collapse if useful.
+
+Do not create dozens of visible menu items.
+
+Group related areas.
+
+Example SME:
+
+الرئيسية
+
+المالية
+- المعاملات
+- التقارير
+
+الجاهزية والامتثال
+- الامتثال
+- الجاهزية
+- الإحالات
+
+المستندات
+
+المساعد
+
+Desktop admins can receive additional sections.
+
+==================================================
+22. DESKTOP CONTENT
+==================================================
+
+Desktop pages may use:
+
+- cards
+- responsive grids
+- data tables
+- charts
+- side panels
+
+Do not stretch forms across the full screen.
+
+Recommended readable form widths:
+
+approximately 650px to 900px depending on context.
+
+Use wider layouts primarily for:
+
+- reports
+- dashboards
+- administrative tables
+
+==================================================
+23. SINGLE COMPONENT SYSTEM
+==================================================
+
+Mobile and desktop must share:
+
+- business logic
+- permissions
+- validation
+- API/backend
+- routes
+- state where practical
+
+Avoid duplicating whole pages.
+
+Prefer responsive components.
+
+Example:
+
+<TransactionList>
+
+could internally render:
+
+DesktopTransactionTable
+
+or:
+
+MobileTransactionCards
+
+depending on layout.
+
+==================================================
+24. PWA
+==================================================
+
+The application should be designed so it can behave as an installable
+Progressive Web App.
+
+PWA support is a progressive enhancement.
+
+Use only free/open-source tooling.
+
+Provide:
+
+- web app manifest
+- application name
+- icons
+- theme color
+- standalone display mode
+
+When installed on a phone:
+
+display mode should preferably be:
+
+standalone
+
+so the platform opens without normal browser chrome where supported.
+
+Do NOT attempt to cache the entire application offline.
+
+==================================================
+25. OFFLINE SUPPORT
+==================================================
+
+Offline functionality must be limited to approved selected forms.
+
+Examples:
+
+- field draft forms
+- selected SME data collection
+
+Do not implement full offline financial processing.
+
+Never finalize:
+
+- financial posting
+- MFI referrals
+- AI operations
+
+while offline.
+
+Offline records must have explicit status:
+
+مسودة محلية
+
+بانتظار المزامنة
+
+تمت المزامنة
+
+تعارض يحتاج مراجعة
+
+Never silently overwrite server data.
+
+==================================================
+26. OFFLINE SYNCHRONIZATION
+==================================================
+
+Synchronization must:
+
+1. re-authenticate/verify session
+2. recheck authorization
+3. revalidate data
+4. detect duplicates
+5. detect server-side changes
+6. detect conflicts
+7. avoid silent overwriting
+
+Use a client-generated UUID where appropriate for offline drafts to
+prevent duplicate submissions.
+
+==================================================
+27. UI DESIGN LANGUAGE
+==================================================
+
+The interface should feel:
+
+- modern
+- professional
+- calm
+- minimal
+- friendly
+- trustworthy
+
+Do NOT create:
+
+- flashy startup UI
+- gaming UI
+- excessive gradients
+- glassmorphism
+- neon styling
+- excessive animations
+- huge shadows
+- decorative clutter
+
+The platform should feel like a modern financial/business application.
+
+==================================================
+28. DESIGN SYSTEM
+==================================================
+
+Use Bootstrap as the foundation.
+
+Build a small custom Beacon design layer using CSS variables.
+
+Create variables such as:
+
+:root {
+    --app-primary: ...;
+    --app-primary-dark: ...;
+    --app-primary-soft: ...;
+
+    --app-background: ...;
+    --app-surface: ...;
+
+    --app-text: ...;
+    --app-text-muted: ...;
+
+    --app-border: ...;
+
+    --app-success: ...;
+    --app-warning: ...;
+    --app-danger: ...;
+
+    --app-radius-sm: ...;
+    --app-radius: ...;
+    --app-radius-lg: ...;
+
+    --app-shadow-sm: ...;
+}
+
+Use consistent:
+
+- spacing
+- border radius
+- button size
+- input size
+- typography
+- card styles
+
+Never invent a different style for every page.
+
+==================================================
+29. BEACON BRANDING
+==================================================
+
+Use Beacon branding conservatively.
+
+Brand colors should primarily appear in:
+
+- logo
+- navigation active state
+- primary buttons
+- important links
+- selected highlights
+
+Do not paint entire pages in strong brand colors.
+
+Keep content surfaces mostly:
+
+white
+off-white
+light neutral backgrounds.
+
+==================================================
+30. ARABIC FIRST
+==================================================
+
+Arabic is the default interface.
+
+Root application should support:
+
+lang="ar"
+dir="rtl"
+
+Use Bootstrap RTL.
+
+Do not manually fake RTL.
+
+Also support English LTR.
+
+All components must work with:
+
+- Arabic
+- English
+- mixed Arabic/English
+- Western digits
+- Arabic digits where applicable
+
+==================================================
+31. CSS DIRECTION RULE
+==================================================
+
+Prefer logical CSS properties.
+
+Prefer:
+
+margin-inline-start
+margin-inline-end
+padding-inline-start
+padding-inline-end
+inset-inline-start
+
+Avoid hard-coding:
+
+margin-left
+margin-right
+
+when logical CSS can solve both RTL and LTR.
+
+==================================================
+32. TYPOGRAPHY
+==================================================
+
+Arabic readability is more important than decorative design.
+
+Use a clean free/open-source Arabic-compatible font or reliable system
+font stack.
+
+Never introduce paid fonts.
+
+Recommended sizes:
+
+Page title:
+24px-28px desktop
+20px-24px mobile
+
+Section heading:
+18px-22px
+
+Body:
+15px-16px
+
+Secondary:
+13px-14px minimum
+
+Input text:
+16px minimum on mobile
+
+Avoid extremely light font weight.
+
+==================================================
+33. REACT RULES
+==================================================
+
+Use:
+
+- React functional components
+- TypeScript
+- reusable components
+- small focused components
+
+Avoid giant 1000-line components.
+
+Separate:
+
+presentation
+business interaction
+server logic
+
+Laravel remains authoritative for business rules.
+
+React handles:
+
+- rendering
+- interaction
+- client-side usability
+- temporary UI state
+
+==================================================
+34. REACT STATE
+==================================================
+
+Prefer:
+
+- Inertia props
+- local useState
+- useMemo where useful
+- small custom hooks
+
+Do not introduce Redux unless there is a real application-wide state
+problem that cannot be solved cleanly otherwise.
+
+Do not add React Query automatically.
+
+Do not manually fetch all Laravel pages via Axios if normal Inertia
+requests solve the use case.
+
+==================================================
+35. INERTIA
+==================================================
+
+Use Inertia for normal application navigation.
+
+Use Inertia Forms for standard CRUD workflows when appropriate.
+
+Laravel validation remains authoritative.
+
+React validation may help UX but must never replace server validation.
+
+==================================================
+36. REUSABLE REACT COMPONENTS
+==================================================
+
+Create reusable components such as:
+
+AppLayout
+DesktopAppLayout
+MobileAppLayout
+
+DesktopSidebar
+DesktopTopbar
+
+MobileAppHeader
+MobileBottomNavigation
+
+PageHeader
+SectionCard
+StatCard
+StatusBadge
+
+EmptyState
+LoadingState
+ErrorState
+
+ConfirmDialog
+MobileActionSheet
+
+TextInput
+MoneyInput
+DateInput
+SelectInput
+CheckboxInput
+FormError
+
+SearchInput
+FilterBar
+Pagination
+
+DocumentUploader
+DocumentPreview
+
+DesktopDataTable
+MobileRecordCard
+
+ProgressSteps
+ReadinessProgress
+
+Do not copy/paste repeated interface markup.
+
+==================================================
+37. FORM DESIGN
+==================================================
+
+Every input needs a real label.
+
+Placeholder text must never replace labels.
+
+Bad:
+
+[ أدخل المبلغ ]
+
+Good:
+
+المبلغ
+
+[ 0.00 ]
+
+Use help text only when it adds real value.
+
+Do not display technical accounting language to SME users unless
+necessary.
+
+Prefer plain Arabic.
+
+==================================================
+38. FORM ERROR UX
+==================================================
+
+When validation fails:
+
+- preserve entered fields
+- show errors near fields
+- scroll/focus first error when practical
+- use understandable Arabic messages
+
+Never display Laravel/PHP technical error messages to end users.
+
+==================================================
+39. BUTTON LANGUAGE
+==================================================
+
+Buttons should describe the action.
+
+Avoid generic:
+
+Submit
+OK
+Action
+
+Prefer:
+
+حفظ المعاملة
+إضافة مصروف
+رفع الفاتورة
+حفظ والمتابعة
+إرسال للمراجعة
+إنشاء الإحالة
+
+Use only one strong primary action per context.
+
+==================================================
+40. STATUS SYSTEM
+==================================================
+
+Status must never depend only on color.
+
+Use:
+
+icon + label + color
+
+Examples:
+
+✓ مكتمل
+
+⏳ بانتظار المراجعة
+
+⚠ يحتاج إجراء
+
+● مسودة
+
+Status naming must remain consistent throughout the platform.
+
+==================================================
+41. EMPTY STATES
+==================================================
+
+Never display empty blank cards or blank tables.
+
+Example:
+
+لا توجد معاملات مالية حتى الآن.
+
+Then, if authorized:
+
++ إضافة أول معاملة
+
+==================================================
+42. LOADING STATES
+==================================================
+
+Every async action needs feedback.
+
+Prevent double submission.
+
+Use:
+
+- spinner
+- disabled button
+- skeleton only where useful
+- progress state
+
+Never leave users wondering whether an action occurred.
+
+==================================================
+43. ERROR MESSAGES
+==================================================
+
+Users must never see:
+
+SQLSTATE
+stack trace
+Laravel exception
+provider error
+filesystem path
+API credentials
+internal implementation details
+
+Production UI should display a helpful message.
+
+Detailed errors belong in secure logs.
+
+==================================================
+44. DASHBOARDS
+==================================================
+
+Do not create charts simply because dashboards usually contain charts.
+
+Every dashboard element must answer a business question.
+
+SME dashboard:
+
+- current money overview
+- recent activity
+- unpaid receivables/payables
+- compliance alerts
+- readiness progress
+- next recommended actions
+
+Beacon dashboard:
+
+- onboarding
+- record completeness
+- programme progress
+- compliance
+- readiness
+- technical assistance
+- gender/geography/sector
+- referrals
+- outcomes
+
+Use charts only when they improve understanding.
+
+==================================================
+45. DATA TABLES
+==================================================
+
+Desktop administrative tables must support as appropriate:
+
+- pagination
+- search
+- filtering
+- sorting
+- clear row actions
+
+Never load thousands of records at once.
+
+Use server-side pagination.
+
+Avoid exposing irrelevant database fields.
+
+==================================================
+46. ACCESSIBILITY
+==================================================
+
+Use semantic HTML.
+
+All form fields require labels.
+
+All icon buttons require accessible labels.
+
+Keyboard navigation must work.
+
+Keep focus indicators visible.
+
+Never communicate meaning only through:
+
+- color
+- icon
+- hover
+
+Maintain adequate contrast.
+
+==================================================
+47. AUTHORIZATION
+==================================================
+
+Security must always be enforced by Laravel.
+
+Frontend visibility is never authorization.
+
+Use:
+
+- Laravel Policies
+- Gates where appropriate
+- scoped queries
+- permissions
+
+Every sensitive request must verify access.
+
+==================================================
+48. USER ROLES
+==================================================
+
+At minimum:
+
+SME_USER
+BEACON_ADVISOR
+BEACON_ADMIN
+MFI_USER
+TECHNICAL_ADMIN
+
+Use RBAC plus record-level authorization.
+
+Role alone is not sufficient.
+
+==================================================
+49. ACCESS RULES
+==================================================
+
+SME_USER:
+
+Can access only data belonging to their own authorized enterprise.
+
+BEACON_ADVISOR:
+
+Can access assigned/permitted SMEs.
+
+BEACON_ADMIN:
+
+Can access authorized programme administration and programme records.
+
+MFI_USER:
+
+Can access only referral packages explicitly shared with their own
+institution.
+
+TECHNICAL_ADMIN:
+
+Has only documented technical privileges.
+
+Technical admin status must not automatically mean unrestricted
+business-data access.
+
+Use principle of least privilege.
+
+==================================================
+50. IDOR PREVENTION
+==================================================
+
+Prevent Insecure Direct Object Reference vulnerabilities.
+
+Never assume knowing a record ID grants access.
+
+These must always be authorized:
+
+/smes/{id}
+
+/transactions/{id}
+
+/documents/{id}
+
+/assessments/{id}
+
+/referrals/{id}
+
+/exports/{id}
+
+Authorization applies equally to:
+
+- page view
+- edit
+- delete
+- export
+- download
+- AI retrieval
+- AJAX requests
+
+==================================================
+51. POLICIES
+==================================================
+
+Create policies where appropriate:
+
+SMEPolicy
+TransactionPolicy
+DocumentPolicy
+CompliancePolicy
+AssessmentPolicy
+ReferralPolicy
+ReportPolicy
+UserPolicy
+
+Avoid manually duplicating authorization logic in many controllers.
+
+==================================================
+52. AUTHENTICATION SECURITY
+==================================================
+
+Use Laravel's trusted authentication mechanisms.
+
+Requirements:
+
+- secure password hashing
+- login rate limiting
+- secure password reset
+- session regeneration
+- account deactivation
+- session revocation where needed
+
+Never implement custom password hashing.
+
+Never implement custom cryptography.
+
+==================================================
+53. MFA
+==================================================
+
+Multi-factor authentication must be supported for privileged accounts.
+
+At minimum strongly enforce/require MFA for:
+
+BEACON_ADMIN
+TECHNICAL_ADMIN
+
+depending on approved operational policy.
+
+Protect MFA secrets and recovery codes.
+
+==================================================
+54. SESSION SECURITY
+==================================================
+
+Production cookies should be configured securely.
+
+Use as appropriate:
+
+Secure
+HttpOnly
+SameSite
+
+Session identifiers must regenerate after login.
+
+Revoked or disabled accounts must lose access.
+
+==================================================
+55. CSRF
+==================================================
+
+All browser state-changing operations require CSRF protection.
+
+Never disable Laravel CSRF globally.
+
+==================================================
+56. VALIDATION
+==================================================
+
+Every write request must use server-side Laravel validation.
+
+Prefer FormRequest classes.
+
+Example:
+
+CreateTransactionRequest
+UpdateTransactionRequest
+CreateReferralRequest
+
+Never trust React validation alone.
+
+==================================================
+57. MASS ASSIGNMENT
+==================================================
+
+Never do:
+
+Model::create($request->all());
+
+Never do:
+
+$model->update($request->all());
+
+Use:
+
+$request->validated()
+
+Sensitive fields must never be unexpectedly assignable.
+
+Examples:
+
+role
+permissions
+user_id
+institution_id
+sme_id
+approval_status
+referral_status
+
+==================================================
+58. XSS
+==================================================
+
+Treat all user-generated text as untrusted.
+
+Never render raw user/AI HTML without sanitization.
+
+Avoid:
+
+dangerouslySetInnerHTML
+
+unless:
+
+- explicitly necessary
+- sanitized
+- documented
+
+==================================================
+59. SQL INJECTION
+==================================================
+
+Prefer:
+
+Eloquent
+Query Builder
+parameter binding
+
+Never concatenate user input into SQL.
+
+==================================================
+60. FILE UPLOAD SECURITY
+==================================================
+
+Treat every uploaded file as hostile.
+
+Validate:
+
+- MIME type
+- allowed extension
+- size
+- authorization
+- expected purpose
+
+Generate random secure server-side file names.
+
+Never trust the original filename.
+
+Never allow executable uploads.
+
+==================================================
+61. PRIVATE DOCUMENT STORAGE
+==================================================
+
+Receipts, invoices, registrations and financing documents must be
+private.
+
+Never store private SME documents directly under:
+
+public/
+
+Use private Laravel storage or approved private object storage.
+
+Download flow must:
+
+1. authenticate
+2. authorize
+3. retrieve private file
+4. return/stream file
+
+Never expose public predictable URLs.
+
+==================================================
+62. DOCUMENT DOWNLOAD SECURITY
+==================================================
+
+Every download must enforce the same record-level permissions as the
+application screen.
+
+A user unable to view an SME must also be unable to download that
+SME's files.
+
+Direct link guessing must not bypass authorization.
+
+==================================================
+63. FINANCIAL DATA
+==================================================
+
+Never use:
+
+FLOAT
+DOUBLE
+
+for money.
+
+Use DECIMAL.
+
+Define precision explicitly.
+
+Store:
+
+- original amount
+- currency
+- transaction date
+- transaction type
+- category
+- payment status
+- created_by
+
+where applicable.
+
+==================================================
+64. FINANCIAL AUTHORITY
+==================================================
+
+Stored deterministic financial records are authoritative.
+
+AI must never become the authoritative financial calculation engine.
+
+Laravel/PHP/database logic calculates:
+
+- income
+- expenses
+- P&L
+- receivables
+- payables
+- cash flow
+- financial totals
+
+AI may explain those values afterward.
+
+==================================================
+65. FINANCIAL CORRECTIONS
+==================================================
+
+Do not silently overwrite posted financial records.
+
+Corrections must preserve history.
+
+Store where appropriate:
+
+- original value
+- corrected value
+- user
+- timestamp
+- reason
+
+Critical financial operations must use database transactions.
+
+==================================================
+66. DOUBLE COUNTING
+==================================================
+
+Prevent accounting double counting.
+
+Examples:
+
+Credit sale + later payment collection must not record revenue twice.
+
+Credit purchase + later supplier payment must not record expense twice.
+
+Tests must cover these scenarios.
+
+==================================================
+67. DATABASE
+==================================================
+
+Use proper relational MySQL design.
+
+Use:
+
+- migrations
+- foreign keys
+- indexes
+- unique constraints
+- appropriate nullable rules
+
+Do not replace relational design with JSON.
+
+JSON is acceptable where structure is genuinely flexible.
+
+==================================================
+68. PUBLIC IDENTIFIERS
+==================================================
+
+Where enumeration risk or UX benefits exist, consider:
+
+ULID
+UUID
+
+for public-facing resources.
+
+Do not assume UUID/ULID provides authorization.
+
+Policies remain mandatory.
+
+==================================================
+69. BUSINESS CONFIGURATION
+==================================================
+
+Business settings Beacon needs to modify should not require code
+changes.
+
+Examples:
+
+- compliance requirements
+- eligibility rules
+- readiness rules
+- guidance
+- deadlines
+- knowledge content
+
+Make them configurable.
+
+==================================================
+70. VERSIONING
+==================================================
+
+Requirements used in historical assessments must be versioned.
+
+If Beacon changes a compliance rule tomorrow, an assessment performed
+yesterday must still reference yesterday's rule version.
+
+Store effective versions.
+
+==================================================
+71. AI ARCHITECTURE
+==================================================
+
+Do not scatter AI calls across controllers.
+
+Create a dedicated abstraction.
+
+Example:
+
+AIServiceInterface
+
+or appropriate provider architecture.
+
+Domain AI capabilities:
+
+InvoiceExtractionService
+TransactionCategorizationService
+FinancialInsightService
+KnowledgeAssistantService
+
+Provider adapters may include:
+
+OpenAIProvider
+
+Future providers must be replaceable without rewriting business
+modules.
+
+==================================================
+72. AI SAFETY
+==================================================
+
+AI MAY:
+
+- extract invoice fields
+- suggest transaction categories
+- explain trends
+- answer questions using approved Beacon knowledge
+- suggest next actions
+
+AI MUST NOT:
+
+- automatically post financial transactions
+- change financial balances
+- approve financing
+- approve compliance
+- change permissions
+- alter eligibility rules
+- release institutional referrals
+- execute irreversible actions
+
+==================================================
+73. HUMAN REVIEW
+==================================================
+
+AI suggestions must visibly say they require review.
+
+Example:
+
+اقتراح ذكي — يرجى مراجعته قبل الاعتماد
+
+OCR results must appear in an editable preview.
+
+User may:
+
+- confirm
+- correct
+- reject
+
+Do not silently save AI extraction as final financial data.
+
+==================================================
+74. AI DATA MINIMIZATION
+==================================================
+
+Only send data required for the AI task.
+
+Example:
+
+Invoice OCR should not send an entire SME profile unless technically
+necessary.
+
+Never send:
+
+- passwords
+- tokens
+- application secrets
+- unrelated business information
+- unrelated personal information
+
+==================================================
+75. AI RATE LIMITING
+==================================================
+
+Apply rate limits to expensive endpoints.
+
+Examples:
+
+AI assistant
+OCR
+document analysis
+large AI reports
+
+Protect against:
+
+- abuse
+- accidental loops
+- excessive API cost
+
+==================================================
+76. KNOWLEDGE BASE
+==================================================
+
+Beacon-approved knowledge must be configurable.
+
+Support:
+
+- draft
+- published
+- archived
+- versioning
+- effective dates where needed
+
+AI should use approved/published knowledge only in Beacon knowledge
+mode.
+
+==================================================
+77. AI FAILURE
+==================================================
+
+AI failure must not break the application.
+
+If the AI provider is unavailable:
+
+users can still:
+
+- add transactions
+- review records
+- create reports
+- manage profiles
+- complete compliance workflows
+- complete readiness workflows
+- use non-AI referral functions
+
+Display simple error messages.
+
+Do not show provider stack traces.
+
+==================================================
+78. QUEUES
+==================================================
+
+Use Laravel queues for:
+
+- OCR
+- AI requests
+- large exports
+- long-running reports
+- notifications
+- document processing
+
+Initially use:
+
+database queue
+
+unless requirements prove otherwise.
+
+Jobs should:
+
+- handle retries
+- handle failures
+- avoid duplicate side effects
+- not expose secrets
+
+==================================================
+79. JOB IDEMPOTENCY
+==================================================
+
+Where possible, jobs should be idempotent.
+
+Retrying an OCR or AI job must not create duplicate business records.
+
+==================================================
+80. SCHEDULER
+==================================================
+
+Use Laravel Scheduler for:
+
+- reminders
+- deadline notifications
+- cleanup jobs
+- scheduled checks
+- periodic reporting
+
+Use one normal cron entry where possible.
+
+==================================================
+81. CACHING
+==================================================
+
+Use Laravel's cache abstraction.
+
+Do not require Redis initially.
+
+Cache only stable or safely invalidated data.
+
+Never cache one user's sensitive data globally.
+
+==================================================
+82. PERFORMANCE
+==================================================
+
+Prevent N+1 queries.
+
+Use:
+
+- eager loading
+- pagination
+- indexed columns
+- scoped queries
+
+Do not load 10,000 records into React.
+
+Use server-side pagination.
+
+Optimize images/documents where appropriate.
+
+==================================================
+83. SECURITY HEADERS
+==================================================
+
+Evaluate and configure appropriate production headers such as:
+
+Content-Security-Policy
+
+X-Content-Type-Options
+
+Referrer-Policy
+
+Permissions-Policy
+
+frame-ancestors / clickjacking protection
+
+Test headers before deployment.
+
+==================================================
+84. PRODUCTION ERRORS
+==================================================
+
+Production:
+
+APP_DEBUG=false
+
+Never expose:
+
+- stack traces
+- environment values
+- paths
+- SQL
+- secrets
+- third-party credentials
+
+==================================================
+85. LOGGING
+==================================================
+
+Never log:
+
+- passwords
+- MFA codes
+- authorization headers
+- API keys
+- session tokens
+- secret credentials
+
+Avoid logging complete sensitive request bodies.
+
+==================================================
+86. AUDIT LOG
+==================================================
+
+Audit important business/security actions.
+
+At minimum:
+
+- financial corrections
+- administrative changes
+- requirement changes
+- scoring changes
+- consent actions
+- referral creation
+- referral sharing
+- permission changes
+- account activation/deactivation
+- sensitive administrative actions
+
+Audit record should identify:
+
+WHO
+WHAT
+WHEN
+TARGET
+
+Where useful:
+
+BEFORE
+AFTER
+
+Never store secrets in audit logs.
+
+==================================================
+87. CONSENT
+==================================================
+
+Institutional referral sharing requires appropriate consent.
+
+Store enough information to identify:
+
+- consent type
+- version
+- timestamp
+- actor
+- scope
+- current status
+
+Withdrawal must prevent future sharing according to approved policy.
+
+==================================================
+88. MFI DATA ACCESS
+==================================================
+
+MFI users must never receive access to the full SME directory.
+
+They may only access referral packages explicitly shared with their
+institution.
+
+This must be enforced in Laravel policies and tests.
+
+==================================================
+89. BACKUPS
+==================================================
+
+Configure regular production backups.
+
+Target:
+
+daily backups unless otherwise approved.
+
+Back up:
+
+- database
+- required private files
+- critical configuration where applicable
+
+Backups must be protected.
+
+==================================================
+90. RESTORE TEST
+==================================================
+
+A backup is not considered valid until restoration has been tested.
+
+Before final acceptance:
+
+perform a documented restore test in a separate environment.
+
+==================================================
+91. ENVIRONMENTS
+==================================================
+
+Maintain separate:
+
+development
+staging
+production
+
+Do not casually use production data in development.
+
+Never commit:
+
+.env
+credentials
+API keys
+private certificates
+
+==================================================
+92. TESTING STRATEGY
+==================================================
+
+Prioritize Laravel Feature Tests for critical workflows.
+
+Add unit tests where business calculations benefit from isolated
+testing.
+
+Critical tests include:
+
+Authentication
+Authorization
+Financial calculations
+Consent
+Referrals
+Compliance configuration
+Readiness rules
+Document protection
+AI fallback behavior
+
+==================================================
+93. SECURITY TESTS
+==================================================
+
+Required tests:
+
+SME A cannot access SME B.
+
+SME A cannot download SME B documents.
+
+Advisor A cannot access unassigned SME B.
+
+MFI A cannot access referral belonging to MFI B.
+
+Normal users cannot access admin pages.
+
+Normal users cannot change roles in request payloads.
+
+Unauthorized exports fail.
+
+Direct URL manipulation fails.
+
+Disabled users lose access.
+
+==================================================
+94. RELEASE BLOCKERS
+==================================================
+
+Any of these are release-blocking:
+
+- unauthorized record access
+- unauthorized document access
+- incorrect financial totals
+- data loss
+- broken required core workflow
+- broken permission isolation
+- unsafe file exposure
+- broken backup restoration
+
+Do not mark a release ready while these exist.
+
+==================================================
+95. FINANCIAL TESTS
+==================================================
+
+Test:
+
+- income
+- expenses
+- sales
+- purchases
+- receivables
+- payables
+- partial payments
+- credit transactions
+- corrections
+- exports
+- reports
+- multi-currency behavior if enabled
+
+==================================================
+96. MOBILE TESTING
+==================================================
+
+Every major SME workflow must be manually checked at:
+
+360px
+375px
+390px
+430px
+768px
+1024px
+desktop
+
+Verify:
+
+- bottom nav
+- app header
+- keyboards
+- forms
+- dialogs
+- cards
+- scrolling
+- sticky actions
+- RTL
+- long Arabic labels
+
+==================================================
+97. DESKTOP TESTING
+==================================================
+
+Desktop must be checked for:
+
+- sidebar
+- topbar
+- wide tables
+- responsive grids
+- reports
+- admin screens
+- filters
+- charts
+- long forms
+
+Avoid pages that feel empty on desktop because they were designed only
+for mobile.
+
+==================================================
+98. COMPONENT QUALITY
+==================================================
+
+Avoid duplicated page structures.
+
+Create reusable layouts and components.
+
+But do NOT over-generalize components until there is a real reuse case.
+
+Readable duplication is sometimes better than an incomprehensible
+generic component.
+
+==================================================
+99. CONTROLLER RULE
+==================================================
+
+Controllers must remain thin.
+
+Controller responsibilities:
+
+- receive request
+- authorize
+- validation through FormRequest
+- call action/service
+- return Inertia response/redirect
+
+Controllers must not contain complex financial or domain logic.
+
+==================================================
+100. ACTIONS AND SERVICES
+==================================================
+
+Prefer explicit classes for important operations.
+
+Examples:
+
+CreateTransactionAction
+
+CorrectTransactionAction
+
+CreateSMEAction
+
+CalculateIncomeStatement
+
+CalculateReadinessScore
+
+CreateReferralAction
+
+WithdrawConsentAction
+
+Names must describe actual business behavior.
+
+==================================================
+101. DATABASE TRANSACTIONS
+==================================================
+
+Use DB::transaction() when multiple database changes must be atomic.
+
+Examples:
+
+Posting financial transaction
+
+Creating referral package and consent snapshot
+
+Complex administrative configuration publication
+
+==================================================
+102. DESTRUCTIVE OPERATIONS
+==================================================
+
+Do not hard-delete important:
+
+- financial records
+- compliance history
+- assessments
+- audit records
+
+unless approved retention policy explicitly requires it.
+
+Prefer where appropriate:
+
+archive
+void
+reverse
+deactivate
+soft delete
+
+==================================================
+103. CONFIRMATIONS
+==================================================
+
+Require explicit confirmation for dangerous actions.
+
+Examples:
+
+Delete document
+
+Withdraw consent
+
+Release referral
+
+Deactivate user
+
+Final financial posting if relevant
+
+Do not annoy users with confirmation for ordinary harmless saves.
+
+==================================================
+104. USER FRIENDLY LANGUAGE
+==================================================
+
+Do not expose developer terminology to SME users.
+
+Avoid labels like:
+
+Entity ID
+Transaction Object
+Payload
+Synchronization Queue
+API Error
+
+Use natural Arabic business language.
+
+==================================================
+105. SIMPLE UX RULE
+==================================================
+
+Every page should answer:
+
+"What is the primary thing this user needs to do here?"
+
+The main action should be recognizable within approximately 3 seconds.
+
+==================================================
+106. NON-TECHNICAL USER RULE
+==================================================
+
+Whenever there are two UX solutions, choose the one that requires less
+technical knowledge.
+
+Avoid expecting users to understand:
+
+accounting system terminology
+technical workflow concepts
+database structure
+AI terminology
+
+Explain complex concepts in plain Arabic.
+
+==================================================
+107. FIRST USE
+==================================================
+
+Important first-time workflows should provide lightweight guidance.
+
+Do not create long tutorial popups.
+
+Prefer:
+
+- short help text
+- empty-state instructions
+- progress indicators
+- contextual tips
+
+==================================================
+108. FILTERS
+==================================================
+
+Mobile filters should appear in an offcanvas/bottom sheet.
+
+Desktop filters may appear inline.
+
+Do not occupy half the mobile screen permanently with filters.
+
+==================================================
+109. DESKTOP / MOBILE ROUTES
+==================================================
+
+Do not create separate routes like:
+
+/mobile/transactions
+/desktop/transactions
+
+Use the same route:
+
+/transactions
+
+and adapt presentation responsively.
+
+==================================================
+110. PWA INSTALLATION
+==================================================
+
+Where PWA support is enabled:
+
+Users may install the platform on their phone home screen.
+
+The installed application should:
+
+- launch in standalone mode where supported
+- use application icons
+- use Beacon theme color
+- respect authenticated sessions securely
+
+Do not create custom insecure session storage to support PWA.
+
+==================================================
+111. NO LOCALSTORAGE FOR SENSITIVE DATA
+==================================================
+
+Do not store:
+
+- auth tokens
+- passwords
+- financial documents
+- complete sensitive SME profiles
+
+in localStorage.
+
+For offline drafts, store only approved minimum fields using an
+appropriate controlled storage approach.
+
+Assume mobile devices may be shared.
+
+==================================================
+112. CLIENT STORAGE
+==================================================
+
+Any offline client-side storage must be:
+
+- minimal
+- documented
+- scoped
+- removable after synchronization where appropriate
+
+Assume mobile devices may be shared.
+
+==================================================
+113. DESIGN RESPONSIVENESS
+==================================================
+
+Do NOT simply reduce font size on mobile.
+
+Mobile must have its own intentional information architecture.
+
+Desktop:
+
+sidebar
+topbar
+tables
+multi-column cards
+
+Mobile:
+
+app header
+bottom navigation
+single column
+cards/lists
+sticky actions
+offcanvas filters
+
+Same system.
+Different presentation.
+
+==================================================
+114. COLOR USAGE
+==================================================
+
+Use semantic color consistently.
+
+Success:
+green family
+
+Warning:
+amber/yellow family
+
+Danger:
+red family
+
+Primary:
+Beacon brand family
+
+Never use color alone to communicate meaning.
+
+==================================================
+115. ICONS
+==================================================
+
+Use Bootstrap Icons.
+
+Avoid mixing multiple icon libraries.
+
+Always pair unfamiliar icons with text.
+
+==================================================
+116. CHARTS
+==================================================
+
+If charts are required, use a free open-source library such as Chart.js.
+
+Keep charts:
+
+- simple
+- readable
+- responsive
+- accessible
+
+Do not use 3D charts.
+
+Do not show charts when a number or simple table communicates better.
+
+==================================================
+117. EXPORTS
+==================================================
+
+Support where required:
+
+PDF
+Excel
+CSV
+
+Every export must apply the same authorization scope as the visible
+data.
+
+Never trust an SME ID passed from the frontend without authorization.
+
+==================================================
+118. DOCUMENT PREVIEW
+==================================================
+
+Document previews must not expose direct public URLs.
+
+Authorization applies before preview as well as download.
+
+==================================================
+119. SEARCH
+==================================================
+
+Start with MySQL filtering/search.
+
+Do not introduce:
+
+Elasticsearch
+Meilisearch
+Algolia
+
+without measured need.
+
+==================================================
+120. BUSINESS DECISION RULE
+==================================================
+
+Never invent unclear business rules.
+
+If information is missing, write:
+
+TODO: BUSINESS DECISION REQUIRED
+
+Then explain:
+
+- missing decision
+- available options
+- technical impact
+
+Do not silently invent financial, compliance or eligibility rules.
+
+==================================================
+121. BEFORE IMPLEMENTING A MODULE
+==================================================
+
+Before coding a major module, first provide a concise plan covering:
+
+1. user workflow
+2. database tables
+3. models
+4. relationships
+5. permissions
+6. policies
+7. validations
+8. security considerations
+9. React pages/components
+10. mobile behavior
+11. desktop behavior
+12. tests
+
+Then implement.
+
+==================================================
+122. DO NOT CHANGE SCOPE
+==================================================
+
+Do not remove difficult contractual features.
+
+Do not silently add major features.
+
+If a feature significantly changes architecture or schedule:
+
+explain the issue before implementing the change.
+
+==================================================
+123. DEFINITION OF DONE
+==================================================
+
+A feature is NOT complete because the happy path works.
+
+A feature is complete only when:
+
+- backend logic works
+- Laravel validation exists
+- authorization exists
+- security has been considered
+- React UI works
+- Arabic RTL works
+- mobile experience works
+- desktop experience works
+- loading state exists
+- error state exists
+- empty state exists
+- audit logging exists when required
+- relevant tests pass
+- no unauthorized dependency was added
+- no paid package was added
+- code remains readable
+
+==================================================
+124. FINAL DESIGN RULE
+==================================================
+
+On mobile:
+
+The user should feel they opened a mobile application.
+
+On desktop:
+
+The user should feel they opened a professional business web
+application.
+
+The mobile interface must NOT look like a compressed desktop ERP.
+
+The desktop interface must NOT look like an enlarged phone screen.
+
+Both experiences must use the same:
+
+- backend
+- business rules
+- permissions
+- data
+- routes
+- React application
+
+but intentionally adapt their visual layout and interaction patterns.
+
+==================================================
+125. FINAL ENGINEERING PRINCIPLE
+==================================================
+
+Keep complexity in the backend where necessary.
+
+Hide complexity from the user.
+
+The final product should have:
+
+Simple UX.
+
+Strict authorization.
+
+Auditable data.
+
+Accurate financial logic.
+
+Secure documents.
+
+Minimal infrastructure.
+
+Free/open-source dependencies.
+
+Modern responsive design.
+
+Mobile-app-like experience on phones.
+
+Professional web-app experience on desktops.
+
+Maintainable Laravel architecture.
+
+Replaceable AI providers.
+
+Full Beacon handover capability.

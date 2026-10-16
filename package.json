@@ -1,0 +1,26 @@
+{
+    "$schema": "https://www.schemastore.org/package.json",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite"
+    },
+    "devDependencies": {
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@vitejs/plugin-react": "^5.2.0",
+        "axios": "^1.11.0",
+        "concurrently": "^9.0.1",
+        "laravel-vite-plugin": "^2.0.0",
+        "typescript": "^7.0.2",
+        "vite": "^7.0.7"
+    },
+    "dependencies": {
+        "@inertiajs/react": "^3.9.1",
+        "bootstrap": "^5.3.8",
+        "bootstrap-icons": "^1.13.2",
+        "react": "^19.3.1",
+        "react-dom": "^19.3.1"
+    }
+}

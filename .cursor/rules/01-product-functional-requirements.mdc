@@ -1,0 +1,1650 @@
+---
+description: Product purpose, required modules, workflows, user functions, business constraints, and acceptance requirements for the Beacon AI SME Platform
+alwaysApply: true
+---
+
+# BEACON AI SME PLATFORM
+# PRODUCT & FUNCTIONAL REQUIREMENTS
+
+This file defines WHAT the product must do.
+
+The separate engineering rules define HOW the product must be built.
+
+This file is based on the agreed Beacon Service Contract and the Technical Proposal. It must be treated as the functional source of truth unless Beacon approves a change in writing.
+
+==================================================
+0. SOURCE-OF-TRUTH AND NON-INVENTION RULE
+==================================================
+
+DO NOT INVENT BUSINESS RULES.
+
+If a business decision is not defined in this file, do not silently decide it.
+
+Instead write:
+
+TODO: BUSINESS DECISION REQUIRED
+
+Then state:
+- what decision is missing;
+- the available implementation options;
+- the effect of each option;
+- what can safely be implemented before the decision is made.
+
+Examples of decisions that MUST NOT be invented:
+- exact readiness-scoring weights;
+- exact MFI eligibility rules;
+- exact compliance requirements;
+- exact consent wording;
+- final notification channels;
+- reporting basis and opening-balance rules;
+- treatment of unpaid transactions where not yet approved;
+- supported currencies and approved conversion-rate source;
+- exact dashboard KPI formulas;
+- offline-enabled forms;
+- backup-retention period;
+- AI provider retention/model-training terms;
+- concurrent-user and response-time acceptance targets.
+
+Do not add major modules outside the agreed scope unless explicitly requested.
+
+Do not remove a required module because it is difficult.
+
+==================================================
+1. PRODUCT PURPOSE
+==================================================
+
+The platform exists to support the daily work of micro and small enterprises while giving Beacon advisors and administrators a reliable, structured picture of each enterprise's progress toward:
+
+- formalization;
+- legal/compliance readiness;
+- financial record quality;
+- financial readiness;
+- financing referral readiness.
+
+The platform must connect the full enterprise journey in ONE enterprise record:
+
+SME onboarding
+-> profile
+-> bookkeeping
+-> documents
+-> compliance
+-> advisory support
+-> readiness assessment
+-> MFI matching
+-> consent
+-> referral
+-> financing outcome
+
+The product should replace fragmented spreadsheets and disconnected records with one controlled platform.
+
+Target deployment:
+- up to approximately 200 SMEs;
+- Damascus;
+- Rural Damascus;
+- Daraa.
+
+Primary operating realities:
+- many transactions may be cash-based;
+- users may have limited financial literacy;
+- users may have limited digital literacy;
+- connectivity may be unreliable;
+- Arabic is the primary experience.
+
+==================================================
+2. REQUIRED USER ROLES
+==================================================
+
+The system must support at minimum these roles:
+
+1. SME_USER
+2. BEACON_ADVISOR
+3. BEACON_ADMIN
+4. MFI_USER
+5. TECHNICAL_ADMIN
+
+Permissions must be enforced server-side.
+
+Role visibility in the UI is not authorization.
+
+==================================================
+3. ROLE ACCESS REQUIREMENTS
+==================================================
+
+### SME_USER
+
+May access only their authorized enterprise data, including as applicable:
+
+- enterprise profile;
+- financial records;
+- transactions;
+- documents;
+- compliance requirements;
+- readiness actions;
+- readiness results;
+- AI assistant;
+- AI suggestions related to their records;
+- referral consents;
+- referral status where appropriate.
+
+An SME user must never access another SME's data.
+
+### BEACON_ADVISOR
+
+May access only assigned/permitted enterprises.
+
+Advisor functions include:
+
+- review SME progress;
+- review enterprise profile;
+- identify incomplete information;
+- review financial-record completeness;
+- review compliance status;
+- review readiness status;
+- record technical-assistance/advisory activity;
+- create follow-up actions;
+- assign responsible persons where allowed;
+- set target dates where allowed;
+- review referrals and preparation status.
+
+### BEACON_ADMIN
+
+May manage authorized programme functions including:
+
+- users;
+- programme records;
+- compliance requirements;
+- requirement versions;
+- readiness/scoring rules;
+- MFI eligibility configuration;
+- approved knowledge content;
+- dashboards;
+- programme monitoring configuration;
+- other approved administrative settings.
+
+### MFI_USER
+
+May access ONLY referral packages explicitly shared with their own institution.
+
+MFI users must NOT have access to:
+
+- the full SME directory;
+- unrelated SMEs;
+- referrals for another institution;
+- unrelated documents;
+- general Beacon programme records.
+
+### TECHNICAL_ADMIN
+
+May manage the technical environment through restricted and documented privileges.
+
+Technical-administrator status must NOT automatically mean unrestricted access to programme/business data.
+
+==================================================
+4. CROSS-CUTTING ACCESS CONTROL
+==================================================
+
+Access restrictions apply to ALL of the following:
+
+- visible pages;
+- individual records;
+- document previews;
+- document downloads;
+- exports;
+- reports;
+- AI retrieval;
+- AI context;
+- background jobs;
+- direct URLs;
+- administrative actions.
+
+A user who cannot access a record through the UI must also be unable to access it using a direct URL or export endpoint.
+
+==================================================
+5. AUTHENTICATION & ACCOUNT FUNCTIONS
+==================================================
+
+The application must provide the user-account functions required to safely operate the platform.
+
+Minimum functions:
+
+- login;
+- logout;
+- password reset;
+- account activation/deactivation;
+- session handling;
+- account revocation;
+- administrator MFA support;
+- authenticated profile/account screen where appropriate.
+
+Beacon administrators must be able to manage authorized user accounts.
+
+Exact account-creation workflow for each user type must be confirmed.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm whether SME and MFI accounts are:
+- invited by Beacon;
+- created by administrators;
+- self-registered and later approved;
+- or a combination of these methods.
+
+Until confirmed, do not implement unrestricted public registration.
+
+==================================================
+6. SME REGISTRATION & DIGITAL PROFILE
+==================================================
+
+Each enterprise must have one structured digital profile.
+
+The profile must support at minimum:
+
+- business name;
+- sector;
+- location;
+- founding date;
+- employee count;
+- owner information;
+- contact information;
+- gender-disaggregated information where required;
+- registration/formality status;
+- initial digital readiness;
+- initial financial readiness;
+- project/programme stage;
+- progress;
+- training history;
+- activity history;
+- technical-assistance/advisory history;
+- supporting documents;
+- outstanding actions;
+- data-sharing consent records.
+
+### SME onboarding behavior
+
+Initial onboarding should request only the information necessary to establish the enterprise record.
+
+Additional details may be completed later through:
+
+- SME use;
+- advisor sessions;
+- follow-up actions.
+
+Do NOT force the user to complete every possible profile field before receiving any practical benefit from the platform.
+
+### Beacon staff functions
+
+Authorized Beacon staff must be able to:
+
+- view enterprise history;
+- see incomplete profile information;
+- identify outstanding information;
+- review progress;
+- record follow-up actions;
+- review related training/advisory activity.
+
+==================================================
+7. SME PROFILE UI SURFACES
+==================================================
+
+Minimum product surfaces should include:
+
+- SME list for authorized Beacon users;
+- SME profile overview;
+- profile details;
+- registration/formality section;
+- readiness overview;
+- documents section;
+- activity/advisory history;
+- outstanding actions;
+- consent history where authorized.
+
+For SME users, the interface must show only their own enterprise.
+
+For Beacon users, list/search/filter behavior must respect authorized scope.
+
+==================================================
+8. ADVISORY / TECHNICAL ASSISTANCE TRACKING
+==================================================
+
+The platform must support Beacon advisory work around enterprise progress.
+
+Authorized Beacon staff must be able to record and review:
+
+- advisory/technical-assistance activity;
+- date;
+- enterprise;
+- progress notes or structured activity information as approved;
+- follow-up actions;
+- responsible person where applicable;
+- target date where applicable;
+- completion status.
+
+Exact advisory form fields are not fully defined in the source documents.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm the mandatory fields for advisory/technical-assistance records.
+
+==================================================
+9. BOOKKEEPING & FINANCIAL MANAGEMENT
+==================================================
+
+The platform must support everyday financial records for each SME.
+
+Minimum supported transaction/business record types:
+
+- income;
+- sales;
+- purchases;
+- expenses;
+- receivables;
+- payables;
+- cash transactions.
+
+Each applicable entry must support at minimum:
+
+- transaction date;
+- amount;
+- currency;
+- category;
+- payment status;
+- relevant supporting information;
+- attachment of receipt/invoice where applicable.
+
+Users must be able to:
+
+- create records;
+- view records;
+- search records;
+- filter records;
+- review payment status;
+- attach supporting documents;
+- correct records through an auditable method.
+
+==================================================
+10. FINANCIAL RECORD AUTHORITY
+==================================================
+
+Stored transactions and deterministic application rules are the authoritative financial source.
+
+AI is NOT authoritative.
+
+AI must never independently:
+
+- post a transaction;
+- change a balance;
+- overwrite an authoritative financial value;
+- silently modify a financial record.
+
+The user must review AI/OCR suggestions before they become authoritative financial records.
+
+==================================================
+11. FINANCIAL POSTING & CORRECTIONS
+==================================================
+
+Posted records must not be silently overwritten.
+
+Corrections must preserve audit history.
+
+The application must support an auditable correction approach.
+
+Exact correction workflow must follow the reporting/accounting basis agreed with Beacon.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm the final correction method, for example:
+- editable draft before posting + reversal/correction after posting;
+- versioned correction records;
+- another approved accounting correction procedure.
+
+==================================================
+12. DOUBLE-COUNTING CONTROLS
+==================================================
+
+The system must prevent financial double counting.
+
+At minimum:
+
+- recording a credit sale and later receiving payment must NOT record revenue twice;
+- recording a credit purchase and later paying the supplier must NOT record the expense twice.
+
+These scenarios are mandatory test cases.
+
+==================================================
+13. MULTI-CURRENCY BEHAVIOR
+==================================================
+
+Where multiple currencies are used, the platform must preserve:
+
+- original amount;
+- original currency;
+- approved conversion rate where conversion is used.
+
+Historical records must not be silently recalculated using a new exchange rate.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm:
+- supported currencies;
+- reporting/base currency or currencies;
+- conversion-rate source;
+- approval process for conversion rates;
+- rounding rules.
+
+==================================================
+14. RECEIPTS & INVOICES
+==================================================
+
+Users must be able to attach receipts/invoices to relevant financial records.
+
+Mobile users should be able to capture/upload documents from a phone.
+
+Receipt/invoice functions should support:
+
+- upload/capture;
+- secure preview;
+- secure download where permitted;
+- linkage to related transaction;
+- OCR processing;
+- extracted-value review.
+
+Private financial documents must never become public files.
+
+==================================================
+15. OCR FUNCTIONALITY
+==================================================
+
+OCR must support extracting suggested values from receipts and invoices where document quality and language support permit.
+
+The workflow must be:
+
+Upload/capture document
+-> process OCR
+-> show extracted suggestions
+-> user reviews
+-> user corrects if needed
+-> user confirms
+-> only then may confirmed data be used for posting.
+
+OCR should support, where technically available:
+
+- Arabic numerals;
+- Western numerals;
+- relevant invoice/receipt text.
+
+If OCR confidence is weak or extraction is incomplete, the result must remain visibly marked for review.
+
+OCR must never silently create an authoritative transaction.
+
+==================================================
+16. AI-ASSISTED TRANSACTION CATEGORIZATION
+==================================================
+
+The system must support AI-assisted transaction-category suggestions.
+
+AI must suggest from the configured/allowed category list.
+
+The user must be able to:
+
+- accept the suggestion;
+- correct the suggestion;
+- reject/replace the suggestion.
+
+Uncertain results must remain marked for review.
+
+The system should surface potential:
+
+- duplicate records;
+- missing information;
+- unusual transactions;
+
+for human checking rather than automatically modifying records.
+
+==================================================
+17. FINANCIAL REPORTING
+==================================================
+
+The system must generate at minimum:
+
+1. Income Statement / Profit & Loss
+2. Cash-flow summary
+3. Sales report
+4. Expense report
+5. Receivables report
+6. Payables report
+7. Monthly financial performance
+
+Reports must be generated from stored financial records using documented deterministic rules.
+
+Supported report export formats must include:
+
+- PDF
+- Excel
+- CSV
+
+Exports must respect authorization scope.
+
+==================================================
+18. FINANCIAL REPORTING BUSINESS DECISIONS
+==================================================
+
+The following must be confirmed with Beacon and must not be invented:
+
+TODO: BUSINESS DECISION REQUIRED
+- reporting basis;
+- opening-balance handling;
+- treatment of unpaid transactions;
+- final correction procedures;
+- exact report periods;
+- multi-currency consolidation rules;
+- base/reporting currency;
+- whether taxes are represented and how;
+- accounting period closing behavior, if any.
+
+Implement the reporting engine so these rules can be documented and maintained without rewriting unrelated modules.
+
+==================================================
+19. AI FINANCIAL INSIGHTS
+==================================================
+
+AI may explain financial results and trends.
+
+AI financial insight must:
+
+- reference underlying stored figures;
+- reference the relevant reporting period;
+- use plain Arabic in the Arabic interface;
+- indicate when incomplete records limit the usefulness of the observation;
+- remain visibly identified as AI-generated guidance.
+
+AI must NOT calculate or overwrite authoritative balances.
+
+==================================================
+20. COMPLIANCE & LEGAL REGISTRATION
+==================================================
+
+Beacon administrators must be able to configure compliance requirements covering, as applicable:
+
+- business registration;
+- licensing;
+- tax documentation;
+- reporting obligations;
+- required documents;
+- deadlines;
+- renewals;
+- approved guidance.
+
+Authorized administrators must be able to:
+
+- add requirement;
+- edit requirement;
+- deactivate requirement;
+- replace requirement;
+- update guidance;
+- maintain effective dates;
+- publish approved changes.
+
+Routine requirement changes must NOT require a software code release.
+
+==================================================
+21. COMPLIANCE VERSIONING
+==================================================
+
+Compliance requirements must be versioned.
+
+Every published change must record:
+
+- what changed;
+- who changed it;
+- when it changed;
+- effective version/date as applicable.
+
+Historical assessments must retain the version of the requirement used at the time of assessment.
+
+Example required behavior:
+
+If a document requirement changes after an SME was assessed:
+
+- the old assessment remains viewable under the old rule;
+- a new assessment may evaluate the SME against the new rule.
+
+Never rewrite history when a requirement changes.
+
+==================================================
+22. SME/ADVISOR COMPLIANCE EXPERIENCE
+==================================================
+
+SME users and authorized Beacon advisors must be able to see applicable:
+
+- requirements;
+- completion status;
+- missing documents;
+- approaching deadlines;
+- actions needed.
+
+Automated reminders must be available through approved notification channels.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm notification channels, for example:
+- in-app notifications;
+- email;
+- another approved channel.
+
+Do not assume SMS/WhatsApp or any paid channel unless approved.
+
+==================================================
+23. COMPLIANCE CONTENT OWNERSHIP
+==================================================
+
+Beacon provides or approves the substantive compliance guidance.
+
+The application must make approved content manageable through the administration interface.
+
+Cursor must NOT invent Syrian legal/compliance rules.
+
+If content is missing, create the configuration structure and mark content as pending Beacon input.
+
+==================================================
+24. FINANCIAL READINESS ASSESSMENT
+==================================================
+
+The platform must compare each enterprise's records against applicable:
+
+- government/compliance requirements;
+- MFI requirements.
+
+Assessment results must identify:
+
+- missing information;
+- unmet conditions;
+- required documents;
+- actions needed.
+
+Authorized advisors must be able to assign, where applicable:
+
+- action;
+- responsible person;
+- target date.
+
+==================================================
+25. READINESS SCORING
+==================================================
+
+Readiness scoring must use Beacon-approved rules.
+
+The rule model must support at least the concepts of:
+
+- criterion;
+- weight;
+- mandatory condition;
+- treatment of missing data;
+- version.
+
+Users must be able to understand the basis of the assessment rather than receiving an unexplained score.
+
+A readiness score supports advisory work and referral preparation.
+
+It must NOT be presented as a financing approval.
+
+==================================================
+26. READINESS RULE VERSIONING
+==================================================
+
+Changes to scoring rules must be versioned.
+
+Historical assessments must retain the methodology/version originally applied.
+
+Never recalculate old assessments under a new rule set unless an explicit new assessment is created.
+
+TODO: BUSINESS DECISION REQUIRED
+Beacon must provide/approve:
+- scoring criteria;
+- weights;
+- mandatory criteria;
+- treatment of missing data;
+- score interpretation/bands if used.
+
+==================================================
+27. MFI DIRECTORY / CONFIGURATION
+==================================================
+
+The application must support the institutional information required for MFI matching and referral.
+
+MFI-specific eligibility criteria must be configurable.
+
+Do not hard-code MFI eligibility rules into React components or controller logic.
+
+Exact MFI fields are not fully defined in the source documents.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm the administrative fields needed for an MFI/institution record.
+
+==================================================
+28. MFI MATCHING
+==================================================
+
+The platform must compare SME information/readiness against configured MFI-specific eligibility criteria.
+
+Matching results must clearly distinguish:
+
+- conditions met;
+- conditions not met;
+- conditions needing further review.
+
+A match is advisory/preparatory.
+
+Do not represent a matching result as financing approval.
+
+==================================================
+29. REFERRAL PREPARATION
+==================================================
+
+The platform must support preparing a referral package for an SME and an intended MFI.
+
+Before information is shared, the SME must be shown:
+
+- intended institution;
+- information being disclosed.
+
+The application must verify required consent before releasing the package.
+
+==================================================
+30. CONSENT MANAGEMENT
+==================================================
+
+Consent records must capture at minimum:
+
+- recipient/institution;
+- purpose;
+- date/time;
+- relevant referral package;
+- consent status;
+- consent version/scope where applicable.
+
+Consent must be explicit where required.
+
+If consent is withdrawn:
+
+- future platform access/sharing must be restricted according to approved policy;
+- the application must not imply that withdrawal can revoke information already legitimately downloaded by an authorized recipient.
+
+TODO: BUSINESS DECISION REQUIRED
+Beacon must provide/approve:
+- consent wording;
+- consent versions;
+- withdrawal policy;
+- exact data included in each referral package.
+
+==================================================
+31. REFERRAL WORKFLOW
+==================================================
+
+The referral workflow must be able to track at minimum:
+
+1. preparation/draft
+2. submission/shared referral
+3. review
+4. request for additional information
+5. decision
+6. recorded financing outcome
+
+Use human-readable statuses.
+
+Exact status names may be refined but the workflow must preserve the above business stages.
+
+MFI users may only access referral packages shared with their own institution.
+
+==================================================
+32. MFI CORE-BANKING INTEGRATION
+==================================================
+
+Live integration with an MFI core banking system is NOT assumed by the agreed scope.
+
+Do NOT build a live core-banking integration unless Beacon explicitly approves it as a change/additional requirement.
+
+The minimum compliant referral workflow can operate within the platform without core-banking API integration.
+
+==================================================
+33. AI FUNCTIONAL SCOPE
+==================================================
+
+AI functionality has four defined core purposes:
+
+1. Extract information from receipts/invoices.
+2. Suggest transaction categories.
+3. Explain financial trends and potential issues.
+4. Answer basic user questions using Beacon-approved guidance.
+
+Do not expand AI into autonomous decision-making.
+
+==================================================
+34. AI ADVISORY ASSISTANT
+==================================================
+
+The AI assistant should support questions about:
+
+- bookkeeping;
+- platform use;
+- business planning;
+- compliance;
+- financial readiness.
+
+The assistant must use Beacon-approved materials/knowledge where the answer depends on programme guidance.
+
+Where available, the assistant should show the relevant source/guidance reference.
+
+==================================================
+35. AI ESCALATION
+==================================================
+
+When approved knowledge does not support an answer:
+
+The assistant must:
+
+- state the limitation;
+- avoid inventing an authoritative answer;
+- provide an escalation route to Beacon staff.
+
+Escalation records must include:
+
+- user question;
+- relevant permitted context;
+- status/follow-up mechanism as approved.
+
+Exact internal escalation workflow is not fully defined.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm:
+- who receives escalations;
+- escalation statuses;
+- whether user receives an in-app response later;
+- expected response workflow.
+
+==================================================
+36. AI RESTRICTIONS
+==================================================
+
+AI outputs must be clearly identified.
+
+The assistant must NOT independently:
+
+- approve financing;
+- amend compliance requirements;
+- change permissions;
+- post financial transactions;
+- release referrals;
+- make irreversible business decisions.
+
+Only the minimum data needed for a specific AI task may be sent to the approved provider.
+
+AI failure must not block core non-AI workflows.
+
+==================================================
+37. KNOWLEDGE BASE
+==================================================
+
+Beacon administrators must be able to manage approved assistant/knowledge content.
+
+The platform must support enough state/version control to distinguish current approved guidance from outdated content.
+
+Minimum useful states should support the contractual need for approved content.
+
+Implementation may use statuses such as draft/published/archived if helpful, but these status names are implementation details and must remain simple.
+
+Knowledge content must be manageable without routine code changes.
+
+Beacon is responsible for providing/approving the substantive knowledge content.
+
+==================================================
+38. BEACON DASHBOARDS & M&E
+==================================================
+
+Beacon dashboards must cover at minimum:
+
+- SME onboarding;
+- platform usage;
+- financial-record completeness;
+- reporting activity;
+- compliance status;
+- approaching compliance deadlines;
+- readiness scores;
+- assessment history;
+- SME progress;
+- outstanding actions;
+- training activity;
+- technical-assistance activity;
+- participation by gender;
+- participation by geography;
+- participation by sector;
+- financing referrals;
+- referral decisions;
+- financing outcomes.
+
+==================================================
+39. DASHBOARD FILTERS & EXPORTS
+==================================================
+
+Authorized dashboard users must be able to filter data and export appropriate results.
+
+Dashboard values and exported reports must remain consistent.
+
+Do not create a KPI calculation in React that differs from exported/report calculations.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm:
+- exact KPI definitions;
+- reporting periods;
+- filters;
+- calculation formulas;
+- target/benchmark values if any.
+
+==================================================
+40. SME DASHBOARD
+==================================================
+
+The contract defines programme dashboard requirements primarily for Beacon.
+
+For SME users, implement a simple personal dashboard only as needed to make required workflows usable.
+
+The SME dashboard should summarize existing required information rather than invent new business metrics.
+
+Safe summary areas include:
+
+- recent financial activity;
+- outstanding actions;
+- upcoming compliance deadlines;
+- readiness status;
+- referral status where applicable.
+
+Do not invent a new scoring or recommendation model for the SME dashboard.
+
+==================================================
+41. ADMINISTRATION
+==================================================
+
+The administration area must support the configuration required by the agreed scope.
+
+At minimum, authorized Beacon administrators must be able to manage:
+
+- users;
+- roles/authorized permissions as approved;
+- programme records within scope;
+- compliance requirements;
+- compliance versions;
+- guidance content;
+- readiness criteria;
+- readiness rule versions;
+- MFI eligibility criteria;
+- knowledge content;
+- dashboards/configuration required for monitoring;
+- other approved reference data needed by the above modules.
+
+Do not create developer-only settings for business users unless there is a real operational need.
+
+==================================================
+42. DOCUMENT MANAGEMENT
+==================================================
+
+The platform must support private supporting documents linked to relevant records.
+
+Document functionality includes where applicable:
+
+- upload;
+- metadata;
+- linkage to SME;
+- linkage to transaction;
+- linkage to compliance requirement;
+- linkage to readiness/referral package where approved;
+- preview;
+- authorized download;
+- history/audit where appropriate.
+
+Exact document taxonomy is not fully defined.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm required document types/categories and retention rules.
+
+==================================================
+43. NOTIFICATIONS & REMINDERS
+==================================================
+
+The system must support reminders for approaching deadlines and other approved actions.
+
+Minimum supported use case:
+
+- approaching compliance deadlines.
+
+Other notifications may be added when directly required by approved workflows.
+
+Do not invent high-volume notification behavior.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm notification channels and notification preferences.
+
+==================================================
+44. ARABIC-FIRST EXPERIENCE
+==================================================
+
+Arabic RTL is the default experience.
+
+Forms must use:
+
+- short labels;
+- clear instructions;
+- text alongside icons;
+- manageable steps.
+
+Testing must cover:
+
+- Arabic text;
+- Latin text;
+- mixed Arabic/Latin text;
+- numeric input;
+- date presentation;
+- receipt/document viewing;
+- Arabic report readability.
+
+The interface must also support English/LTR where implemented.
+
+==================================================
+45. MOBILE EXPERIENCE
+==================================================
+
+The required product must be mobile-responsive.
+
+In this implementation, mobile must intentionally feel like a mobile application while remaining the same web application/codebase.
+
+Mobile must prioritize required SME workflows such as:
+
+- profile completion;
+- transaction entry;
+- receipt capture/upload;
+- financial record review;
+- compliance actions;
+- readiness actions;
+- AI assistant;
+- referral/consent review.
+
+Do not shrink desktop tables into unreadable mobile screens.
+
+==================================================
+46. DESKTOP EXPERIENCE
+==================================================
+
+Desktop must behave as a professional business web application suitable for:
+
+- Beacon administration;
+- advisor workflows;
+- dashboards;
+- monitoring;
+- configuration;
+- reporting;
+- MFI review.
+
+The same business rules and routes must apply across desktop and mobile.
+
+==================================================
+47. LOW-CONNECTIVITY SUPPORT
+==================================================
+
+Selected field forms must be capable of local draft capture during connectivity interruption.
+
+The interface must clearly distinguish:
+
+- local draft;
+- awaiting synchronization;
+- synchronized/accepted by server;
+- conflict requiring review.
+
+Offline support must NOT imply that every workflow works offline.
+
+==================================================
+48. OFFLINE RESTRICTIONS
+==================================================
+
+The following require connectivity:
+
+- AI requests;
+- final financial posting;
+- institutional/MFI referral release.
+
+Offline storage must be limited to approved fields/forms, especially because devices may be shared and data may be sensitive.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm which exact field forms may be stored offline.
+
+==================================================
+49. SYNCHRONIZATION BEHAVIOR
+==================================================
+
+When reconnecting, synchronization must:
+
+- recheck permissions;
+- revalidate data;
+- prevent duplicate submissions;
+- detect conflicting edits;
+- never silently overwrite a newer server record.
+
+A conflict must be visible for review.
+
+==================================================
+50. SEARCH & FILTERING
+==================================================
+
+Search/filter functions must exist where required for practical use of:
+
+- SME records;
+- financial transactions;
+- reports;
+- dashboard records;
+- compliance/admin lists;
+- referrals;
+- other large lists.
+
+All results must remain scoped to the current user's authorization.
+
+==================================================
+51. EXPORTS
+==================================================
+
+Required financial report exports:
+
+- PDF;
+- Excel;
+- CSV.
+
+Other exports may exist for authorized Beacon monitoring where useful and approved.
+
+Exports must apply the same authorization rules as the visible screen.
+
+==================================================
+52. AUDITABILITY
+==================================================
+
+The platform must maintain audit records for important actions, including at minimum:
+
+- financial corrections;
+- compliance/requirement changes;
+- consent actions;
+- referrals;
+- administrative actions.
+
+The platform should also audit security-sensitive role/permission/account changes where implemented.
+
+Audit records must support identifying:
+
+- actor;
+- action;
+- target;
+- timestamp;
+- relevant change context.
+
+Never allow normal users to modify audit history.
+
+==================================================
+53. SECURITY & DATA PROTECTION FUNCTIONS
+==================================================
+
+The product must include functional support for:
+
+- secure authentication;
+- role-based access;
+- record-level access;
+- administrator MFA;
+- login rate limits;
+- session management;
+- account revocation;
+- private document storage;
+- controlled document downloads;
+- audit logging;
+- secure secret handling;
+- encrypted transmission;
+- protected stored financial/documents/backups;
+- documented retention/export/deletion procedures;
+- daily backup configuration;
+- tested restoration before final acceptance.
+
+These are mandatory product acceptance requirements, not optional enhancements.
+
+==================================================
+54. DATA CONTROL
+==================================================
+
+SME and programme data remain under Beacon's control.
+
+The application must not use programme data for unrelated purposes.
+
+Third-party data sharing, including AI/OCR/cloud providers, must be limited to what is necessary and subject to approved data-processing arrangements before production use.
+
+==================================================
+55. SECURITY ISOLATION TEST CASES
+==================================================
+
+Mandatory behavior:
+
+- SME A cannot access SME B's record;
+- SME A cannot download SME B's document;
+- Advisor cannot access an enterprise outside authorized scope;
+- MFI A cannot access MFI B's referral;
+- a direct document URL cannot bypass access control;
+- export functions cannot bypass access control;
+- AI retrieval cannot access records outside the user's authorized scope.
+
+Unauthorized cross-record/cross-institution access is a blocking defect.
+
+==================================================
+56. BACKUP & RECOVERY
+==================================================
+
+Daily backups must be configurable.
+
+The retention period is to be agreed with Beacon.
+
+Before final acceptance, a backup restoration exercise must be successfully completed in a separate environment.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm final backup retention period.
+
+==================================================
+57. TESTING & ACCEPTANCE
+==================================================
+
+Testing must cover:
+
+- functionality;
+- financial accuracy;
+- access control;
+- AI behavior;
+- performance;
+- usability;
+- offline/synchronization behavior;
+- recovery.
+
+Maintain a test register containing:
+
+- scenario;
+- expected result;
+- actual result;
+- defect/resolution.
+
+==================================================
+58. MANDATORY ACCEPTANCE SCENARIOS
+==================================================
+
+### Financial accuracy
+
+A predefined sample ledger must reconcile correctly with reports and exports, including:
+
+- credit transactions;
+- partial payments;
+- corrections.
+
+### Configurable requirements
+
+An administrator can update a requirement without a code release, while an earlier assessment retains its original rule/version.
+
+### Consent and access
+
+A referral cannot be released without required consent.
+
+Unrelated users cannot access referral records/documents.
+
+### AI behavior
+
+Users can correct AI suggestions.
+
+Unsupported questions escalate appropriately.
+
+Manual workflows remain usable during AI-service interruption.
+
+### Offline collection
+
+Reconnection does not create duplicates or silently overwrite conflicting changes.
+
+### Performance
+
+Representative data for approximately 200 SMEs must be tested against agreed concurrent-user and response-time targets.
+
+TODO: BUSINESS DECISION REQUIRED
+Confirm exact concurrent-user and response-time targets.
+
+### Recovery
+
+A backup is restored successfully in a separate environment.
+
+### Arabic usability
+
+Pilot users can complete agreed tasks on mobile devices and Arabic reports render correctly.
+
+==================================================
+59. RELEASE-BLOCKING DEFECTS
+==================================================
+
+The following are blocking defects:
+
+- data loss;
+- materially incorrect financial totals;
+- unauthorized access;
+- failure of a required core workflow.
+
+Do not declare production acceptance while a blocking defect remains unresolved.
+
+==================================================
+60. PILOT
+==================================================
+
+The product must support a pilot involving approximately 10-15 SMEs selected by Beacon to represent different:
+
+- locations;
+- sectors;
+- levels of digital familiarity.
+
+Beacon advisors will test:
+
+- configuration;
+- assessments;
+- monitoring.
+
+MFI access must be tested using an authorized institutional representative or authorized test role.
+
+==================================================
+61. CAPACITY TARGET
+==================================================
+
+Production readiness must be verified for up to approximately 200 SMEs.
+
+Actual participant adoption/enrollment is distinct from technical production readiness.
+
+==================================================
+62. TRAINING & USER GUIDANCE DELIVERABLES
+==================================================
+
+The implementation must support delivery of a complete practical Arabic SME user guide covering everyday platform use, including at minimum:
+
+- profiling;
+- bookkeeping;
+- documents;
+- readiness actions;
+- related SME screens.
+
+Live SME training by the contractor is not required under the proposal.
+
+Beacon/institutional training includes two proposed remote sessions:
+
+1. Beacon advisor and MFI workflows.
+2. Administrator and technical handover.
+
+Documentation must also include:
+
+- administrator guidance;
+- MFI instructions;
+- technical documentation.
+
+==================================================
+63. HANDOVER PACKAGE
+==================================================
+
+The final handover package must include:
+
+- source repository;
+- final release;
+- deployment instructions;
+- environment configuration guidance;
+- database schema;
+- migrations;
+- architecture documentation;
+- access-control documentation;
+- financial calculation/reporting rules;
+- compliance configuration;
+- scoring configuration;
+- AI prompts;
+- knowledge materials;
+- AI/provider settings;
+- backup procedure;
+- restoration procedure;
+- operating procedures;
+- complete Arabic SME practical guide;
+- technical guide;
+- Beacon user guide;
+- MFI user guide;
+- test results;
+- UAT report;
+- pilot report;
+- known-issue register;
+- secure credential-transfer procedure.
+
+==================================================
+64. SUPPORT / HYPERCARE
+==================================================
+
+Following accepted production handover, the agreed scope includes thirty calendar days of remote stabilization support.
+
+Support covers:
+
+- defects within delivered scope;
+- practical guidance within delivered scope.
+
+Day-to-day SME coaching remains Beacon's responsibility, supported by the delivered Arabic SME guide.
+
+==================================================
+65. EXPLICIT NON-GOALS / DO NOT ASSUME
+==================================================
+
+Do NOT assume the following are required unless approved:
+
+- live core-banking integration with MFIs;
+- full offline operation of the entire platform;
+- autonomous AI decision-making;
+- AI-generated financing approvals;
+- AI-generated compliance approvals;
+- unrestricted public self-registration;
+- SMS integration;
+- WhatsApp integration;
+- paid notification services;
+- complex accounting features not described in the agreed scope;
+- inventory management;
+- payroll;
+- procurement;
+- CRM unrelated to SME/advisory/referral workflows;
+- e-commerce;
+- payment gateway;
+- native iOS application;
+- native Android application.
+
+If Beacon requests one of these later, treat it as a new/changed requirement and assess impact before implementation.
+
+==================================================
+66. REQUIRED CORE UI AREAS BY ROLE
+==================================================
+
+The following is the minimum useful UI decomposition to satisfy the agreed functional scope. It is an implementation structure, not a license to invent new business rules.
+
+### SME_USER
+
+- Home / personal dashboard
+- My Business Profile
+- Financial Records
+- Add Transaction
+- Receipts / Documents
+- Financial Reports
+- Compliance
+- Readiness
+- AI Assistant
+- Referral / Consent
+- Account
+
+### BEACON_ADVISOR
+
+- Dashboard
+- Assigned SMEs
+- SME Detail
+- Progress / Outstanding Actions
+- Advisory / Technical Assistance
+- Financial Record Review
+- Compliance Review
+- Readiness Review
+- Referral Preparation / Follow-up
+
+### BEACON_ADMIN
+
+- Programme Dashboard
+- SMEs
+- Users
+- Compliance Requirements
+- Readiness / Scoring Rules
+- MFI / Eligibility Configuration
+- Knowledge Base
+- Referral Monitoring
+- Programme Monitoring / Reports
+- Configuration / Approved Reference Data
+- Audit / Administrative History where permitted
+
+### MFI_USER
+
+- Referred Packages
+- Referral Detail
+- Request Additional Information
+- Record/Update Review Status where permitted
+- Decision / Outcome fields where permitted
+
+Exact MFI actions beyond viewing the shared package and participating in the defined review/decision workflow must be confirmed during requirements finalization.
+
+### TECHNICAL_ADMIN
+
+- Restricted technical administration only as approved
+- Operational status / technical configuration where needed
+- No automatic unrestricted programme-data browsing
+
+==================================================
+67. RECOMMENDED FUNCTIONAL ROUTE GROUPS
+==================================================
+
+Routes should reflect business domains rather than database internals.
+
+Possible route groups:
+
+/dashboard
+/smes
+/smes/{sme}
+/smes/{sme}/transactions
+/smes/{sme}/documents
+/smes/{sme}/reports
+/smes/{sme}/compliance
+/smes/{sme}/readiness
+/smes/{sme}/advisory
+/smes/{sme}/referrals
+
+/compliance-requirements
+/readiness-rules
+/mfis
+/referrals
+/knowledge-base
+/monitoring
+/users
+/audit
+
+These route names are an implementation suggestion.
+Authorization rules remain mandatory regardless of route structure.
+
+==================================================
+68. DOMAIN OBJECTS CURSOR SHOULD EXPECT
+==================================================
+
+Without prescribing final database schema, the product domain should expect concepts such as:
+
+- User
+- Role / Permission
+- SME / Enterprise
+- SME Assignment
+- SME Profile
+- Financial Transaction
+- Transaction Category
+- Payment / Settlement relationship where needed
+- Currency / Exchange Rate where approved
+- Document
+- OCR Result
+- AI Suggestion
+- Financial Report
+- Compliance Requirement
+- Compliance Requirement Version
+- Compliance Assessment
+- Readiness Rule
+- Readiness Rule Version
+- Readiness Assessment
+- Action / Follow-up
+- Advisory / Technical Assistance Record
+- MFI / Institution
+- MFI Eligibility Criterion
+- Match Result
+- Referral
+- Referral Package
+- Consent
+- Knowledge Article / Guidance
+- AI Conversation / Escalation as permitted
+- Notification / Reminder
+- Audit Log
+- Offline Draft / Sync metadata where required
+
+This list describes business concepts, not a final schema.
+
+Before implementing migrations, map these concepts into the simplest relational model that satisfies the requirements and the engineering rules.
+
+==================================================
+69. FUNCTIONAL COMPLETION RULE
+==================================================
+
+A module is not functionally complete just because a page exists.
+
+It is complete only when:
+
+- the required business workflow works end-to-end;
+- role restrictions work;
+- record-level restrictions work;
+- server-side validation works;
+- required history/versioning works;
+- mobile experience works;
+- Arabic RTL works;
+- loading/error/empty states exist;
+- relevant audit events exist;
+- required exports/reports work;
+- required tests pass;
+- unsupported business decisions are explicitly marked rather than invented.
+
+==================================================
+70. IMPLEMENTATION BEHAVIOR FOR CURSOR
+==================================================
+
+Before implementing any major module, Cursor must first produce a short implementation plan containing:
+
+1. Requirement(s) being satisfied.
+2. User roles involved.
+3. User workflow.
+4. Required screens/components.
+5. Required business entities.
+6. Proposed database relationships.
+7. Authorization rules.
+8. Validation rules.
+9. Audit/history/version requirements.
+10. Mobile behavior.
+11. Desktop behavior.
+12. Required tests.
+13. Any TODO: BUSINESS DECISION REQUIRED items.
+
+Then implement only the confirmed scope.
+
+==================================================
+71. FINAL PRODUCT PRINCIPLE
+==================================================
+
+The product must connect the enterprise journey from profile to financing referral while remaining simple enough for non-technical SME users and structured enough for Beacon to manage, assess, monitor, and support participating enterprises.
+
+The user experience should be simple.
+
+The business records should be structured.
+
+The financial calculations should be deterministic.
+
+The AI should be assistive.
+
+The access controls should be strict.
+
+The history should be auditable.
+
+The requirements should be configurable where Beacon needs ongoing control.
+
+The application must not invent decisions that belong to Beacon.
