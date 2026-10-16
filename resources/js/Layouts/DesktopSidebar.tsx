@@ -7,7 +7,7 @@ export function DesktopSidebar() {
     const { url, props } = usePage();
     const role = props.auth.user?.role;
     // Links come from the server (`auth.navigation`); no role logic in the UI.
-    const items = navigationOrFallback(props.auth.navigation, url);
+    const items = navigationOrFallback(props.auth.navigation, url, props.auth.can);
     const groups = groupNavigation(items);
     const home = homeLink(items, url);
     const homeActive = home.active;

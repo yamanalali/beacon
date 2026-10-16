@@ -192,7 +192,7 @@ describe("suggested_items in the review form", () => {
         const onSubmit = vi.fn();
         render(<ItemsHarness draft={{ ...base, suggested_amount: "3500", suggested_items: [{ description: "قماش", quantity: 2, unit_price: 1500, total: null }] }} onSubmit={onSubmit} />);
         fireEvent.click(screen.getByRole("button", { name: /إضافة بند/ }));
-        expect(screen.getByTestId("items-mismatch")).toBeTruthy();
+        expect(screen.getByTestId("review-items-mismatch")).toBeTruthy();
         fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
         expect(onSubmit.mock.calls[0][0].items).toEqual([{ description: "قماش", quantity: "2", unit_price: "1500" }]);
     });
@@ -219,5 +219,70 @@ describe("suggested_currency_source hint", () => {
         cleanup();
         render(<Harness draft={{ ...base, suggested_currency_source: null }} onSubmit={vi.fn()} />);
         expect(screen.queryByText(hint)).toBeNull();
+    });
+});
+describe("voice amount warning, items mismatch and rent prefill", () => {
+    const rent: TransactionDraft = {
+        suggested_date: "2026-10-16", suggested_amount: "3000", suggested_currency: "SYP", suggested_counterparty: null,
+        suggested_note: "لمدة 3 اشهر",
+        suggested_items: [{ description: "إيجار محل (شهري)", quantity: 3, unit_price: 1000, total: 3000 }],
+        items_mismatch: false, suggested_amount_warning: null,
+    };
+    const warning = "تأكد: هل المبلغ 3000 أم ثلاثة آلاف لكل شهر؟";
+
+    it("prefills the rent example from the voice shape", () => {
+        const onSubmit = vi.fn();
+        render(<Harness draft={rent} onSubmit={onSubmit} />);
+        expect((screen.getByLabelText("المبلغ") as HTMLInputElement).value).toBe("3000");
+        expect((screen.getByLabelText(/ملاحظة/) as HTMLInputElement).value).toBe("لمدة 3 اشهر");
+        expect(screen.getAllByTestId("item-row")).toHaveLength(1);
+        expect(screen.getByDisplayValue("إيجار محل (شهري)")).toBeTruthy();
+        expect(screen.getByTestId("items-total").textContent).toContain("3,000");
+        expect(screen.queryByTestId("review-items-mismatch")).toBeNull();
+        expect(screen.queryByTestId("items-mismatch")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
+        const items = reviewPayload(onSubmit.mock.calls[0][0]).items;
+        expect(items).toHaveLength(1);
+        expect(items[0]).toMatchObject({ description: "إيجار محل (شهري)", quantity: "3", unit_price: "1000" });
+        expect(Number(items[0].total ?? 3000)).toBe(3000);
+    });
+
+    it("shows suggested_amount_warning only while the amount is the suggested one", () => {
+        render(<Harness draft={{ ...rent, suggested_amount_warning: warning }} />);
+        expect(screen.getByTestId("amount-warning").textContent).toContain(warning);
+        fireEvent.change(screen.getByLabelText("المبلغ"), { target: { value: "9000" } });
+        expect(screen.queryByTestId("amount-warning")).toBeNull();
+        fireEvent.change(screen.getByLabelText("المبلغ"), { target: { value: "3000" } });
+        expect(screen.getByTestId("amount-warning")).toBeTruthy();
+    });
+
+    it("hides the warning when null or blank", () => {
+        render(<Harness draft={{ ...rent, suggested_amount_warning: "  " }} />);
+        expect(screen.queryByTestId("amount-warning")).toBeNull();
+    });
+
+    it("shows a non-blocking mismatch above the items when the total differs, within the SYP margin otherwise", () => {
+        const onSubmit = vi.fn();
+        render(<Harness draft={rent} onSubmit={onSubmit} />);
+        fireEvent.change(screen.getByLabelText("المبلغ"), { target: { value: "3000.4" } });
+        expect(screen.queryByTestId("review-items-mismatch")).toBeNull();
+        fireEvent.change(screen.getByLabelText("المبلغ"), { target: { value: "2500" } });
+        const note = screen.getByTestId("review-items-mismatch");
+        expect(note.compareDocumentPosition(screen.getByTestId("items-editor")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(screen.queryByTestId("items-mismatch")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it("uses the tight margin for other currencies", () => {
+        render(<Harness draft={{ ...rent, suggested_currency: "USD", suggested_amount: "3000.01" }} />);
+        expect(screen.getByTestId("review-items-mismatch")).toBeTruthy();
+    });
+
+    it("shows the server items_mismatch flag until the amount or items are edited", () => {
+        render(<Harness draft={{ ...rent, items_mismatch: true }} />);
+        expect(screen.getByTestId("review-items-mismatch")).toBeTruthy();
+        fireEvent.change(screen.getByDisplayValue("إيجار محل (شهري)"), { target: { value: "إيجار محل" } });
+        expect(screen.queryByTestId("review-items-mismatch")).toBeNull();
     });
 });

@@ -1,5 +1,6 @@
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { QuickLinks } from "../../Components/Common/QuickLinks";
+import { visibleLinks } from "../../Layouts/navigationModel";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
@@ -183,6 +184,7 @@ export default function Beacon({
     exportUrl = null,
     programme = null,
 }: Props) {
+    const can = usePage().props.auth?.can;
     const byKey = new Map(indicators.map((i) => [i.key, i.value]));
     return (
         <AppLayout title="لوحة المتابعة">
@@ -217,7 +219,7 @@ export default function Beacon({
                 </div>
                 {programme ? <ProgrammeOverview programme={programme} /> : null}
                 <QuickLinks
-                    items={[
+                    items={visibleLinks(can, [
                         {
                             href: "/enterprises",
                             label: "المنشآت",
@@ -236,7 +238,7 @@ export default function Beacon({
                             description: "الوثائق والإيصالات",
                             icon: "bi-folder2-open",
                         },
-                    ]}
+                    ])}
                 />
                 <FilterBar
                     initial={{
