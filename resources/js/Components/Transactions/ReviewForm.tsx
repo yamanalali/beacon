@@ -32,6 +32,8 @@ export type TransactionDraft = {
     items_mismatch?: boolean;
     /** Voice: Arabic hint when the amount wording is ambiguous («3000 الاف») or items ≠ total. */
     suggested_amount_warning?: string | null;
+    // Server hint: suggested date is in the future or implausibly old (never blocks saving).
+    suggested_date_warning?: string | null;
 };
 
 export type ReviewFormData = {
