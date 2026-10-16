@@ -39,11 +39,18 @@ return [
         'enabled' => (bool) $env('AI_VOICE_ENABLED', false),
         'stt_driver' => $env('AI_STT_DRIVER', 'whisper'),
         'whisper_path' => $env('WHISPER_PATH', 'whisper-cli'),
-        'whisper_model' => $env('WHISPER_MODEL', storage_path('app/whisper/ggml-small.bin')),
+        // WHISPER_MODEL: a .bin path, or a short name (small | medium | large-v3-turbo)
+        // resolved to storage/app/whisper/ggml-<name>.bin. Empty = whisper_default_model.
+        'whisper_model' => $env('WHISPER_MODEL', ''),
+        // Manager decision: large-v3-turbo won the Levantine benchmark (docs/whisper-dialect-benchmark.md).
+        'whisper_default_model' => 'large-v3-turbo',
+        // Fix common whisper mis-hearings of money words («الفا» -> «ألف», «همس مياه» -> «خمس مية»).
+        'whisper_correct' => (bool) $env('WHISPER_CORRECT', true),
+        'whisper_threads' => (int) $env('WHISPER_THREADS', 0), // 0 = whisper.cpp default
         // Language is fixed to Arabic ("-l ar", no auto-detect). Optional initial prompt
         // biasing Whisper toward finance vocabulary; empty = no --prompt.
         'whisper_prompt' => env('WHISPER_PROMPT', ''), // optional; skipped on Windows if non-ASCII
-        'timeout' => (int) $env('WHISPER_TIMEOUT', 60),
+        'timeout' => (int) $env('WHISPER_TIMEOUT', 120),
         'max_kb' => (int) $env('AI_VOICE_MAX_KB', 5120),
     ],
 

@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { SectionCard } from "../Common/SectionCard";
+import { EmptyState } from "../Feedback/EmptyState";
 import { StatusBadge } from "../Feedback/StatusBadge";
 import { formatMoney } from "../../lib/money";
 
@@ -145,9 +146,117 @@ function ReadinessCard({ data }: { data: Record<string, unknown> }) {
     );
 }
 
+const EMPTY_TEXT: Record<string, string> = {
+    enterprise_profile: "لم تتم مشاركة معلومات المنشأة في هذه الإحالة.",
+    financial_summary: "لم تتم مشاركة الملخص المالي، أو لا توجد معاملات في الفترة.",
+    readiness_assessment: "لم تتم مشاركة نتيجة الجاهزية، أو لا يوجد تقييم معتمد.",
+    documents: "لم تتم مشاركة مستندات في هذه الإحالة.",
+    compliance_status: "لم تتم مشاركة حالة الامتثال في هذه الإحالة.",
+};
+
+/** Server sends *_label next to raw codes (#78); show the label in place of the code. */
+function EnterpriseCard({ data }: { data: Record<string, unknown> }) {
+    const obj: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data)) {
+        if (k.endsWith("_label")) continue;
+        const label = data[`${k}_label`];
+        obj[k] = typeof label === "string" && label.trim() ? label : v;
+    }
+    return <SectionCard title={SECTION_TITLES.enterprise_profile}><Lines obj={obj} /></SectionCard>;
+}
+
+type CurrencyTotals = { currency: string; income_total: string | number; expense_total: string | number; net: string | number; transaction_count: number };
+
+/** One card per currency, SYP first; never converted. */
+export function FinancialSummary({ data }: { data: Record<string, unknown> }) {
+    const period = isPlainObject(data.period) ? (data.period as { from?: string; to?: string }) : null;
+    const rows = (Array.isArray(data.currencies) ? data.currencies : []).filter(isPlainObject) as unknown as CurrencyTotals[];
+    const sorted = [...rows].sort((a, b) => (a.currency === "SYP" ? -1 : b.currency === "SYP" ? 1 : a.currency.localeCompare(b.currency)));
+    return (
+        <SectionCard title={SECTION_TITLES.financial_summary}>
+            {period?.from && period?.to ? <p className="text-muted mb-2" data-testid="fin-period">الفترة من {formatDate(period.from)} إلى {formatDate(period.to)}</p> : null}
+            {sorted.length === 0 ? (
+                <EmptyState title="لا توجد معاملات" description={EMPTY_TEXT.financial_summary} />
+            ) : (
+                <div className="row g-2">
+                    {sorted.map((c) => {
+                        const net = Number(c.net);
+                        return (
+                            <div key={c.currency} className="col-12 col-md-6 col-xl-4">
+                                <div className="app-mobile-record h-100" data-testid="fin-currency">
+                                    <div className="fw-semibold mb-1">{c.currency}</div>
+                                    <div className="app-record-line"><span>الإيرادات</span><bdi dir="ltr">{formatMoney(c.income_total, c.currency)}</bdi></div>
+                                    <div className="app-record-line"><span>المصروفات</span><bdi dir="ltr">{formatMoney(c.expense_total, c.currency)}</bdi></div>
+                                    <div className="app-record-line">
+                                        <span>الصافي</span>
+                                        <bdi dir="ltr" data-testid="fin-net" style={{ color: net > 0 ? "var(--app-success)" : net < 0 ? "var(--app-danger)" : undefined, fontWeight: 600 }}>{formatMoney(c.net, c.currency)}</bdi>
+                                    </div>
+                                    <div className="app-record-line"><span>عدد المعاملات</span><bdi dir="ltr">{Number(c.transaction_count ?? 0).toLocaleString("en-US")}</bdi></div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </SectionCard>
+    );
+}
+
+type Doc = { name: string; type: string | null; date: string | null };
+type SortKey = "name" | "type" | "date";
+
+/** Sortable table on md+, cards on mobile. Default: newest first (server order). */
+export function DocumentsTable({ docs }: { docs: Doc[] }) {
+    const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: -1 });
+    const sorted = [...docs].sort((a, b) => {
+        const x = a[sort.key] ?? "";
+        const y = b[sort.key] ?? "";
+        return (sort.key === "date" ? String(x).localeCompare(String(y)) : String(x).localeCompare(String(y), "ar")) * sort.dir;
+    });
+    const head = (key: SortKey, label: string) => (
+        <th scope="col" aria-sort={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+            <button type="button" className="btn btn-link p-0 text-reset text-decoration-none fw-semibold" onClick={() => setSort((s) => ({ key, dir: s.key === key ? (s.dir === 1 ? -1 : 1) : 1 }))}>
+                {label} {sort.key === key ? <i className={`bi ${sort.dir === 1 ? "bi-sort-up" : "bi-sort-down"}`} aria-hidden="true" /> : null}
+            </button>
+        </th>
+    );
+    return (
+        <SectionCard title={SECTION_TITLES.documents}>
+            <div className="table-responsive d-none d-md-block">
+                <table className="table align-middle mb-0" data-testid="docs-table">
+                    <thead><tr>{head("name", "الاسم")}{head("type", "النوع")}{head("date", "التاريخ")}</tr></thead>
+                    <tbody>
+                        {sorted.map((d, i) => <tr key={i}><td>{d.name}</td><td>{d.type || "—"}</td><td>{d.date ? formatDate(d.date) : "—"}</td></tr>)}
+                    </tbody>
+                </table>
+            </div>
+            <div className="d-md-none d-flex flex-column gap-2" data-testid="docs-cards">
+                {sorted.map((d, i) => (
+                    <div key={i} className="app-mobile-record">
+                        <div className="fw-semibold">{d.name}</div>
+                        {d.type ? <div className="app-record-line"><span>النوع</span><span>{d.type}</span></div> : null}
+                        {d.date ? <div className="app-record-line"><span>التاريخ</span><span>{formatDate(d.date)}</span></div> : null}
+                    </div>
+                ))}
+            </div>
+        </SectionCard>
+    );
+}
+
+function EmptySection({ k }: { k: string }) {
+    return (
+        <SectionCard title={SECTION_TITLES[k]}>
+            <div data-testid={`empty-${k}`}><EmptyState title="غير متوفر" description={EMPTY_TEXT[k]} /></div>
+        </SectionCard>
+    );
+}
+
 function Section({ k, v }: { k: string; v: unknown }) {
-    if (isEmpty(v)) return null;
+    if (k === "financial_summary" && isPlainObject(v) && Array.isArray(v.currencies)) return <FinancialSummary data={v} />;
+    if (isEmpty(v)) return KNOWN_ORDER.includes(k) ? <EmptySection k={k} /> : null;
     if (k === "readiness_assessment" && isPlainObject(v)) return <ReadinessCard data={v} />;
+    if (k === "enterprise_profile" && isPlainObject(v)) return <EnterpriseCard data={v} />;
+    if (k === "documents" && Array.isArray(v) && v.every((d) => isPlainObject(d) && typeof d.name === "string")) return <DocumentsTable docs={v.filter(isPlainObject) as unknown as Doc[]} />;
     return (
         <SectionCard title={SECTION_TITLES[k] ?? humanizeKey(k)}>
             {Array.isArray(v) ? <ValueView k={k} v={v} /> : isPlainObject(v) ? <Lines obj={v} /> : <ValueView k={k} v={v} />}
@@ -156,9 +265,10 @@ function Section({ k, v }: { k: string; v: unknown }) {
 }
 
 export function PackageView({ pkg }: { pkg: Pkg }) {
-    const known = KNOWN_ORDER.filter((k) => k in pkg && !isEmpty(pkg[k]));
+    // Every known section is shown; missing (not disclosed) or empty ones get an Arabic empty state.
+    if (Object.keys(pkg).length === 0) return <p className="text-muted mb-0">لا توجد بيانات مشاركة بعد.</p>;
+    const known = KNOWN_ORDER;
     const extra = Object.entries(pkg).filter(([k, v]) => !KNOWN_ORDER.includes(k) && !isTechnicalKey(k) && !isEmpty(v));
-    if (known.length === 0 && extra.length === 0) return <p className="text-muted mb-0">لا توجد بيانات مشاركة بعد.</p>;
     return (
         <div className="d-flex flex-column gap-3" data-testid="package-view">
             {known.map((k) => <Section key={k} k={k} v={pkg[k]} />)}
