@@ -54,6 +54,24 @@ class VoiceSpokenNumbersTest extends TestCase
         $this->assertSame('1500000', $p->parse('قبضت مليون ونص دولار')['amount']);
     }
 
+    public function test_real_sentence_amount_currency_date_and_no_bogus_vendor(): void
+    {
+        $r = (new VoiceDraftParser)->parse('دفعت خمسين الف ليرة اجار محل اليوم');
+        $this->assertSame('50000', $r['amount']);
+        $this->assertSame('SYP', $r['currency']);
+        $this->assertSame(now()->toDateString(), $r['date']);
+        $this->assertNull($r['counterparty'], 'date word must not become the vendor');
+    }
+
+    public function test_vendor_never_a_date_currency_number_or_verb_word(): void
+    {
+        $p = new VoiceDraftParser;
+        $this->assertSame('الأمل', $p->parse('دفعت مية دولار لمحل الأمل')['counterparty']);
+        $this->assertSame('سامر', $p->parse('قبضت ٢٠٠ دولار من سامر مبارح')['counterparty']);
+        $this->assertNull($p->parse('دفعت لمحل مبارح خمسين ليرة')['counterparty']);
+        $this->assertNull($p->parse('قبضت من دولار')['counterparty']);
+    }
+
     public function test_whisper_uses_fixed_arabic_and_optional_prompt(): void
     {
         $w = new class extends WhisperCppTranscriber
