@@ -52,6 +52,9 @@ class VoiceDraftParser
     /** "لمدة ثلاثة اشهر", "مدة شهرين", "لمدة سنة"... goes to the note only (manager decision). */
     private const PERIOD = '/(?<![\p{L}])(?:لمدة|لمده|مدة|مده|عن\s+مدة|عن|ل)\s+(?:(?:[\p{L}\d]+)\s+)?(?:شهر|شهرين|أشهر|اشهر|شهور|سنة|سنه|سنتين|سنوات|سنين|أسبوع|اسبوع|أسبوعين|اسبوعين|أسابيع|اسابيع|يوم|يومين|أيام|ايام)(?=\s|[\p{P}]|$)/u';
 
+    /** «ثلاثه شهور» / «3 اشهر» without «لمدة»: a count word right before a plural period. */
+    private const BARE_PERIOD = '/(?<![\p{L}])(?:\d+|واحد|تنين|اتنين|اثنين|تلات|تلاتة|تلاته|ثلاث|ثلاثة|ثلاثه|اربع|أربع|اربعة|أربعة|اربعه|خمس|خمسة|خمسه|ست|ستة|سته|سبع|سبعة|سبعه|تمن|تمنية|ثمانية|ثمانيه|تسع|تسعة|تسعه|عشر|عشرة|عشره)\s+(?:شهور|أشهر|اشهر|سنين|سنوات|أسابيع|اسابيع|ايام|أيام)(?=\s|[\p{P}]|$)/u';
+
     /**
      * Voice-only fixes for whisper splitting «ليرة اجار» into «ليرائي جر»:
      * «جر» / «ئي جر» after a lira word, or «جر» before محل/بيت/شقة/مكتب, becomes «اجار»
@@ -71,7 +74,7 @@ class VoiceDraftParser
         $normalized = $text;
         // A period phrase is kept verbatim as a note and removed before reading the
         // amount, so "3 اشهر" never becomes or multiplies the amount.
-        $note = preg_match(self::PERIOD, $text, $pm) ? trim($pm[0]) : null;
+        $note = preg_match(self::PERIOD, $text, $pm) || preg_match(self::BARE_PERIOD, $text, $pm) ? trim($pm[0]) : null;
         $normalizer = new SpokenNumberNormalizer;
         $t = $normalizer->normalize($note !== null ? str_replace($pm[0], ' ', $text) : $text);
         $ambiguous = $normalizer->ambiguous;
@@ -153,7 +156,7 @@ class VoiceDraftParser
         return floor($n) == $n ? (int) $n : $n;
     }
 
-    private const RECURRING = '/(?<![\p{L}])(?:كل\s+(شهر|أسبوع|اسبوع|جمعة|سنة|سنه|يوم)|(بالشهر|بالأسبوع|بالاسبوع|بالسنة|بالسنه|باليوم))\s+(\d+(?:\.\d+)?)/u';
+    private const RECURRING = '/(?<![\p{L}])(?:كل\s+(شهر|أسبوع|اسبوع|جمعة|سنة|سنه|يوم)|(بالشهر|بالأسبوع|بالاسبوع|بالسنة|بالسنه|باليوم))\s+(?:(?:هو|هي|حقه|حقو|سعره|سعرو|بـ|ب)\s+)?(\d+(?:\.\d+)?)/u';
 
     private const PERIOD_LABEL = ['شهر' => 'شهري', 'أسبوع' => 'أسبوعي', 'اسبوع' => 'أسبوعي', 'جمعة' => 'أسبوعي', 'سنة' => 'سنوي', 'سنه' => 'سنوي', 'يوم' => 'يومي'];
 
