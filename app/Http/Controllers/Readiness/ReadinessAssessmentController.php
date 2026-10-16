@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Readiness;
 
 use App\Actions\Audit\RecordAuditLog;
+use App\Actions\Readiness\SnapshotAssessmentScore;
 use App\Http\Controllers\Controller;
 use App\Models\ComplianceRequirement;
 use App\Models\Enterprise;
@@ -27,7 +28,7 @@ use Inertia\Response;
  */
 class ReadinessAssessmentController extends Controller
 {
-    public function __construct(private RecordAuditLog $audit, private ReadinessScorer $scorer) {}
+    public function __construct(private RecordAuditLog $audit, private ReadinessScorer $scorer, private SnapshotAssessmentScore $snapshots) {}
 
     public function index(Request $request, Enterprise $enterprise): Response
     {
@@ -35,11 +36,11 @@ class ReadinessAssessmentController extends Controller
 
         return Inertia::render('Readiness/Enterprise', [
             'enterprise' => ['public_id' => $enterprise->public_id, 'business_name' => $enterprise->business_name],
-            'assessments' => ReadinessAssessment::query()->where('enterprise_id', $enterprise->id)->with('ruleSet:id,version_number,name_ar')
+            'assessments' => ReadinessAssessment::query()->where('enterprise_id', $enterprise->id)->with(['ruleSet:id,version_number,name_ar', 'currentSnapshot'])
                 ->orderByDesc('id')->get()->map(fn (ReadinessAssessment $a) => [
                     'public_id' => $a->public_id,
                     'status' => $a->status,
-                    'score' => $a->score,
+                    'score' => $a->currentSnapshot?->score ?? $a->score,
                     'mandatory_conditions_met' => $a->mandatory_conditions_met,
                     'rule_set' => $a->ruleSet->name_ar.' (نسخة '.$a->ruleSet->version_number.')',
                     'created_at' => $a->created_at?->toDateString(),
@@ -91,7 +92,15 @@ class ReadinessAssessmentController extends Controller
         $enterprise = $assessment->enterprise;
         abort_unless(ReadinessAccess::canViewEnterprise($request->user(), $enterprise), 403);
         $assessment->load(['ruleSet', 'results.criterion', 'results.complianceVersion', 'results.responsibleUser:id,name']);
-        $evaluation = $assessment->isFinalized() ? ($assessment->summary ?? $this->scorer->evaluate($assessment)) : $this->scorer->evaluate($assessment);
+        // Finalized: show the frozen current snapshot (legacy finalized rows get one from their stored summary).
+        // Drafts are still being edited, so they show a live preview and are not frozen yet.
+        $snapshot = null;
+        if ($assessment->isFinalized()) {
+            $snapshot = $this->snapshots->initial($assessment, null, $assessment->summary);
+            $evaluation = $snapshot->evaluation;
+        } else {
+            $evaluation = $this->scorer->evaluate($assessment);
+        }
 
         $people = $enterprise->members()->get(['users.id', 'users.name'])->merge($enterprise->advisors()->get(['users.id', 'users.name']))
             ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->unique('id')->values();
@@ -105,6 +114,11 @@ class ReadinessAssessmentController extends Controller
                 'finalized_at' => $assessment->finalized_at?->toDateTimeString(),
             ],
             'evaluation' => $evaluation,
+            'snapshot' => $snapshot?->load('computedBy:id,name')->toDisplay(),
+            'snapshotHistory' => $assessment->isFinalized()
+                ? $assessment->snapshots()->with('computedBy:id,name')->get()->map->toDisplay()->reverse()->values()
+                : [],
+            'canRecalculate' => $assessment->isFinalized() && ReadinessAccess::canManageEnterprise($request->user(), $enterprise),
             'results' => $assessment->results->map(fn (ReadinessAssessmentResult $r) => [
                 'id' => $r->id,
                 'criterion' => ReadinessAdminController::criterionData($r->criterion),
@@ -162,7 +176,26 @@ class ReadinessAssessmentController extends Controller
             'summary' => $evaluation,
             'finalized_at' => now(),
         ]);
+        $this->snapshots->initial($assessment, $actor, $evaluation);
         $this->audit->record($actor, 'readiness.assessment_finalized', $assessment, ['score' => $evaluation['score'], 'rule_set_version' => $assessment->ruleSet->version_number]);
+
+        return redirect()->route('readiness-assessments.show', $assessment);
+    }
+
+    /**
+     * Explicit recalculation (QA): re-scores with the current rules, adds a new current snapshot and keeps old ones.
+     * The assessment row itself stays frozen; display reads the current snapshot.
+     * TODO: BUSINESS DECISION REQUIRED - who may recalculate; default: same as managing the assessment (assigned advisor or Beacon admin).
+     */
+    public function recalculate(Request $request, ReadinessAssessment $assessment): RedirectResponse
+    {
+        $actor = $request->user();
+        abort_unless(ReadinessAccess::canManageEnterprise($actor, $assessment->enterprise), 403);
+        abort_unless($assessment->isFinalized(), 422, 'إعادة الحساب متاحة للتقييمات النهائية فقط.');
+        $data = $request->validate(['reason' => ['nullable', 'string', 'max:2000']]);
+
+        $this->snapshots->initial($assessment, null, $assessment->summary);
+        $this->snapshots->recalculate($assessment, $actor, $data['reason'] ?? null);
 
         return redirect()->route('readiness-assessments.show', $assessment);
     }
