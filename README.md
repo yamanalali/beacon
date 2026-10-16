@@ -132,7 +132,14 @@ Benchmark (synthetic receipts, not in the test suite):
 python3 scripts/ocr-benchmark/generate.py storage/app/ocr-benchmark 12
 php artisan ocr:benchmark --preprocess=0 --psm= --by-variant   # baseline
 php artisan ocr:benchmark --preprocess=1 --psm=6 --by-variant  # current default
+# with line-item receipts (8) and ruled-table sales invoices (4); adds item recall/precision columns
+python3 scripts/ocr-benchmark/generate.py storage/app/ocr-benchmark 12 42 8 4
+php artisan ocr:benchmark --by-variant
 ```
+
+### Invoice line items (suggestions)
+
+The receipt draft carries `suggested_items: [{description, quantity, unit_price, total}]` (numbers, unread values `null`, `[]` when none), `items_total_mismatch` (warning only, never blocks; `null` when it can't be checked) and `suggested_invoice_number`. Nothing is saved until the user confirms. Two extra local OCR passes feed it: a per-line pass (`AI_OCR_LINE_PASS`, `--psm 7` per text line, which also recovers short shop headers such as «بيتزا 1») and a ruled-table reader (`AI_OCR_TABLE_PASS`: finds the table lines with PHP GD, maps columns from the header row, OCRs number cells with a digits whitelist, checks quantity × price = total and reads «اجمالي الفاتورة»). Low-resolution photos still give weak Arabic item names; numbers are far more reliable.
 
 ## AI data sharing (section 54)
 

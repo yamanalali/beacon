@@ -107,4 +107,23 @@ class OcrLineItemsTest extends TestCase
         $this->assertSame(['description' => 'x', 'quantity' => null, 'unit_price' => 2600, 'total' => 7500], $reader->crossCheck(['description' => 'x', 'quantity' => null, 'unit_price' => 2600, 'total' => 7500]), 'no fractional qty guess');
         $this->assertSame(['description' => 'x', 'quantity' => null, 'unit_price' => null, 'total' => 5], $reader->crossCheck(['description' => 'x', 'quantity' => null, 'unit_price' => null, 'total' => 5]));
     }
+
+    public function test_missing_total_line_uses_items_sum_never_first_number(): void
+    {
+        $r = (new ReceiptTextParser)->parse("فاتورة مبيعات\nحاسوب محمول 2 12,000 24,000\nفأرة لاسلكية 1 4,000 4,000\nطابعة ملونة 1 6,000 6,000\nشاشة عرض 3 2,500 7,500");
+        $this->assertSame('41500', $r->amount);
+    }
+
+    public function test_no_total_line_and_no_items_gives_null_amount(): void
+    {
+        $r = (new ReceiptTextParser)->parse("شركة تجريبية\nرقم الفاتورة / 1002\n24000 12000\n8/6/2022");
+        $this->assertNull($r->amount, 'never the first or largest number');
+        $this->assertSame([], $r->items);
+        $this->assertSame('2022-06-08', $r->transactionDate);
+    }
+
+    public function test_total_from_alef_maqsura_total_line(): void
+    {
+        $this->assertSame('41500', (new ReceiptTextParser)->parse("محل\nحاسوب 2 12000 24000\nاجمالى الفاتورة 41500")->amount);
+    }
 }

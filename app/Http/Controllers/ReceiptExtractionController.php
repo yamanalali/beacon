@@ -107,6 +107,10 @@ class ReceiptExtractionController extends Controller
                 'suggested_items' => $items = array_values($extraction->suggested_items ?? []),
                 // Warning only (never blocks saving): items don't add up to the amount; null = can't check.
                 'items_total_mismatch' => (new ReceiptLineItemParser)->totalsMismatch($items, $extraction->suggested_amount),
+                // No «الإجمالي» line read and no items to add up: the user must type the amount.
+                'amount_warning' => $extraction->status === ExtractionStatus::PendingReview && $extraction->suggested_amount === null && $extraction->extractor !== 'manual'
+                    ? 'لم نتمكن من قراءة الإجمالي من الفاتورة، أدخل المبلغ يدوياً.'
+                    : null,
                 'document' => DocumentController::row($extraction->document),
                 'confirmed_transaction_public_id' => $extraction->confirmedTransaction?->public_id,
             ],

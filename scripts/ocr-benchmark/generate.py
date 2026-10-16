@@ -14,10 +14,12 @@ Needs Pillow with raqm (Arabic shaping) and an Arabic TTF (Noto Sans Arabic/Deja
 import json, os, random, sys, glob
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, features
 
-out = sys.argv[1] if len(sys.argv) > 1 else 'storage/app/ocr-benchmark'
-count = int(sys.argv[2]) if len(sys.argv) > 2 else 12
+FIXTURE = len(sys.argv) > 2 and sys.argv[1] == '--table-fixture'  # generate.py --table-fixture out.png
+out = sys.argv[1] if len(sys.argv) > 1 and not FIXTURE else 'storage/app/ocr-benchmark'
+count = int(sys.argv[2]) if len(sys.argv) > 2 and not FIXTURE else 12
 rnd = random.Random(int(sys.argv[3]) if len(sys.argv) > 3 else 42)
-os.makedirs(out, exist_ok=True)
+if not FIXTURE:
+    os.makedirs(out, exist_ok=True)
 
 def font_path():
     for pat in ['/usr/share/fonts/**/NotoSansArabic*.ttf', '/usr/share/fonts/**/NotoNaskhArabic*.ttf', '/usr/share/fonts/**/Amiri*.ttf', '/usr/share/fonts/**/DejaVuSans.ttf', 'C:/Windows/Fonts/arial.ttf']:
@@ -130,7 +132,7 @@ VARIANTS = {
 }
 
 truth = []
-for i in range(count):
+for i in range(0 if FIXTURE else count):
     lines, gt = receipt(i)
     base = render(lines)
     for v, fn in VARIANTS.items():
@@ -141,7 +143,7 @@ TABLE_SHOPS = ['شركة النخبة للالكترونيات', 'مؤسسة ا�
 TABLE_CUSTOMERS = ['شركة الربيع التجارية', 'مؤسسة الشروق', 'مكتب الأفق للخدمات']
 TABLE_ITEMS = ['حاسوب محمول', 'فأرة لاسلكية', 'لوحة مفاتيح', 'شاشة عرض', 'طابعة ملونة', 'كابل شبكة', 'ذاكرة تخزين', 'سماعات رأس']
 
-def table_invoice(r, i):
+def table_invoice(r, i, fixed=None):
     shop, cust = r.choice(TABLE_SHOPS), r.choice(TABLE_CUSTOMERS)
     d, m, y = r.randint(13, 28), r.randint(1, 12), r.randint(2021, 2026)
     no = r.randint(1000, 9999)
@@ -149,6 +151,8 @@ def table_invoice(r, i):
     for nm in r.sample(TABLE_ITEMS, r.randint(3, 5)):
         q, u = r.randint(1, 5), r.randint(1, 60) * 250
         rows.append((nm, q, u, q * u))
+    if fixed:
+        shop, cust, (d, m, y), no, rows = fixed['shop'], fixed['customer'], fixed['dmy'], fixed['no'], [(n, q, u, q * u) for n, q, u in fixed['rows']]
     total = sum(x[3] for x in rows)
     S = 2  # draw at 2x then downscale like a phone screenshot
     W = 830 * S
@@ -177,9 +181,9 @@ def table_invoice(r, i):
     for j in range(n_rows + 1):
         dr.line([xs[0], body + j * rh, xs[-1], body + j * rh], fill=215, width=S)
     for j, (nm, q, u, t) in enumerate(rows):
-        y = body + j * rh + rh // 2
+        yy = body + j * rh + rh // 2
         for k, txt in enumerate([str(t), str(u), str(q), nm, str(j + 1)]):
-            rtl((xs[k] + xs[k + 1]) // 2, y, txt)
+            rtl((xs[k] + xs[k + 1]) // 2, yy, txt)
     bottom = body + n_rows * rh
     dr.rectangle([xs[0], top, xs[-1], bottom], outline=0, width=2 * S)
     dr.line([xs[0], top + 40 * S, xs[-1], top + 40 * S], fill=120, width=S)
@@ -197,6 +201,14 @@ def table_invoice(r, i):
                      + [f'{j + 1} {nm} {q} {u} {t}' for j, (nm, q, u, t) in enumerate(rows)] + [f'اجمالي الفاتورة {total}'])
     return im, {'items': items, 'amount': str(total), 'date': f'{y}-{m:02d}-{d:02d}', 'currency': None, 'counterparty': cust,
                 'invoice_number': str(no), 'type': 'income', 'text': text, 'lang': 'table'}
+
+if FIXTURE:
+    # Synthetic test fixture (invented names): 4 items 2x12000, 1x4000, 1x6000, 3x2500 = 41500.
+    im, gt = table_invoice(random.Random(7), 0, {'shop': 'شركة النخبة للالكترونيات', 'customer': 'مؤسسة الشروق', 'dmy': (8, 6, 2022), 'no': 1002,
+        'rows': [('حاسوب محمول', 2, 12000), ('فأرة لاسلكية', 1, 4000), ('طابعة ملونة', 1, 6000), ('شاشة عرض', 3, 2500)]})
+    im.save(sys.argv[2], optimize=True)
+    print(json.dumps(gt, ensure_ascii=False))
+    sys.exit(0)
 
 extra = int(sys.argv[4]) if len(sys.argv) > 4 else 0
 irnd = random.Random(1000 + (int(sys.argv[3]) if len(sys.argv) > 3 else 42))

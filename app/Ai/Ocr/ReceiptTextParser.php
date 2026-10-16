@@ -14,7 +14,7 @@ use App\Services\Ai\ReceiptExtractionResult;
 class ReceiptTextParser
 {
     /** Strong "amount payable" wording, checked first (bottom-up). */
-    private const TOTAL_STRONG = '/(المبلغ\s*المستحق|الإجمالي|الاجمالي|إجمالي|اجمالي|المجموع\s*الكلي|الصافي|grand\s*total|total\s*due|amount\s*due|\btotal\b)/iu';
+    private const TOTAL_STRONG = '/(المبلغ\s*المستحق|الإجمال[يى]|الاجمال[يى]|إجمال[يى]|اجمال[يى]|المجموع\s*الكلي|grand\s*total|total\s*due|amount\s*due|\btotal\b)/iu';
 
     /** Weaker wording, used only when no strong line has a number. */
     private const TOTAL_WORDS = '/(الإجمالي|الاجمالي|المجموع|الصافي|المبلغ|total|amount|sum)/iu';
@@ -74,6 +74,11 @@ class ReceiptTextParser
             }
         }
 
+        if ($amount === null && $items !== [] && ! in_array(null, array_column($items, 'total'), true)) {
+            // No total line read: the items' sum (still only a suggestion, reviewed by the user).
+            $amount = $this->money((float) array_sum(array_column($items, 'total')));
+        }
+
         $found = count(array_filter([$amount, $date, $vendor]));
 
         return new ReceiptExtractionResult(
@@ -113,7 +118,12 @@ class ReceiptTextParser
             '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9', '٫' => '.', '٬' => ',']);
     }
 
-    /** Prefer a number on a "total" line; otherwise the largest money-like number. */
+    /**
+     * Payable amount ONLY from an explicit total line (manager decision): اجمالي / الإجمالي /
+     * المجموع (plus «المبلغ المستحق» and English "total"/"amount due"), bottom-up, sub-totals and
+     * tax lines excluded. Never the largest or first number on the receipt: when no total line
+     * is read, parse() falls back to the items' sum, else null (shown with a warning).
+     */
     private function amount(array $lines): ?string
     {
         $pick = function (string $line): array {
@@ -121,21 +131,18 @@ class ReceiptTextParser
 
             return array_values(array_filter(array_map(fn ($n) => str_replace(',', '', $n), $m[0]), fn ($n) => (float) $n > 0 && ! preg_match('/^(19|20)\d{2}$/', $n)));
         };
-        foreach ([self::TOTAL_STRONG, self::TOTAL_WORDS] as $re) {
-            foreach (array_reverse($lines) as $line) {
-                if (preg_match($re, $line) && ! preg_match(self::NOT_TOTAL, $line) && ($nums = $pick($line)) !== []) {
-                    return $this->money((float) end($nums));
-                }
+        foreach (array_reverse($lines) as $line) {
+            if (preg_match(self::TOTAL_STRONG, $line) && ! preg_match(self::NOT_TOTAL, $line) && ($nums = $pick($line)) !== []) {
+                return $this->money((float) end($nums));
             }
         }
-        $all = [];
-        foreach ($lines as $line) {
-            if (! preg_match('/\d{1,4}[\/\-.]\d{1,2}[\/\-.]\d{1,4}/', $line)) {
-                $all = array_merge($all, $pick($line));
+        foreach (array_reverse($lines) as $line) {
+            if (preg_match('/(المجموع|اجمال|إجمال)/u', $line) && ! preg_match(self::NOT_TOTAL, $line) && ($nums = $pick($line)) !== []) {
+                return $this->money((float) end($nums));
             }
         }
 
-        return $all === [] ? null : $this->money(max(array_map('floatval', $all)));
+        return null;
     }
 
     public function money(float $v): ?string

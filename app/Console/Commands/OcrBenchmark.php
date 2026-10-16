@@ -42,7 +42,7 @@ class OcrBenchmark extends Command
         foreach ($truth as $t) {
             $o = $ocr->ocrPageAndLines("$dir/{$t['file']}");
             $raw = (string) $o['page'];
-            $r = $parser->parse($raw, $o['lines']);
+            $r = $parser->parse($raw, $o['lines'], $o['table']);
             [$hit, $exp, $got] = $this->itemScore($t['items'] ?? [], $r->items);
             $rows[] = [
                 'variant' => $t['variant'],
@@ -52,6 +52,8 @@ class OcrBenchmark extends Command
                 'currency' => $r->currency === $t['currency'],
                 'counterparty' => $r->counterparty !== null && trim($r->counterparty) === $t['counterparty'],
                 'chars' => $this->charAccuracy($t['text'], $raw),
+                'invoice_no' => ! isset($t['invoice_number']) || $r->invoiceNumber === $t['invoice_number'],
+                'type' => ! isset($t['type']) || (new \App\Finance\TransactionTypeSuggester)->suggest($r->rawText) === $t['type'],
                 'item_hit' => $hit, 'item_exp' => $exp, 'item_got' => $got,
             ];
         }
@@ -65,7 +67,7 @@ class OcrBenchmark extends Command
             $got = array_sum(array_column($rs, 'item_got'));
 
             return [$label, count($rs), $pct('amount'), $pct('date'), $pct('currency'), $pct('counterparty'), round(100 * array_sum(array_column($rs, 'chars')) / $n, 1),
-                $exp ? round(100 * $hit / $exp, 1) : '-', $got ? round(100 * $hit / $got, 1) : '-'];
+                $exp ? round(100 * $hit / $exp, 1) : '-', $got ? round(100 * $hit / $got, 1) : '-', $pct('invoice_no'), $pct('type')];
         };
         $table = [$summ($rows, 'ALL')];
         if ($this->option('by-variant')) {
@@ -79,7 +81,7 @@ class OcrBenchmark extends Command
             $table[] = $summ($base, 'base set (r*)');
         }
         $this->info(sprintf('preprocess=%s psm=%s', var_export(config('ai.ocr.preprocess'), true), var_export(config('ai.ocr.psm'), true)));
-        $this->table(['set', 'n', 'amount %', 'date %', 'currency %', 'counterparty %', 'char acc %', 'item recall %', 'item precision %'], $table);
+        $this->table(['set', 'n', 'amount %', 'date %', 'currency %', 'counterparty %', 'char acc %', 'item recall %', 'item precision %', 'invoice no %', 'type %'], $table);
 
         return self::SUCCESS;
     }

@@ -107,4 +107,28 @@ class ReceiptLineItemsDraftTest extends TestCase
                 ->where('extraction.suggested_items', [])
                 ->where('extraction.items_total_mismatch', null));
     }
+
+    public function test_no_items_and_no_total_gives_null_amount_with_warning(): void
+    {
+        $this->app->bind(ReceiptExtractor::class, fn () => new class implements ReceiptExtractor
+        {
+            public function name(): string
+            {
+                return 'fake';
+            }
+
+            public function extract(Document $document): ReceiptExtractionResult
+            {
+                return new ReceiptExtractionResult('2022-06-08', null, null, 'مؤسسة الاختبار', 0.2, rawText: 'x');
+            }
+        });
+        $this->actingAs($this->sme)->post(route('documents.extractions.store', $this->document));
+
+        $this->actingAs($this->sme)->get(route('extractions.show', ReceiptExtraction::query()->sole()))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('extraction.suggested_amount', null)
+                ->where('extraction.suggested_items', [])
+                ->whereType('extraction.amount_warning', 'string'));
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
 }

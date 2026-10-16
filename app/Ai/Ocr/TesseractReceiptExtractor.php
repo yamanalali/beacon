@@ -85,16 +85,54 @@ class TesseractReceiptExtractor implements ReceiptExtractor
         try {
             $img = config('ai.ocr.preprocess', false) ? $pre->prepare($imagePath) : $imagePath;
             $page = $this->run($img);
-            // Ruled-table invoices are read cell by cell from the original upload (own upscaling).
-            $table = $page !== null && config('ai.ocr.table_pass', true)
-                ? (new TableInvoiceReader(fn (string $f, int $psm, string $langs, ?string $wl) => $this->run($f, $psm, $langs, $wl)))->read($imagePath)
-                : null;
+            // Ruled-table invoices are read cell by cell from the preprocessed (upright, deskewed) image.
+            $table = $page !== null && config('ai.ocr.table_pass', true) ? $this->tablePass($imagePath, $img) : null;
             $lines = $page !== null && $table === null && config('ai.ocr.line_pass', true) ? $this->linePass($img) : null;
 
             return ['page' => $page, 'lines' => $lines, 'table' => $table];
         } finally {
             $pre->cleanup();
         }
+    }
+
+    /**
+     * Ruled-table pass on the original upload and on the preprocessed image (upright,
+     * deskewed, contrast-normalised); keeps the more consistent result: rows where
+     * quantity × unit price = total, plus a total that equals the items' sum.
+     */
+    public function tablePass(string $original, string $prepared): ?array
+    {
+        $reader = fn () => new TableInvoiceReader(fn (string $f, int $psm, string $langs, ?string $wl) => $this->run($f, $psm, $langs, $wl));
+        $best = null;
+        $bestScore = -1;
+        $headers = [];
+        foreach (array_unique([$original, $prepared]) as $path) {
+            $t = $reader()->read($path);
+            if ($t === null || $t['items'] === []) {
+                continue;
+            }
+            $headers[] = $t['header_text'];
+            $score = 0;
+            foreach ($t['items'] as $i) {
+                $score += $i['description'] !== null ? 1 : 0;
+                $score += $i['quantity'] !== null && $i['unit_price'] !== null && $i['total'] !== null
+                    && abs($i['quantity'] * $i['unit_price'] - $i['total']) < 0.01 ? 3 : 0;
+            }
+            $totals = array_column($t['items'], 'total');
+            if ($t['total'] !== null && ! in_array(null, $totals, true) && abs(array_sum($totals) - $t['total']) < 0.01) {
+                $score += 5;
+            }
+            if ($score > $bestScore) {
+                [$best, $bestScore] = [$t, $score];
+            }
+        }
+
+        if ($best !== null) {
+            // Title lines (e.g. «فاتورة مبيعات») from both passes feed the type suggestion.
+            $best['header_text'] = implode("\n", array_unique(array_filter($headers)));
+        }
+
+        return $best;
     }
 
     /** OCR each detected text line on its own; null when the image can't be segmented. */
@@ -129,6 +167,27 @@ class TesseractReceiptExtractor implements ReceiptExtractor
             foreach ($files as $f) {
                 @unlink($f);
             }
+        }
+    }
+
+    /** Optional preprocessing (temp files always removed), then Tesseract. */
+    public function ocrFile(string $imagePath): ?string
+    {
+        if (($missing = $this->missingLanguages()) !== []) {
+            // Without "ara" Tesseract silently falls back to English and returns gibberish
+            // for Arabic receipts, so don't OCR at all: empty suggestion for manual review.
+            Log::warning('Tesseract OCR skipped: language data missing ('.implode(', ', $missing).'). Install ara.traineddata/eng.traineddata or set TESSERACT_TESSDATA_DIR to the folder that contains them.');
+
+            return null;
+        }
+        if (! config('ai.ocr.preprocess', false)) {
+            return $this->run($imagePath);
+        }
+        $pre = $this->preprocessor ??= new ImagePreprocessor;
+        try {
+            return $this->run($pre->prepare($imagePath));
+        } finally {
+            $pre->cleanup();
         }
     }
 
