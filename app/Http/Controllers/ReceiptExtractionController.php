@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Ocr\ReceiptLineItemParser;
 use App\Ai\Support\PaginatedProps;
 use App\Actions\Bookkeeping\ConfirmReceiptExtractionAction;
 use App\Actions\Bookkeeping\StartReceiptExtractionAction;
@@ -101,6 +102,19 @@ class ReceiptExtractionController extends Controller
                 'suggested_amount' => $extraction->suggested_amount,
                 'suggested_currency' => $extraction->suggested_currency,
                 'suggested_counterparty' => $extraction->suggested_counterparty,
+                'suggested_invoice_number' => $extraction->suggested_invoice_number,
+                // [{description, quantity, unit_price, total}], unread values null; [] when none.
+                'suggested_items' => $items = array_values($extraction->suggested_items ?? []),
+                // Warning only (never blocks saving): items don't add up to the amount, or a row's
+                // qty × unit ≠ total (values kept as read). Same names as the voice draft / ReviewForm.
+                'items_mismatch' => $mismatch = ((new ReceiptLineItemParser)->totalsMismatch($items, $extraction->suggested_amount) === true
+                    || (new ReceiptLineItemParser)->inconsistentRows($items) > 0),
+                'suggested_amount_warning' => $extraction->status !== ExtractionStatus::PendingReview || $extraction->extractor === 'manual' ? null
+                    : ($extraction->suggested_amount === null
+                        ? 'لم نتمكن من قراءة الإجمالي من الفاتورة، أدخل المبلغ يدوياً.'
+                        : ($mismatch ? 'البنود لا تطابق الإجمالي أو الكمية × السعر (قد يكون بسبب ضريبة أو خصم أو قراءة خاطئة)، تأكد من المبلغ.' : null)),
+                // Invoice number at the start of the note (BEACON-DECISIONS 2026-10-16 «رقم الفاتورة»); no extra column.
+                'suggested_note' => $extraction->suggested_invoice_number !== null ? 'فاتورة رقم '.$extraction->suggested_invoice_number : null,
                 'document' => DocumentController::row($extraction->document),
                 'confirmed_transaction_public_id' => $extraction->confirmedTransaction?->public_id,
             ],

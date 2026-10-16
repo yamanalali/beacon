@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class CreateFollowUpAction
 {
-    use RecordsAdvisoryAudit;
+    use ScopesResponsibleUser, RecordsAdvisoryAudit;
 
     /**
      * @param  array<string, mixed>  $attributes
@@ -21,6 +21,8 @@ class CreateFollowUpAction
     public function execute(User $actor, Enterprise $enterprise, array $attributes): FollowUpAction
     {
         abort_unless($this->canRecord($actor, $enterprise), 403);
+
+        $this->assertResponsibleUserBelongs($enterprise, $attributes['responsible_user_id'] ?? null);
 
         $activityId = $attributes['advisory_activity_id'] ?? null;
 

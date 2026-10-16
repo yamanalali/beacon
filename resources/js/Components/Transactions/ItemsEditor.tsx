@@ -16,9 +16,9 @@ function Badge({ show }: { show: boolean }) {
     ) : null;
 }
 
-function MismatchNote({ total, amount, currency }: { total: number | null; amount: string | number; currency: string }) {
+export function MismatchNote({ total, amount, currency, className = "mb-0 mt-2", testId = "items-mismatch" }: { total: number | null; amount: string | number; currency: string; className?: string; testId?: string }) {
     return (
-        <div className="alert alert-warning d-flex gap-2 align-items-start mb-0 mt-2" role="status" data-testid="items-mismatch">
+        <div className={`alert alert-warning d-flex gap-2 align-items-start ${className}`} role="status" data-testid={testId}>
             <i className="bi bi-exclamation-triangle" aria-hidden="true" />
             <div className="small">
                 مجموع البنود <Money amount={total} currency={currency} /> لا يساوي مبلغ العملية <Money amount={amount} currency={currency} />. يمكنك الحفظ رغم
@@ -37,12 +37,14 @@ type Props = {
     /** Server errors keyed like "items.0.description". */
     errors?: Record<string, string | undefined>;
     disabled?: boolean;
+    /** Hide the built-in mismatch note when the parent shows its own. */
+    hideMismatch?: boolean;
 };
 
 /** Optional invoice line items: editable table on desktop, stacked cards on mobile. */
-export function ItemsEditor({ rows, onChange, currency, amount, errors = {}, disabled }: Props) {
+export function ItemsEditor({ rows, onChange, currency, amount, errors = {}, disabled, hideMismatch }: Props) {
     const total = itemsTotal(rows);
-    const mismatch = itemsMismatch(rows, amount);
+    const mismatch = !hideMismatch && itemsMismatch(rows, amount, currency);
     const update = (key: string, patch: Partial<ItemRow>) => onChange(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
     const add = () => onChange([...rows, emptyRow()]);
     const remove = (key: string) => onChange(rows.filter((r) => r.key !== key));

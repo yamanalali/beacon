@@ -72,5 +72,10 @@ return [
         'min_width' => (int) $env('AI_OCR_MIN_WIDTH', 1200),
         'osd_min_confidence' => (float) $env('AI_OCR_OSD_MIN_CONFIDENCE', 2.0),
         'psm' => $env('TESSERACT_PSM', '6'), // 6 = single text block; best on the synthetic benchmark
+        // Extra per-line OCR pass (--psm 7 per text band) used for line items and the shop header.
+        'line_pass' => (bool) $env('AI_OCR_LINE_PASS', true),
+        // Ruled-table invoices (البيان | الكمية | السعر | القيمة): cell-by-cell OCR with a digits whitelist for numbers.
+        'table_pass' => (bool) $env('AI_OCR_TABLE_PASS', true),
+        'line_pass_max_lines' => (int) $env('AI_OCR_LINE_PASS_MAX_LINES', 60),
     ],
 ];

@@ -21,6 +21,7 @@ class ReceiptExtraction extends Model
             'suggested_amount' => 'decimal:2',
             'confidence' => 'decimal:4',
             'needs_review' => 'boolean',
+            'suggested_items' => 'array',
             'reviewed_at' => 'datetime',
         ];
     }

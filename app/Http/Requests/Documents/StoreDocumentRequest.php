@@ -2,13 +2,20 @@
 
 namespace App\Http\Requests\Documents;
 
+use App\Models\Document;
+use App\Models\Enterprise;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreDocumentRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        // Tenant isolation: authorize BEFORE validation so another enterprise gets 403, not validation feedback.
+        $enterprise = $this->route('enterprise');
+
+        return $this->user() !== null
+            && $enterprise instanceof Enterprise
+            && $this->user()->can('upload', [Document::class, $enterprise]);
     }
 
     /**

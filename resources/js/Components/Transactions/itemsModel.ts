@@ -50,11 +50,16 @@ export function itemsTotal(rows: ItemRow[]): number | null {
 }
 
 /** Items total differs from the transaction amount (warning only; never blocks saving). */
-export function itemsMismatch(rows: ItemRow[], amount: string | number | null | undefined): boolean {
+/** Allowed rounding difference between items total and amount: SYP has no minor unit (<= 0.5), others <= 0.005. */
+export function mismatchTolerance(currency?: string | null): number {
+    return (currency ?? "").toUpperCase() === "SYP" ? 0.5 : 0.005;
+}
+
+export function itemsMismatch(rows: ItemRow[], amount: string | number | null | undefined, currency?: string | null): boolean {
     const t = itemsTotal(rows);
     const a = parseAmount(amount ?? null);
     if (t === null || a === null) return false;
-    return Math.round(t * 100) !== Math.round(a * 100);
+    return Math.abs(t - a) > mismatchTolerance(currency) + 1e-9;
 }
 
 /** Request shape `items[]`: fully empty rows dropped; `total` only when typed. */
