@@ -9,6 +9,7 @@ use App\Ai\Finance\AiReceiptExtractor;
 use App\Ai\Finance\AiTransactionCategorizer;
 use App\Ai\Models\AiEscalation;
 use App\Ai\Models\KnowledgeArticle;
+use App\Ai\Ocr\TesseractReceiptExtractor;
 use App\Ai\Policies\AiEscalationPolicy;
 use App\Ai\Policies\KnowledgeArticlePolicy;
 use App\Ai\Voice\ProviderTranscriber;
@@ -16,6 +17,7 @@ use App\Ai\Voice\SpeechToText;
 use App\Ai\Voice\WhisperCppTranscriber;
 use App\Contracts\ReceiptExtractor;
 use App\Contracts\TransactionCategorizer;
+use App\Services\Ai\ManualReceiptExtractor;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -41,6 +43,14 @@ class AiServiceProvider extends ServiceProvider
             $this->app->bind(ReceiptExtractor::class, AiReceiptExtractor::class);
             $this->app->bind(TransactionCategorizer::class, AiTransactionCategorizer::class);
         }
+
+        // Receipt OCR driver override (local Tesseract needs no DataControl approval).
+        match (config('ai.ocr.driver')) {
+            'tesseract' => $this->app->bind(ReceiptExtractor::class, TesseractReceiptExtractor::class),
+            'ai' => $this->app->bind(ReceiptExtractor::class, AiReceiptExtractor::class),
+            'manual' => $this->app->bind(ReceiptExtractor::class, ManualReceiptExtractor::class),
+            default => null,
+        };
     }
 
     private function registerVoice(): void

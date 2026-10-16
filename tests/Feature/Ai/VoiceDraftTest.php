@@ -101,16 +101,17 @@ class VoiceDraftTest extends TestCase
         $res = $this->send()->assertOk()
             ->assertJsonStructure([
                 'enterprise' => ['public_id', 'business_name'],
-                'draft' => ['source', 'extractor', 'is_manual', 'needs_review', 'confidence', 'suggested_date', 'suggested_amount', 'suggested_currency', 'suggested_counterparty', 'suggested_type', 'raw_text'],
-                'type', 'category_suggestion', 'options' => ['types', 'payment_statuses', 'currencies', 'default_currency', 'categories'],
+                'draft' => ['source', 'extractor', 'is_manual', 'needs_review', 'confidence', 'suggested_date', 'suggested_amount', 'suggested_currency', 'suggested_counterparty', 'suggested_transaction_type', 'raw_text'],
+                'type', 'transaction_type_options' => [['value', 'label']], 'category_suggestion', 'options' => ['types', 'payment_statuses', 'currencies', 'default_currency', 'categories'],
                 'ai_available', 'message', 'confirm' => ['method', 'url'],
             ])
             ->assertJsonPath('draft.source', 'voice')->assertJsonPath('draft.needs_review', true)
-            ->assertJsonPath('draft.suggested_amount', '5000')->assertJsonPath('draft.suggested_type', 'expense')
+            ->assertJsonPath('draft.suggested_amount', '5000')->assertJsonPath('draft.suggested_transaction_type', 'expense')
             ->assertJsonPath('draft.suggested_currency', 'SYP')->assertJsonPath('draft.suggested_date', now()->toDateString())
             ->assertJsonPath('draft.suggested_counterparty', 'الأمل')->assertJsonPath('ai_available', true)
             ->assertJsonPath('confirm.url', route('enterprises.transactions.store', $this->enterprise));
 
+        $this->assertSame($res->json('options.types'), $res->json('transaction_type_options'));
         $this->assertTrue($stub->existed);
         $this->assertFileDoesNotExist($stub->seenPath);
         $this->assertDatabaseCount('financial_transactions', 0);

@@ -54,6 +54,7 @@ class VoiceDraftController extends Controller
             $suggestion = null;
         }
         $currencies = array_keys(config('bookkeeping.currencies'));
+        $typeOptions = collect(TransactionType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()])->all();
 
         AuditLog::query()->create([
             'actor_id' => $request->user()->id, 'action' => 'ai.voice_draft.created',
@@ -73,13 +74,14 @@ class VoiceDraftController extends Controller
                 'suggested_amount' => $p['amount'] !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $p['amount']) ? $p['amount'] : null,
                 'suggested_currency' => in_array($p['currency'], $currencies, true) ? $p['currency'] : null,
                 'suggested_counterparty' => $p['counterparty'],
-                'suggested_type' => $p['type'],
+                'suggested_transaction_type' => $p['type'],
                 'raw_text' => $text,
             ],
             'type' => $type,
+            'transaction_type_options' => $typeOptions,
             'category_suggestion' => $suggestion ? ['category' => $suggestion->category, 'label' => $allowed[$suggestion->category], 'needs_review' => true] : null,
             'options' => [
-                'types' => collect(TransactionType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()])->all(),
+                'types' => $typeOptions,
                 'payment_statuses' => collect(PaymentStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->all(),
                 'currencies' => collect(config('bookkeeping.currencies'))->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all(),
                 'default_currency' => config('bookkeeping.default_currency'),

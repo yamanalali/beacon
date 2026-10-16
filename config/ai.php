@@ -36,4 +36,17 @@ return [
         'timeout' => (int) env('WHISPER_TIMEOUT', 60),
         'max_kb' => (int) env('AI_VOICE_MAX_KB', 5120),
     ],
+
+    /*
+     * Receipt OCR driver (rules §15). "tesseract" = free LOCAL OCR (image never
+     * leaves the server, so no DataControl approval is needed). Default: tesseract
+     * in APP_ENV=local, otherwise the AI/manual binding above applies.
+     * Values: tesseract | ai | manual.
+     */
+    'ocr' => [
+        'driver' => env('AI_OCR_DRIVER', env('APP_ENV') === 'local' ? 'tesseract' : null),
+        'tesseract_path' => env('TESSERACT_PATH', 'tesseract'),
+        'tesseract_langs' => env('TESSERACT_LANGS', 'ara+eng'),
+        'timeout' => (int) env('TESSERACT_TIMEOUT', 30),
+    ],
 ];

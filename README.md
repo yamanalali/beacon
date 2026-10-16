@@ -89,6 +89,33 @@ WHISPER_LANGUAGE=ar
 4. Test it with `C:\whisper\whisper-cli.exe -m C:\whisper\models\ggml-small.bin -f sample.wav -l ar -nt`.
 5. Run `php artisan config:clear`.
 
+## Free local receipt OCR (Tesseract)
+
+Receipt OCR (section 15) can run fully **locally** with [Tesseract](https://github.com/tesseract-ocr/tesseract). The image is processed on Beacon's own server and never leaves it, so Tesseract is **not** a third-party processor and needs **no** `allowed_data` / `DataControl` approval. Any *external* OCR/AI provider still goes through `DataControl::assertCanShare`.
+
+- Default driver: `tesseract` when `APP_ENV=local`; elsewhere the manual (or AI) extractor unless `AI_OCR_DRIVER` is set.
+- Results are low-confidence suggestions only. Nothing is saved until the user reviews and confirms.
+- Images only (JPG/PNG/WEBP/TIFF/BMP/GIF); PDFs fall back to manual entry.
+
+`.env` keys:
+
+```
+AI_OCR_DRIVER=tesseract        # tesseract | ai | manual
+TESSERACT_PATH=tesseract       # full path on Windows, see below
+TESSERACT_LANGS=ara+eng
+```
+
+### Windows install
+
+1. Download the installer from UB Mannheim: https://github.com/UB-Mannheim/tesseract/wiki (e.g. `tesseract-ocr-w64-setup-5.x.exe`).
+2. Run it. On **Choose Components**, expand *Additional language data (download)* and tick **Arabic** (English is included by default).
+3. Keep the default folder `C:\Program Files\Tesseract-OCR`.
+4. In `.env` set: `TESSERACT_PATH="C:\Program Files\Tesseract-OCR\tesseract.exe"`
+5. Check in PowerShell: `& "C:\Program Files\Tesseract-OCR\tesseract.exe" --list-langs` should list `ara` and `eng`.
+6. Run `php artisan config:clear`.
+
+Linux: `sudo apt install tesseract-ocr tesseract-ocr-ara`.
+
 ## AI data sharing (section 54)
 
 AI features stay **disabled in production** until `allowed_data` in `config/operations.php` is filled with the approved fields for each processor (`ai_assistant`, `ocr`, `insights`) and the processor is approved (`BEACON_DPA_*_APPROVED`). Every outbound AI call goes through `DataControl::assertCanShare`; when sharing is not approved no provider call is made and the feature falls back to its manual / "AI unavailable" path.
