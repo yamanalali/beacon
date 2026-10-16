@@ -8,11 +8,13 @@ use App\Ai\Voice\VoiceDraftParser;
 use App\Ai\Voice\WhisperCppTranscriber;
 use App\Contracts\TransactionCategorizer;
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\Enterprise;
 use App\Models\User;
 use App\Services\Ai\CategorySuggestion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -91,8 +93,8 @@ class VoiceDraftTest extends TestCase
             return require base_path('config/ai.php');
         } finally {
             foreach ($saved as $k => [$e, $s, $g]) {
-                $e === null ? \Illuminate\Support\Arr::forget($_ENV, $k) : $_ENV[$k] = $e;
-                $s === null ? \Illuminate\Support\Arr::forget($_SERVER, $k) : $_SERVER[$k] = $s;
+                $e === null ? Arr::forget($_ENV, $k) : $_ENV[$k] = $e;
+                $s === null ? Arr::forget($_SERVER, $k) : $_SERVER[$k] = $s;
                 $g === false ? putenv($k) : putenv("$k=$g");
             }
         }
@@ -385,5 +387,79 @@ class VoiceDraftTest extends TestCase
         config(['bookkeeping.categories.expense' => ['other' => 'أخرى']]);
         $this->stubStt('دفعت خمسين الف ليرة اجار محل اليوم');
         $this->send()->assertOk()->assertJsonPath('category_suggestion', null);
+    }
+
+    // ---- transcript input (browser speech, no whisper) ----
+
+    private function neverStt(): void
+    {
+        $this->app->instance(SpeechToText::class, new class implements SpeechToText
+        {
+            public function name(): string
+            {
+                return 'whisper';
+            }
+
+            public function transcribe(string $path, string $mimeType): ?string
+            {
+                throw new \RuntimeException('whisper must not be called for transcripts');
+            }
+        });
+    }
+
+    private function sendText(array $data, ?User $u = null, ?Enterprise $e = null)
+    {
+        return $this->actingAs($u ?? $this->sme)->post(route('ai.voice-drafts.store', $e ?? $this->enterprise), $data, ['Accept' => 'application/json']);
+    }
+
+    public function test_transcript_goes_to_parser_without_whisper(): void
+    {
+        $this->neverStt();
+        $r = $this->sendText(['transcript' => '  دفعت ايجار محل 3000 الاف لمدة 3 اشهر كل شهر الف  ', 'source' => 'browser_speech'])->assertOk();
+        $d = $r->json('draft');
+        $this->assertSame('3000', $d['suggested_amount']);
+        $this->assertCount(1, $d['suggested_items']);
+        $this->assertEquals(3, $d['suggested_items'][0]['quantity']);
+        $this->assertEquals(1000, $d['suggested_items'][0]['unit_price']);
+        $this->assertArrayHasKey('items_mismatch', $d);
+        $this->assertArrayHasKey('suggested_amount_warning', $d);
+        $this->assertSame('browser_speech', $d['input_source']);
+        $this->assertSame('voice', $d['source']);
+        $this->assertSame('دفعت ايجار محل 3000 الاف لمدة 3 اشهر كل شهر الف', $d['raw_text']);
+        $log = AuditLog::query()->where('action', 'ai.voice_draft.created')->latest('id')->first();
+        $this->assertSame('browser_speech', $log->context['input_source']);
+    }
+
+    public function test_transcript_validation(): void
+    {
+        $this->neverStt();
+        $this->sendText(['transcript' => 'دفعت الف', 'source' => 'browser_speech', 'audio' => $this->audio()])->assertStatus(422);
+        $this->sendText([])->assertStatus(422)->assertJsonValidationErrors(['audio', 'transcript']);
+        $this->sendText(['transcript' => str_repeat('ا', 1001), 'source' => 'browser_speech'])->assertStatus(422)->assertJsonValidationErrors('transcript');
+        $this->sendText(['transcript' => '   ', 'source' => 'browser_speech'])->assertStatus(422);
+        $this->sendText(['transcript' => 'دفعت الف'])->assertStatus(422)->assertJsonValidationErrors('source');
+        $this->sendText(['transcript' => 'دفعت الف', 'source' => 'whisper'])->assertStatus(422)->assertJsonValidationErrors('source');
+        $this->sendText(['transcript' => str_repeat('ا', 1000), 'source' => 'browser_speech'])->assertOk();
+    }
+
+    public function test_transcript_access_flag_and_rate_limit(): void
+    {
+        $this->neverStt();
+        $ok = ['transcript' => 'دفعت الف', 'source' => 'browser_speech'];
+        $other = Enterprise::query()->create(['business_name' => 'أخرى', 'location' => 'damascus']);
+        $this->sendText($ok, null, $other)->assertForbidden();
+        $this->sendText($ok, $this->userWithRole(UserRole::SmeUser))->assertForbidden();
+        config(['ai.voice.enabled' => false]);
+        $this->sendText($ok)->assertNotFound();
+    }
+
+    public function test_transcript_shares_voice_rate_limit(): void
+    {
+        $this->neverStt();
+        $ok = ['transcript' => 'دفعت الف', 'source' => 'browser_speech'];
+        for ($i = 0; $i < 10; $i++) {
+            $this->sendText($ok)->assertOk();
+        }
+        $this->sendText($ok)->assertStatus(429);
     }
 }

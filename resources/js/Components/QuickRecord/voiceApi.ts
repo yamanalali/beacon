@@ -2,8 +2,16 @@ import { handleInertiaConflict } from "../../lib/inertiaConflict";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
 import type { CategorySuggestion, TransactionDraft } from "../Transactions/ReviewForm";
 
+/** Where the voice text came from: whisper on the server, or the browser's speech API. */
+export type VoiceInputSource = "audio" | "browser_speech";
+
+/** Body for POST voice-drafts: EITHER an `audio` file OR a `transcript` (max 1000 chars) with `source`. */
+export type VoiceTranscriptRequest = { transcript: string; source: Exclude<VoiceInputSource, "audio"> };
+
+export const VOICE_TRANSCRIPT_MAX = 1000;
+
 export type VoiceDraftResponse = {
-    draft: TransactionDraft & { raw_text?: string | null; source?: string };
+    draft: TransactionDraft & { raw_text?: string | null; source?: string; input_source?: VoiceInputSource };
     type: string;
     transaction_type_options?: { value: string; label: string }[];
     category_suggestion: CategorySuggestion;
