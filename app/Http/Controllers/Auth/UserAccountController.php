@@ -56,7 +56,9 @@ class UserAccountController extends Controller
                 'value' => $role->value,
                 'label' => $role->label(),
             ])->values()->all(),
-            'mfaNote' => 'التحقق بخطوتين للمدراء بانتظار قرار تشغيلي من بيكون.',
+            'mfaNote' => config('mfa.enabled')
+                ? 'التحقق بخطوتين مفعّل للمدراء. على كل مدير تفعيله من صفحة التحقق بخطوتين في حسابه.'
+                : 'التحقق بخطوتين للمدراء غير مفعّل حالياً بانتظار قرار تشغيلي من بيكون.',
         ]);
     }
 
