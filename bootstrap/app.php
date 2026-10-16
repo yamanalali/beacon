@@ -24,5 +24,25 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Custom Arabic error pages (Inertia). JSON requests keep JSON errors.
+        // 500 falls back to the debug page only when APP_DEBUG is on, so no technical details reach users.
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
+            $status = $response->getStatusCode();
+
+            if ($request->expectsJson() || ! in_array($status, [403, 404, 419, 429, 500, 503], true)) {
+                return $response;
+            }
+
+            if ($status === 500 && config('app.debug')) {
+                return $response;
+            }
+
+            $user = $request->user();
+
+            return \Inertia\Inertia::render('Errors/ErrorPage', [
+                'status' => $status,
+                'homeUrl' => $user ? route('home') : route('login'),
+                'isGuest' => $user === null,
+            ])->toResponse($request)->setStatusCode($status);
+        });
     })->create();
