@@ -3,6 +3,7 @@ import { SectionCard } from "../Common/SectionCard";
 import { EmptyState } from "../Feedback/EmptyState";
 import { StatusBadge } from "../Feedback/StatusBadge";
 import { formatMoney } from "../../lib/money";
+import type { ReferralCurrencyTotals, ReferralDocument } from "../../types/referrals";
 
 /**
  * Readable referral package (ReferralPackageBuilder output). Never renders raw JSON, technical keys or ids.
@@ -160,17 +161,18 @@ function EnterpriseCard({ data }: { data: Record<string, unknown> }) {
     for (const [k, v] of Object.entries(data)) {
         if (k.endsWith("_label")) continue;
         const label = data[`${k}_label`];
-        obj[k] = typeof label === "string" && label.trim() ? label : v;
+        const hasLabel = typeof label === "string" && label.trim() !== "";
+        // A code with a label key but no label shows «—», never the raw code (both empty: hidden).
+        obj[k] = hasLabel ? label : `${k}_label` in data && !isEmpty(v) ? "—" : v;
     }
     return <SectionCard title={SECTION_TITLES.enterprise_profile}><Lines obj={obj} /></SectionCard>;
 }
 
-type CurrencyTotals = { currency: string; income_total: string | number; expense_total: string | number; net: string | number; transaction_count: number };
 
 /** One card per currency, SYP first; never converted. */
 export function FinancialSummary({ data }: { data: Record<string, unknown> }) {
     const period = isPlainObject(data.period) ? (data.period as { from?: string; to?: string }) : null;
-    const rows = (Array.isArray(data.currencies) ? data.currencies : []).filter(isPlainObject) as unknown as CurrencyTotals[];
+    const rows = (Array.isArray(data.currencies) ? data.currencies : []).filter(isPlainObject) as unknown as ReferralCurrencyTotals[];
     const sorted = [...rows].sort((a, b) => (a.currency === "SYP" ? -1 : b.currency === "SYP" ? 1 : a.currency.localeCompare(b.currency)));
     return (
         <SectionCard title={SECTION_TITLES.financial_summary}>
@@ -202,7 +204,7 @@ export function FinancialSummary({ data }: { data: Record<string, unknown> }) {
     );
 }
 
-type Doc = { name: string; type: string | null; date: string | null };
+type Doc = ReferralDocument;
 type SortKey = "name" | "type" | "date";
 
 /** Sortable table on md+, cards on mobile. Default: newest first (server order). */
