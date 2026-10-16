@@ -2,7 +2,7 @@ import type { FormEvent } from "react";
 import { SelectInput } from "../Forms/SelectInput";
 import { TextInput } from "../Forms/TextInput";
 import type { BookkeepingOptions, SuggestedTransactionItem } from "../../types/bookkeeping";
-import { ItemsEditor, rowsFromSuggested, toItemsPayload, type ItemRow } from "./ItemsEditor";
+import { ItemsEditor, MismatchNote, itemsMismatch, itemsTotal, rowsFromSuggested, toItemsPayload, type ItemRow } from "./ItemsEditor";
 import { Money } from "../Common/Money";
 import { parseAmount } from "../../lib/money";
 
@@ -134,6 +134,11 @@ export function ReviewForm({
     const missing = missingRequired(data);
     const submit = (e: FormEvent) => { e.preventDefault(); if (missing.length === 0) onSubmit(); };
     const missingLabels = missing.map((k) => (k === "currency" ? "العملة" : "التاريخ")).join("، ");
+    const amountUntouched = isPrefilled(draft.suggested_amount, data.amount);
+    const amountWarning = draft.suggested_amount_warning && draft.suggested_amount_warning.trim() !== "" && amountUntouched ? draft.suggested_amount_warning : null;
+    // Server flag only applies while amount and items are still what the server compared.
+    const itemsUntouched = JSON.stringify(toItemsPayload(data.items)) === JSON.stringify(toItemsPayload(rowsFromSuggested(draft.suggested_items)));
+    const showMismatch = itemsMismatch(data.items, data.amount, data.currency) || (draft.items_mismatch === true && amountUntouched && itemsUntouched);
 
     return (
         <form onSubmit={submit} noValidate aria-describedby="review-hint">
@@ -176,6 +181,12 @@ export function ReviewForm({
                 <div className="col-7">
                     <TextInput id="amount" name="amount" label="المبلغ" value={data.amount} onChange={(v) => setData({ amount: v })} error={errors.amount} inputMode="decimal" />
                     <Suggested show={isPrefilled(draft.suggested_amount, data.amount)} />
+                    {amountWarning ? (
+                        <div className="alert alert-warning d-flex gap-2 align-items-start py-2 px-3 mt-1 mb-2 small" role="status" data-testid="amount-warning">
+                            <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+                            <span>{amountWarning}</span>
+                        </div>
+                    ) : null}
                     {data.currency && parseAmount(data.amount) !== null ? (
                         <div className="form-text mt-n2" data-testid="amount-preview">
                             سيُحفظ: <Money amount={data.amount} currency={data.currency} />
@@ -205,7 +216,8 @@ export function ReviewForm({
             {data.payment_status === "partially_paid" ? (
                 <TextInput id="paid_amount" name="paid_amount" label="المبلغ المدفوع الآن" value={data.paid_amount} onChange={(v) => setData({ paid_amount: v })} error={errors.paid_amount} inputMode="decimal" />
             ) : null}
-            <ItemsEditor rows={data.items} onChange={(items) => setData({ items })} currency={data.currency} amount={data.amount} errors={errors} disabled={processing} />
+            {showMismatch ? <MismatchNote total={itemsTotal(data.items)} amount={data.amount} currency={data.currency} className="mb-2" testId="review-items-mismatch" /> : null}
+            <ItemsEditor rows={data.items} onChange={(items) => setData({ items })} currency={data.currency} amount={data.amount} errors={errors} disabled={processing} hideMismatch />
             <TextInput id="description" name="description" label="ملاحظة (اختياري)" value={data.description} onChange={(v) => setData({ description: v })} error={errors.description} />
             <Suggested show={isPrefilled(draft.suggested_note, data.description)} />
 
