@@ -136,6 +136,8 @@ class VoiceDraftParser
             $itemsMismatch => 'تأكد من المبلغ: مجموع البنود ('.$this->fmt($sum).') لا يساوي المبلغ المذكور ('.$amount.').',
             // «3 مية ألف» (often whisper's «3 مياه ألف»): digits before «مية» are easy to mis-hear.
             (bool) preg_match('/(?<![\d٠-٩])[\d٠-٩]+\s+مي(?:ة|ه|ات)\s+(?:ألف|الف|آلاف|الاف)/u', $normalized) => 'تأكد من المبلغ: «رقم + مية ألف» ممكن تكون انسمعت غلط، واعتُبر المبلغ '.$amount.'.',
+            // «3 شهور، كل شهر 1000» → 3000 (manager 2026-10-16): computed, so ask to confirm.
+            $items !== [] && str_contains($items[0]['description'] ?? '', '(') && $items[0]['quantity'] !== null => 'تأكد من المبلغ: انحسب '.$this->fmt((float) $items[0]['quantity']).' × '.$this->fmt((float) $items[0]['unit_price']).' = '.$amount.'.',
             $ambiguous => 'تأكد من المبلغ: صيغة الرقم مع «آلاف» غير واضحة، واعتُبر المبلغ '.$amount.'.',
             default => null,
         };
