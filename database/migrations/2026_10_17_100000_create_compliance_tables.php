@@ -21,7 +21,7 @@ return new class extends Migration
 
         Schema::create('compliance_requirement_versions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('compliance_requirement_id')->constrained('compliance_requirements')->cascadeOnDelete();
+            $table->foreignId('compliance_requirement_id')->constrained('compliance_requirements', indexName: 'crv_requirement_foreign')->cascadeOnDelete();
             $table->unsignedInteger('version_number');
             $table->string('title_ar');
             $table->text('description_ar')->nullable();
@@ -43,7 +43,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('enterprise_id')->constrained('enterprises')->cascadeOnDelete();
             $table->foreignId('compliance_requirement_id')->constrained('compliance_requirements')->cascadeOnDelete();
-            $table->foreignId('compliance_requirement_version_id')->constrained('compliance_requirement_versions');
+            $table->foreignId('compliance_requirement_version_id')->constrained('compliance_requirement_versions', indexName: 'ecr_version_foreign');
             $table->string('status')->default('not_started');
             $table->date('due_date')->nullable();
             $table->text('notes')->nullable();

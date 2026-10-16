@@ -57,7 +57,7 @@ class BeaconDashboardData
                 'overdue_compliance_count' => EnterpriseComplianceRecord::query()
                     ->whereIn('enterprise_id', $enterpriseIds())
                     ->whereNotNull('due_date')
-                    ->where('status', '!=', 'completed')
+                    ->forCurrentVersion()->where('status', '!=', 'completed')
                     ->where('due_date', '<', $today->toDateString())->count(),
                 'referrals_by_status' => collect(array_keys(Referral::STATUS_LABELS))
                     ->map(fn (string $s) => ['status' => $s, 'label' => Referral::STATUS_LABELS[$s], 'count' => (int) ($byStatus[$s] ?? 0)])

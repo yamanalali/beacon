@@ -3,19 +3,18 @@
 namespace App\Support\TwoFactor;
 
 use App\Models\User;
-use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 
 class TwoFactorService
 {
-    public function __construct(private readonly Google2FA $google2fa)
-    {
-    }
+    public function __construct(private readonly Google2FA $google2fa) {}
 
     public function enabled(): bool
     {
@@ -44,7 +43,7 @@ class TwoFactorService
     {
         $url = $this->google2fa->getQRCodeUrl((string) config('mfa.issuer'), $user->email, $secret);
 
-        $writer = new Writer(new ImageRenderer(new RendererStyle(192, 1), new SvgImageBackEnd()));
+        $writer = new Writer(new ImageRenderer(new RendererStyle(192, 1), new SvgImageBackEnd));
 
         return $writer->writeString($url);
     }
@@ -53,30 +52,31 @@ class TwoFactorService
     public function verifyCode(User $user, string $code): bool
     {
         $code = preg_replace('/\s+/', '', $code) ?? '';
-        $secret = $user->two_factor_secret;
-
-        if ($secret === null || ! preg_match('/^\d{6}$/', $code)) {
+        if (! preg_match('/^\d{6}$/', $code)) {
             return false;
         }
 
-        $timestep = $this->google2fa->verifyKeyNewer(
-            $secret,
-            $code,
-            $user->two_factor_last_timestep ?? 0,
-            (int) config('mfa.window', 1),
-        );
+        return DB::transaction(function () use ($user, $code): bool {
+            $locked = User::query()->lockForUpdate()->findOrFail($user->id);
+            $secret = $locked->two_factor_secret;
+            if ($secret === null) {
+                return false;
+            }
+            $timestep = $this->google2fa->verifyKeyNewer(
+                $secret, $code, $locked->two_factor_last_timestep ?? 0,
+                (int) config('mfa.window', 1),
+            );
+            if ($timestep === false) {
+                return false;
+            }
+            if ($timestep === true) {
+                $timestep = $this->google2fa->getTimestamp();
+            }
+            $locked->forceFill(['two_factor_last_timestep' => (int) $timestep])->save();
+            $user->refresh();
 
-        if ($timestep === false) {
-            return false;
-        }
-
-        if ($timestep === true) {
-            $timestep = $this->google2fa->getTimestamp();
-        }
-
-        $user->forceFill(['two_factor_last_timestep' => (int) $timestep])->save();
-
-        return true;
+            return true;
+        });
     }
 
     /**
@@ -103,18 +103,22 @@ class TwoFactorService
     public function useRecoveryCode(User $user, string $code): bool
     {
         $code = Str::upper(trim($code));
-        $hashes = $user->two_factor_recovery_codes ?? [];
 
-        foreach ($hashes as $index => $hash) {
-            if (Hash::check($code, $hash)) {
-                unset($hashes[$index]);
-                $user->forceFill(['two_factor_recovery_codes' => array_values($hashes)])->save();
+        return DB::transaction(function () use ($user, $code): bool {
+            $locked = User::query()->lockForUpdate()->findOrFail($user->id);
+            $hashes = $locked->two_factor_recovery_codes ?? [];
+            foreach ($hashes as $index => $hash) {
+                if (Hash::check($code, $hash)) {
+                    unset($hashes[$index]);
+                    $locked->forceFill(['two_factor_recovery_codes' => array_values($hashes)])->save();
+                    $user->refresh();
 
-                return true;
+                    return true;
+                }
             }
-        }
 
-        return false;
+            return false;
+        });
     }
 
     public function remainingRecoveryCodes(User $user): int

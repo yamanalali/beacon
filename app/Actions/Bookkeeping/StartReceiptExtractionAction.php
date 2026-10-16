@@ -10,6 +10,8 @@ use App\Models\Document;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
 use App\Models\User;
+use App\Services\Ai\ReceiptExtractionResult;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -32,44 +34,55 @@ class StartReceiptExtractionAction
 
     public function execute(User $actor, Document $document): ReceiptExtraction
     {
-        abort_unless($actor->can('create', [FinancialTransaction::class, $document->enterprise]), 403);
+        abort_unless($this->allows($actor, $document), 403);
+        abort_if($document->fresh()->financial_transaction_id !== null, 409, 'تم تسجيل عملية مالية لهذا المستند مسبقاً.');
 
         try {
             $result = $this->extractor->extract($document);
         } catch (Throwable $e) {
             // OCR failure must never block manual entry.
             Log::warning('Receipt extraction failed', ['document_id' => $document->id, 'error' => $e->getMessage()]);
-            $result = \App\Services\Ai\ReceiptExtractionResult::empty();
+            $result = ReceiptExtractionResult::empty();
         }
 
         $currencies = array_keys(config('bookkeeping.currencies'));
 
-        $extraction = new ReceiptExtraction;
-        $extraction->enterprise_id = $document->enterprise_id;
-        $extraction->document_id = $document->id;
-        $extraction->status = ExtractionStatus::PendingReview;
-        $extraction->extractor = $this->extractor->name();
-        $extraction->suggested_date = $result->transactionDate;
-        $extraction->suggested_amount = $result->amount !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $result->amount) ? $result->amount : null;
-        $extraction->suggested_currency = in_array($result->currency, $currencies, true) ? $result->currency : null;
-        $extraction->suggested_counterparty = $result->counterparty !== null ? mb_substr($result->counterparty, 0, 150) : null;
-        $hasSuggestion = ! $result->failed && ($extraction->suggested_date !== null || $extraction->suggested_amount !== null
-            || $extraction->suggested_currency !== null || $extraction->suggested_counterparty !== null);
-        // Suggestion only; null when OCR produced nothing (manual entry).
-        $extraction->suggested_transaction_type = $hasSuggestion
-            ? ($this->typeSuggester->suggest($result->rawText) ?? 'expense')
-            : null;
-        $extraction->confidence = $result->confidence;
-        // Always reviewed by a human; flag stays true unless provider is confident AND complete.
-        $extraction->needs_review = true;
-        $extraction->created_by = $actor->id;
-        $extraction->save();
+        return DB::transaction(function () use ($actor, $document, $result, $currencies): ReceiptExtraction {
+            $locked = Document::query()->lockForUpdate()->findOrFail($document->id);
+            abort_if($locked->financial_transaction_id !== null, 409, 'تم تسجيل عملية مالية لهذا المستند مسبقاً.');
+            $pending = ReceiptExtraction::query()->where('document_id', $locked->id)
+                ->where('status', ExtractionStatus::PendingReview)->latest('id')->first();
+            if ($pending !== null) {
+                return $pending;
+            }
 
-        $this->audit->record($actor, 'receipt_extraction.created', $extraction, [
-            'document_id' => $document->id,
-            'extractor' => $extraction->extractor,
-        ]);
+            $extraction = new ReceiptExtraction;
+            $extraction->enterprise_id = $document->enterprise_id;
+            $extraction->document_id = $document->id;
+            $extraction->status = ExtractionStatus::PendingReview;
+            $extraction->extractor = $this->extractor->name();
+            $extraction->suggested_date = $result->transactionDate;
+            $extraction->suggested_amount = $result->amount !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $result->amount) ? $result->amount : null;
+            $extraction->suggested_currency = in_array($result->currency, $currencies, true) ? $result->currency : null;
+            $extraction->suggested_counterparty = $result->counterparty !== null ? mb_substr($result->counterparty, 0, 150) : null;
+            $hasSuggestion = ! $result->failed && ($extraction->suggested_date !== null || $extraction->suggested_amount !== null
+                || $extraction->suggested_currency !== null || $extraction->suggested_counterparty !== null);
+            // Suggestion only; null when OCR produced nothing (manual entry).
+            $extraction->suggested_transaction_type = $hasSuggestion
+                ? ($this->typeSuggester->suggest($result->rawText) ?? 'expense')
+                : null;
+            $extraction->confidence = $result->confidence;
+            // Always reviewed by a human; flag stays true unless provider is confident AND complete.
+            $extraction->needs_review = true;
+            $extraction->created_by = $actor->id;
+            $extraction->save();
 
-        return $extraction;
+            $this->audit->record($actor, 'receipt_extraction.created', $extraction, [
+                'document_id' => $document->id,
+                'extractor' => $extraction->extractor,
+            ]);
+
+            return $extraction;
+        });
     }
 }

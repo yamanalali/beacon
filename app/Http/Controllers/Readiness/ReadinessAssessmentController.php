@@ -174,9 +174,9 @@ class ReadinessAssessmentController extends Controller
             return ['missing', null];
         }
         $record = EnterpriseComplianceRecord::query()->where('enterprise_id', $enterprise->id)->where('compliance_requirement_id', $requirementId)->first();
-        $versionId = $record?->compliance_requirement_version_id ?? ComplianceRequirement::query()->find($requirementId)?->currentVersion()?->id;
+        $versionId = ComplianceRequirement::query()->find($requirementId)?->currentVersion()?->id;
 
-        if ($record === null) {
+        if ($record === null || $record->compliance_requirement_version_id !== $versionId) {
             return ['missing', $versionId];
         }
 

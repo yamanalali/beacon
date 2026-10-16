@@ -26,7 +26,7 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['enterprise_id', 'status', 'transaction_date']);
+            $table->index(['enterprise_id', 'status', 'transaction_date'], 'ft_enterprise_status_date_index');
             $table->index(['enterprise_id', 'type']);
         });
 
@@ -42,7 +42,7 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
-            $table->index(['financial_transaction_id', 'settlement_date']);
+            $table->index(['financial_transaction_id', 'settlement_date'], 'ts_transaction_date_index');
         });
     }
 

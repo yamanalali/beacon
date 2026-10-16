@@ -101,7 +101,9 @@ class FinancialReportTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertSame([['SYP', '150.00', '0.00', '150.00']], $this->report('income_statement')[0]['rows']);
-        $this->assertSame(['SYP', '150.00', '0.00', '150.00'], $this->report('cash_flow')[0]['rows'][0]);
+        // Correcting the invoice does not invent the additional 50 in cash.
+        $this->assertSame(['SYP', '100.00', '0.00', '100.00'], $this->report('cash_flow')[0]['rows'][0]);
+        $this->assertSame([['SYP', '50.00']], $this->report('receivables')[0]['rows']);
     }
 
     public function test_exports_download_csv_and_xlsx_and_are_audited(): void

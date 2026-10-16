@@ -64,11 +64,11 @@ class AiPagesTest extends TestCase
     {
         $u = $this->userWithRole(UserRole::SmeUser);
         $this->actingAs($u)->get(route('ai.pages.assistant'))->assertInertia(fn (Page $p) => $p
-            ->component('Ai/Assistant', false)->where('ai_available', false)->where('can_escalate', true)->has('question_max_length'));
+            ->component('Ai/Assistant')->where('ai_available', false)->where('can_escalate', true)->has('question_max_length'));
 
         config(['ai.driver' => 'fake']);
         $this->approveAiSharing();
-        $this->get(route('ai.pages.assistant'))->assertInertia(fn (Page $p) => $p->component('Ai/Assistant', false)->where('ai_available', true));
+        $this->get(route('ai.pages.assistant'))->assertInertia(fn (Page $p) => $p->component('Ai/Assistant')->where('ai_available', true));
     }
 
     public function test_escalations_scoped_paginated_and_public_ids_only(): void
@@ -79,14 +79,14 @@ class AiPagesTest extends TestCase
         $theirs = $this->escalationFor($other);
 
         $res = $this->actingAs($sme)->get(route('ai.pages.escalations.index'));
-        $res->assertInertia(fn (Page $p) => $p->component('Ai/Escalations/Index', false)
+        $res->assertInertia(fn (Page $p) => $p->component('Ai/Escalations/Index')
             ->has('escalations', fn (Page $e) => $e->has('data', 1)->has('links')->has('meta')
                 ->where('data.0.id', $mine->public_id)->has('data.0', fn (Page $r) => $r->hasAll(['id', 'question', 'status', 'created_at'])))
             ->where('can_escalate', true)->has('filters'));
         $this->assertNoNumericIds($res->viewData('page')['props']);
 
         $this->get(route('ai.pages.escalations.show', $mine->public_id))->assertInertia(fn (Page $p) => $p
-            ->component('Ai/Escalations/Show', false)->where('escalation.id', $mine->public_id)->has('escalation.enterprise_id'));
+            ->component('Ai/Escalations/Show')->where('escalation.id', $mine->public_id)->has('escalation.enterprise_id'));
         $this->get(route('ai.pages.escalations.show', $theirs->public_id))->assertForbidden();
         $this->get('/ai/pages/escalations/'.$mine->id)->assertNotFound();
 
@@ -101,14 +101,14 @@ class AiPagesTest extends TestCase
         $this->article('draft', ['title' => 'مسودة']);
 
         $res = $this->actingAs($this->userWithRole(UserRole::SmeUser))->get(route('ai.pages.knowledge.published'));
-        $res->assertInertia(fn (Page $p) => $p->component('Ai/Knowledge/Published', false)
+        $res->assertInertia(fn (Page $p) => $p->component('Ai/Knowledge/Published')
             ->has('articles.data', 1)->where('articles.data.0.id', $pub->public_id)->missing('articles.data.0.status')
             ->has('articles.links')->has('articles.meta.total')->has('topics')->has('filters')
             ->where('can_manage', false)->where('ai_available', false));
         $this->assertNoNumericIds($res->viewData('page')['props']);
 
         $res = $this->actingAs($this->userWithRole(UserRole::BeaconAdmin))->get(route('ai.pages.knowledge.index', ['status' => 'draft']));
-        $res->assertInertia(fn (Page $p) => $p->component('Ai/Knowledge/Index', false)
+        $res->assertInertia(fn (Page $p) => $p->component('Ai/Knowledge/Index')
             ->has('articles.data', 1)->where('articles.data.0.status', 'draft')->has('statuses')->has('topics')
             ->where('can_manage', true)->where('filters.status', 'draft'));
         $this->assertNoNumericIds($res->viewData('page')['props']);
@@ -123,7 +123,7 @@ class AiPagesTest extends TestCase
         $other->notify($n);
 
         $res = $this->actingAs($me)->get(route('notifications.page'));
-        $res->assertInertia(fn (Page $p) => $p->component('Notifications/Index', false)
+        $res->assertInertia(fn (Page $p) => $p->component('Notifications/Index')
             ->has('notifications.data', 1)->has('notifications.links')->has('notifications.meta')
             ->where('unread_count', 1)->has('notifications.data.0', fn (Page $r) => $r->hasAll(['id', 'data', 'read_at', 'created_at'])));
         $this->assertNoNumericIds($res->viewData('page')['props']);

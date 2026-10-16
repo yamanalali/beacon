@@ -32,7 +32,7 @@ class ComplianceDeadlineReminderService
         EnterpriseComplianceRecord::query()
             ->with('version')
             ->whereNotNull('due_date')
-            ->where('status', '!=', 'completed')
+            ->forCurrentVersion()->where('status', '!=', 'completed')
             ->whereBetween('due_date', [$today->toDateString(), $until->toDateString()])
             ->orderBy('id')
             ->chunkById(200, function (Collection $records) use (&$sent) {

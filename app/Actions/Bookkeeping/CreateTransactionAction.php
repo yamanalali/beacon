@@ -26,8 +26,26 @@ class CreateTransactionAction
         abort_unless($actor->can('create', [FinancialTransaction::class, $enterprise]), 403);
 
         $amountMinor = Money::toMinor($data['amount']);
-        $paymentStatus = PaymentStatus::from($data['payment_status']);
-        $paidMinor = $this->initialPaidMinor($paymentStatus, $amountMinor, $data['paid_amount'] ?? null);
+        if ($corrects !== null) {
+            // A correction versions the invoice, not the cash payments. Never
+            // invent a replacement payment dated on the invoice date.
+            $corrects->loadMissing('settlements');
+            $paidMinor = $corrects->settledMinor();
+            if ($amountMinor <= 0 || $amountMinor < $paidMinor) {
+                throw ValidationException::withMessages(['amount' => 'يجب أن يكون المبلغ أكبر من صفر ولا يقل عن الدفعات المسجلة ('.Money::fromMinor($paidMinor).').']);
+            }
+            foreach (['currency', 'type'] as $field) {
+                $previous = $field === 'type' ? $corrects->type->value : $corrects->currency;
+                if ($paidMinor > 0 && $data[$field] !== $previous) {
+                    throw ValidationException::withMessages([$field => 'لا يمكن تغيير العملة أو نوع العملية بعد تسجيل دفعات عليها.']);
+                }
+            }
+            $paymentStatus = $paidMinor === 0 ? PaymentStatus::Unpaid
+                : ($paidMinor === $amountMinor ? PaymentStatus::Paid : PaymentStatus::PartiallyPaid);
+        } else {
+            $paymentStatus = PaymentStatus::from($data['payment_status']);
+            $paidMinor = $this->initialPaidMinor($paymentStatus, $amountMinor, $data['paid_amount'] ?? null);
+        }
 
         return DB::transaction(function () use ($actor, $enterprise, $data, $corrects, $reason, $amountMinor, $paymentStatus, $paidMinor): FinancialTransaction {
             $transaction = new FinancialTransaction;
@@ -46,7 +64,16 @@ class CreateTransactionAction
             $transaction->created_by = $actor->id;
             $transaction->save();
 
-            if ($paidMinor > 0) {
+            if ($corrects !== null) {
+                foreach ($corrects->settlements as $originalSettlement) {
+                    // Keep the superseded version's history, dates, author and notes.
+                    $settlement = $originalSettlement->replicate();
+                    $settlement->financial_transaction_id = $transaction->id;
+                    $settlement->created_at = $originalSettlement->created_at;
+                    $settlement->updated_at = $originalSettlement->updated_at;
+                    $settlement->save();
+                }
+            } elseif ($paidMinor > 0) {
                 $settlement = new TransactionSettlement;
                 $settlement->financial_transaction_id = $transaction->id;
                 $settlement->settlement_date = $data['transaction_date'];
@@ -63,6 +90,7 @@ class CreateTransactionAction
                 'currency' => $transaction->currency,
                 'payment_status' => $paymentStatus->value,
                 'corrects_transaction_id' => $corrects?->id,
+                'preserved_settlement_ids' => $corrects?->settlements->modelKeys() ?? [],
             ]);
 
             return $transaction;
