@@ -27,7 +27,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Scoring matrix v2 admin (BEACON_ADMIN): pillars, typed criteria, score bands, reorder, duplicate, export/import, preview.
  * Only draft rule sets can change; published/retired sets answer 422. Preview never writes.
- * TODO: BUSINESS DECISION REQUIRED - the actual pillars, weights, min scores and bands are entered by Beacon.
+ * Decision: pillars, weights, min scores and bands are entered by the Beacon admin only (no hardcoded values); bands are required to publish.
  */
 class ReadinessMatrixController extends Controller
 {
@@ -207,7 +207,7 @@ class ReadinessMatrixController extends Controller
             $pillarIds = [];
             foreach ($definition['pillars'] ?? [] as $i => $p) {
                 $pillarIds[$p['code']] = $set->pillars()->create([
-                    'code' => $p['code'], 'label_ar' => $p['label_ar'], 'weight' => $p['weight'],
+                    'code' => $p['code'], 'label_ar' => $p['label_ar'], 'weight' => $p['weight'] ?? 0,
                     'min_score' => $p['min_score'] ?? null, 'sort_order' => $p['sort_order'] ?? $i,
                 ])->id;
             }

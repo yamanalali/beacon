@@ -49,7 +49,7 @@ class ReadinessRuleSetValidator
     }
 
     /** @return array<string, list<string>> errors keyed by field path (empty = valid) */
-    public static function errors(array $def, bool $requireCriteria = true): array
+    public static function errors(array $def, bool $requireCriteria = true, bool $forPublish = false): array
     {
         $errors = [];
         $add = function (string $key, string $message) use (&$errors): void {
@@ -71,8 +71,8 @@ class ReadinessRuleSetValidator
             if (! is_string($p['label_ar'] ?? null) || trim($p['label_ar']) === '') {
                 $add("pillars.$i.label_ar", 'اسم المحور مطلوب.');
             }
-            if (! is_numeric($p['weight'] ?? null) || (float) $p['weight'] <= 0) {
-                $add("pillars.$i.weight", 'وزن المحور يجب أن يكون أكبر من صفر.');
+            if (($p['weight'] ?? null) !== null && (! is_numeric($p['weight']) || (float) $p['weight'] < 0)) {
+                $add("pillars.$i.weight", 'وزن المحور لا يمكن أن يكون سالباً.'); // 0/empty = equal default weight
             }
             $min = $p['min_score'] ?? null;
             if ($min !== null && (! is_numeric($min) || $min < 0 || $min > 100)) {
@@ -110,6 +110,11 @@ class ReadinessRuleSetValidator
             foreach (self::configErrors($c['type'] ?? ReadinessCriterion::TYPE_BOOLEAN, $c['config'] ?? null) as $message) {
                 $add("criteria.$i.config", $message);
             }
+        }
+
+        // Decision: publishing without score bands is forbidden; preview and import (creates a draft) still allow it.
+        if ($forPublish && array_values($def['bands'] ?? []) === []) {
+            $add('bands', 'لا يمكن نشر القواعد بدون نطاقات تصنيف.');
         }
 
         foreach (self::bandErrors(array_values($def['bands'] ?? [])) as $key => $messages) {
@@ -218,7 +223,7 @@ class ReadinessRuleSetValidator
     }
 
     /**
-     * Score bands are optional (TODO: BUSINESS DECISION REQUIRED - Beacon provides them); when present they must
+     * Score bands are entered by the admin and are required to publish (see errors($forPublish)); when present they must
      * cover 0..100 with no gap larger than the score resolution (0.01) and no overlap.
      *
      * @return array<string, list<string>>

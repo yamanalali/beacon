@@ -17,9 +17,9 @@ use App\Models\ReadinessRuleSet;
  *
  * Legacy rule sets (no pillars, boolean criteria) produce exactly the v1 score: earned weight / counted weight x 100.
  *
- * TODO: BUSINESS DECISION REQUIRED - Beacon must approve the scoring method, pillar weights, min scores and bands.
- * TODO: BUSINESS DECISION REQUIRED - weight of the implicit pillar (criteria without a pillar) when real pillars also exist.
- *   Current behaviour: the implicit pillar weighs the sum of its counted criteria weights.
+ * Decision (manager, BEACON-DECISIONS.md): weights, min scores and bands come only from admin data; nothing is hardcoded.
+ * Decision: default pillar weight - a pillar without an admin weight (0/null, incl. the implicit pillar of criteria with no
+ *   pillar) gets an equal share: weight 1 when no pillar has a weight, otherwise the average of the admin-set pillar weights.
  */
 class ReadinessScorer
 {
@@ -239,11 +239,13 @@ class ReadinessScorer
 
         uasort($pillars, fn ($a, $b) => $a['meta']['sort'] <=> $b['meta']['sort']);
 
-        // Implicit pillar weight: 1 when alone, otherwise its counted criteria weight (TODO: BUSINESS DECISION REQUIRED).
+        // Default pillar weight (decision): pillars without an admin weight get an equal share.
         $onlyImplicit = array_keys($pillars) === [self::IMPLICIT_PILLAR];
+        $setWeights = array_values(array_filter(array_map(fn ($p) => $p['meta']['weight'], $pillars), fn ($w) => $w !== null && $w > 0));
+        $defaultWeight = $setWeights === [] ? 1.0 : array_sum($setWeights) / count($setWeights);
         foreach ($pillars as $key => &$p) {
-            if ($key === self::IMPLICIT_PILLAR) {
-                $p['meta']['weight'] = $onlyImplicit ? 1.0 : $p['counted'];
+            if ($p['meta']['weight'] === null || $p['meta']['weight'] <= 0) {
+                $p['meta']['weight'] = $defaultWeight;
             }
             $p['score_raw'] = $p['counted'] > 0 ? $p['earned'] / $p['counted'] * 100 : null;
         }

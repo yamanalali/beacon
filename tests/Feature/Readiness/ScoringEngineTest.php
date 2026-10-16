@@ -98,6 +98,28 @@ class ScoringEngineTest extends TestCase
         $this->assertSame([['code' => 'b', 'label_ar' => 'معيار b', 'potential_gain' => 25.0]], $result['improvements']);
     }
 
+    public function test_pillars_without_admin_weight_get_an_equal_share(): void
+    {
+        // No pillar weight set: all equal.
+        $set = $this->draft();
+        $fin = $set->pillars()->create(['code' => 'fin', 'label_ar' => 'fin', 'weight' => 0, 'sort_order' => 1]);
+        $ops = $set->pillars()->create(['code' => 'ops', 'label_ar' => 'ops', 'weight' => 0, 'sort_order' => 2]);
+        $a = $this->criterion($set, 'a', 1, ['readiness_pillar_id' => $fin->id]);
+        $b = $this->criterion($set, 'b', 9, ['readiness_pillar_id' => $ops->id]);
+        $result = $this->scorer()->evaluateAnswers($set, [$a->id => ['outcome' => 'met'], $b->id => ['outcome' => 'not_met']]);
+        $this->assertEquals(50.0, $result['score']);
+
+        // One pillar weighted by the admin: the unweighted one gets the average admin weight (equal share).
+        $fin->update(['weight' => 3]);
+        $result = $this->scorer()->evaluateAnswers($set->fresh(), [$a->id => ['outcome' => 'met'], $b->id => ['outcome' => 'not_met']]);
+        $this->assertEquals(50.0, $result['score']);
+
+        // Criteria without a pillar (implicit pillar) also get an equal share, not their criteria weight sum.
+        $c = $this->criterion($set, 'c', 100);
+        $result = $this->scorer()->evaluateAnswers($set->fresh(), [$a->id => ['outcome' => 'met'], $b->id => ['outcome' => 'not_met'], $c->id => ['outcome' => 'met']]);
+        $this->assertEqualsWithDelta(66.67, $result['score'], 0.01);
+    }
+
     public function test_band_selection_and_shared_boundary_goes_up(): void
     {
         $set = $this->draft();

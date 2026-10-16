@@ -235,7 +235,7 @@ class ScoringMatrixAdminTest extends TestCase
         $this->actingAs($this->admin)->post(route('admin.readiness.publish', $set))->assertSessionHasErrors('bands'); // overlap
 
         $set->bands()->where('min', 40)->update(['min' => 50.01]);
-        $set->pillars()->where('code', 'ops')->update(['weight' => 0]);
+        $set->pillars()->where('code', 'ops')->update(['weight' => -5]); // 0 = equal default weight, negative is invalid
         $set->criteria()->where('code', 'books')->update(['weight' => 0]);
         $set->criteria()->where('code', 'margin')->update(['config' => json_encode(['bands' => [['min' => 0, 'max' => 20, 'points' => 1], ['min' => 10, 'max' => 30, 'points' => 2]]])]);
         $this->actingAs($this->admin)->post(route('admin.readiness.publish', $set))
@@ -246,6 +246,30 @@ class ScoringMatrixAdminTest extends TestCase
         $set->criteria()->where('code', 'margin')->update(['config' => json_encode(['bands' => [['min' => 0, 'max' => 20, 'points' => 1], ['min' => 20.5, 'max' => 30, 'points' => 2]]])]);
         $this->actingAs($this->admin)->post(route('admin.readiness.publish', $set))->assertSessionHasNoErrors()->assertRedirect();
         $this->assertSame('published', $set->fresh()->status);
+    }
+
+    public function test_publish_without_bands_is_forbidden_but_preview_and_import_allow_it(): void
+    {
+        $source = $this->fullDraft();
+        $export = $this->actingAs($this->admin)->get(route('admin.readiness.export', $source))->json();
+        $source->bands()->delete();
+
+        $this->actingAs($this->admin)->post(route('admin.readiness.publish', $source))->assertSessionHasErrors('bands');
+        $this->assertSame('draft', $source->fresh()->status);
+        $errors = session('errors')->get('bands');
+        $this->assertSame([json_decode('"\u0644\u0627 \u064a\u0645\u0643\u0646 \u0646\u0634\u0631 \u0627\u0644\u0642\u0648\u0627\u0639\u062f \u0628\u062f\u0648\u0646 \u0646\u0637\u0627\u0642\u0627\u062a \u062a\u0635\u0646\u064a\u0641."')], $errors);
+
+        $ids = $source->criteria()->pluck('id', 'code');
+        $this->actingAs($this->admin)->postJson(route('admin.readiness.preview', $source), ['answers' => [
+            ['criterion_id' => $ids['books'], 'outcome' => 'met'],
+        ]])->assertOk()->assertJsonPath('evaluation.band', null);
+
+        $export['bands'] = [];
+        $source->update(['status' => ReadinessRuleSet::STATUS_RETIRED]); // only one draft may exist
+        $this->actingAs($this->admin)->post(route('admin.readiness.import'), ['definition' => $export])->assertRedirect()->assertSessionHasNoErrors();
+        $imported = ReadinessRuleSet::query()->where('version_number', 2)->firstOrFail();
+        $this->assertSame(ReadinessRuleSet::STATUS_DRAFT, $imported->status);
+        $this->assertSame(0, $imported->bands()->count());
     }
 
     public function test_preview_evaluates_without_writes(): void

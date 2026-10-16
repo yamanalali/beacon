@@ -109,7 +109,7 @@ class ReadinessAdminController extends Controller
         abort_if($ruleSet->status !== ReadinessRuleSet::STATUS_DRAFT, 422, 'النسخة منشورة مسبقاً.');
         abort_if($ruleSet->criteria()->count() === 0, 422, 'لا يمكن نشر قواعد بدون معايير.');
         // Same checks as JSON import and preview: weights > 0, valid type config, bands 0..100 without gaps/overlap.
-        $errors = ReadinessRuleSetValidator::errors(ReadinessRuleSetValidator::definition($ruleSet));
+        $errors = ReadinessRuleSetValidator::errors(ReadinessRuleSetValidator::definition($ruleSet), forPublish: true);
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
