@@ -75,7 +75,7 @@ class ReceiptLineItemsDraftTest extends TestCase
                     ['description' => 'كابل شبكة', 'quantity' => null, 'unit_price' => null, 'total' => 1500.5],
                     ['description' => 'x', 'quantity' => null, 'unit_price' => null, 'total' => null],
                 ])
-                ->where('extraction.items_total_mismatch', null) // one total unread: can't check
+                ->where('extraction.items_mismatch', false) // one total unread: can't check
                 ->where('extraction.suggested_invoice_number', '4521')
                 ->where('suggested_transaction_type', 'income'));
 
@@ -91,7 +91,8 @@ class ReceiptLineItemsDraftTest extends TestCase
 
         $this->actingAs($this->sme)->get(route('extractions.show', $extraction))
             ->assertInertia(fn (Assert $page) => $page
-                ->where('extraction.items_total_mismatch', true)
+                ->where('extraction.items_mismatch', true)
+                ->whereType('extraction.suggested_amount_warning', 'string')
                 ->where('extraction.suggested_invoice_number', null));
         $this->assertSame('pending_review', $extraction->status->value);
         $this->assertDatabaseCount('financial_transactions', 0);
@@ -105,7 +106,7 @@ class ReceiptLineItemsDraftTest extends TestCase
         $this->actingAs($this->sme)->get(route('extractions.show', ReceiptExtraction::query()->sole()))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('extraction.suggested_items', [])
-                ->where('extraction.items_total_mismatch', null));
+                ->where('extraction.items_mismatch', false));
     }
 
     public function test_no_items_and_no_total_gives_null_amount_with_warning(): void
@@ -128,7 +129,7 @@ class ReceiptLineItemsDraftTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('extraction.suggested_amount', null)
                 ->where('extraction.suggested_items', [])
-                ->whereType('extraction.amount_warning', 'string'));
+                ->whereType('extraction.suggested_amount_warning', 'string'));
         $this->assertDatabaseCount('financial_transactions', 0);
     }
 }

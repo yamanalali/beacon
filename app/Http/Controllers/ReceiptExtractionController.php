@@ -105,12 +105,16 @@ class ReceiptExtractionController extends Controller
                 'suggested_invoice_number' => $extraction->suggested_invoice_number,
                 // [{description, quantity, unit_price, total}], unread values null; [] when none.
                 'suggested_items' => $items = array_values($extraction->suggested_items ?? []),
-                // Warning only (never blocks saving): items don't add up to the amount; null = can't check.
-                'items_total_mismatch' => (new ReceiptLineItemParser)->totalsMismatch($items, $extraction->suggested_amount),
+                // Warning only (never blocks saving): items don't add up to the amount (false when it can't be checked).
+                // Same names as the voice draft, read by ReviewForm.
+                'items_mismatch' => (new ReceiptLineItemParser)->totalsMismatch($items, $extraction->suggested_amount) === true,
                 // No «الإجمالي» line read and no items to add up: the user must type the amount.
-                'amount_warning' => $extraction->status === ExtractionStatus::PendingReview && $extraction->suggested_amount === null && $extraction->extractor !== 'manual'
-                    ? 'لم نتمكن من قراءة الإجمالي من الفاتورة، أدخل المبلغ يدوياً.'
-                    : null,
+                'suggested_amount_warning' => $extraction->status !== ExtractionStatus::PendingReview || $extraction->extractor === 'manual' ? null
+                    : ($extraction->suggested_amount === null
+                        ? 'لم نتمكن من قراءة الإجمالي من الفاتورة، أدخل المبلغ يدوياً.'
+                        : ((new ReceiptLineItemParser)->totalsMismatch($items, $extraction->suggested_amount) === true
+                            ? 'مجموع البنود لا يساوي الإجمالي (قد يكون بسبب ضريبة أو خصم)، تأكد من المبلغ.'
+                            : null)),
                 'document' => DocumentController::row($extraction->document),
                 'confirmed_transaction_public_id' => $extraction->confirmedTransaction?->public_id,
             ],
