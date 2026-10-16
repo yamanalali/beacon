@@ -26,7 +26,9 @@ trait AiTestHelpers
             'operations.data_processors.ocr.approved' => $approved,
             'operations.data_processors.ocr.allowed_data' => ['receipt_image'],
             'operations.data_processors.ai_assistant.approved' => $approved,
-            'operations.data_processors.ai_assistant.allowed_data' => ['transaction_type', 'transaction_description', 'counterparty', 'user_question', 'approved_knowledge', 'aggregate_financial_figures'],
+            'operations.data_processors.ai_assistant.allowed_data' => ['transaction_type', 'transaction_description', 'counterparty', 'user_question', 'approved_knowledge'],
+            'operations.data_processors.insights.approved' => $approved,
+            'operations.data_processors.insights.allowed_data' => ['aggregate_financial_figures'],
         ]);
     }
 
