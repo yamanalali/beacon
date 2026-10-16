@@ -36,7 +36,7 @@ class ReceiptExtractionTest extends TestCase
         $this->sme = User::factory()->create(['role' => UserRole::SmeUser]);
         $this->enterprise->members()->attach($this->sme->id);
         $this->actingAs($this->sme)->post(route('enterprises.documents.store', $this->enterprise), [
-            'file' => UploadedFile::fake()->image('receipt.jpg'),
+            'file' => UploadedFile::fake()->create('receipt.jpg', 50, 'image/jpeg'),
         ]);
         $this->document = Document::query()->sole();
     }
