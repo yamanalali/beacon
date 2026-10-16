@@ -4,6 +4,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { DocumentUploader } from "../../Components/Documents/DocumentUploader";
+import { ReceiptCapture } from "../../Components/Documents/ReceiptCapture";
 import type { DocumentRow, EnterpriseRef } from "../../types/bookkeeping";
 
 const columns = (canExtract: boolean): Column<DocumentRow>[] => [
@@ -70,6 +71,11 @@ export default function Index({
                         العودة إلى ملف المنشأة
                     </Link>
                 </div>
+                {can_upload && can_extract ? (
+                    <SectionCard title="تسجيل عملية من إيصال">
+                        <ReceiptCapture enterpriseId={enterprise.public_id} currentIds={documents.data.map((d) => d.public_id)} />
+                    </SectionCard>
+                ) : null}
                 <div className="row g-3">
                     {can_upload ? (
                         <div className="col-12 col-lg-4">
