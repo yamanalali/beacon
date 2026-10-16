@@ -4,8 +4,13 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::middleware('auth')->group(function () {
-    Route::get('/', function () {
-        return Inertia::render('Dashboard/Index');
+    Route::get('/', function (Illuminate\Http\Request $request) {
+        // Role-based landing. MFI and technical admin keep the current home until their screens exist.
+        return match ($request->user()->role) {
+            App\Enums\UserRole::SmeUser => redirect()->route('dashboard.sme'),
+            App\Enums\UserRole::BeaconAdmin, App\Enums\UserRole::BeaconAdvisor => redirect()->route('dashboard.beacon'),
+            default => Inertia::render('Dashboard/Index'),
+        };
     })->name('home');
 });
 
