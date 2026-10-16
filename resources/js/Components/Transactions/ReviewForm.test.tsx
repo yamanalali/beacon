@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReviewForm, withInvoicePrefix, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, reviewPayload, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
+import { ReviewForm, withInvoicePrefix, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, reviewPayload, missingRequired, localToday, withVoiceDefaultDate, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
 
 const options: BookkeepingOptions = {
@@ -373,5 +373,25 @@ describe("suggested_date_warning (#87)", () => {
         fireEvent.submit(container.querySelector("form")!);
         expect(onSubmit).toHaveBeenCalledTimes(1);
         expect(missingRequired(onSubmit.mock.calls[0][0])).not.toContain("transaction_date");
+    });
+});
+describe("default date (Yaman 2026-10-16)", () => {
+    it("localToday uses the browser-local date, not UTC", () => {
+        expect(localToday(new Date(2026, 9, 16, 23, 59))).toBe("2026-10-16");
+        expect(localToday(new Date(2026, 0, 1, 0, 5))).toBe("2026-01-01");
+    });
+    it("voice draft without date -> today; with date -> unchanged", () => {
+        const now = new Date(2026, 9, 16, 1, 0);
+        expect(withVoiceDefaultDate({ ...empty, source: "voice" } as TransactionDraft, now)).toMatchObject({ suggested_date: "2026-10-16", date_defaulted_today: true });
+        const kept = withVoiceDefaultDate({ ...empty, source: "voice", suggested_date: "2026-01-05" } as TransactionDraft, now);
+        expect(kept.suggested_date).toBe("2026-01-05");
+        expect(kept.date_defaulted_today).toBeUndefined();
+    });
+    it("invoice extraction without date stays empty and required", () => {
+        const d = withVoiceDefaultDate({ ...read, suggested_date: null } as TransactionDraft);
+        expect(d.suggested_date).toBeNull();
+        const data = initialReviewData(d, "expense", options, null);
+        expect(data.transaction_date).toBe("");
+        expect(missingRequired(data)).toContain("transaction_date");
     });
 });

@@ -1,6 +1,6 @@
 import { router } from "@inertiajs/react";
 import { useState } from "react";
-import { ReviewForm as TransactionDraftReview, initialReviewData, reviewPayload, type ReviewFormData } from "../Transactions/ReviewForm";
+import { ReviewForm as TransactionDraftReview, initialReviewData, withVoiceDefaultDate, reviewPayload, type ReviewFormData } from "../Transactions/ReviewForm";
 import { BrowserSpeechCapture, BrowserSpeechToggle, initialSpeechEnabled } from "./BrowserSpeechCapture";
 import { getSpeechRecognition, type SpeechRecognitionCtor } from "./browserSpeech";
 import { MAX_SECONDS, useWavRecorder } from "./useWavRecorder";
@@ -24,7 +24,8 @@ export function VoiceRecorder({ voiceUrl, manualUrl, onDone, send = sendVoice, s
     const handle = (r: VoiceResult) => {
         if (!r.ok) { setPhase({ name: "error", message: r.message, unavailable: r.kind === "unavailable" }); return; }
         const d = r.data;
-        setPhase({ name: "review", res: d, data: initialReviewData(d.draft, d.type, d.options, d.category_suggestion, d.transaction_type_options) });
+        const res = { ...d, draft: withVoiceDefaultDate({ source: "voice", ...d.draft }) };
+        setPhase({ name: "review", res, data: initialReviewData(res.draft, d.type, d.options, d.category_suggestion, d.transaction_type_options) });
     };
 
     const finish = async () => {
