@@ -4,6 +4,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
+import { QuickRecordButton } from "../../Components/QuickRecord/QuickRecord";
 
 /**
  * Simple SME personal dashboard (§40). Summarizes existing information only; no new metrics or scoring.
@@ -54,6 +55,9 @@ export default function Sme({
                     title="ملخص منشأتك"
                     description="آخر النشاطات وما يحتاج إجراء منك."
                 />
+                <div className="d-grid d-lg-flex mb-4">
+                    <QuickRecordButton />
+                </div>
                 <div className="app-overview-banner">
                     <div>
                         <h2>أعمالك اليوم، بصورة أوضح</h2>
