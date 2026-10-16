@@ -23,6 +23,23 @@ class VoiceDraftParser
         'SAR' => '/(ريال|ريالات|\bSAR\b)/iu',
     ];
 
+    /** Words that are never a vendor name: dates, currencies, verbs, fillers. */
+    private const NOT_VENDOR = [
+        'اليوم', 'مبارح', 'امبارح', 'أمس', 'امس', 'البارحة', 'أول', 'اول', 'قبل', 'today', 'yesterday',
+        'ليرة', 'ليرات', 'تركية', 'تركي', 'سورية', 'دولار', 'دولارات', 'يورو', 'درهم', 'دراهم', 'ريال', 'ريالات',
+        'دفعت', 'قبضت', 'اشتريت', 'شريت', 'بعت', 'صرفت', 'استلمت', 'وصلني', 'حطيت',
+        'أجار', 'اجار', 'إيجار', 'ايجار', 'محل', 'لمحل', 'المحل', 'ب', 'بـ', 'من', 'عند', 'على', 'في', 'هاد', 'هذا',
+    ];
+
+    private function cleanVendor(string $candidate): ?string
+    {
+        $words = array_filter(preg_split('/\s+/u', trim($candidate)) ?: [], fn ($w) => $w !== ''
+            && ! in_array($w, self::NOT_VENDOR, true) && ! preg_match('/\d/u', $w));
+        $name = trim(implode(' ', $words));
+
+        return mb_strlen($name) >= 2 ? mb_substr($name, 0, 150) : null;
+    }
+
     /** @return array{amount:?string,date:?string,counterparty:?string,currency:?string,confidence:float} */
     public function parse(string $text): array
     {
@@ -45,7 +62,7 @@ class VoiceDraftParser
 
         $counterparty = null;
         if (preg_match('/(?:لمحل|محل|من عند|عند|لـ|إلى|الى|من)\s+([\p{L}][\p{L}\s]{1,40}?)(?=\s+(?:أجار|اجار|ب|بـ|\d)|[\.,،]|$)/u', $t, $c)) {
-            $counterparty = mb_substr(trim($c[1]), 0, 150);
+            $counterparty = $this->cleanVendor($c[1]);
         }
 
         $currency = null;
