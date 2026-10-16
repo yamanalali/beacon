@@ -54,7 +54,8 @@ class TesseractReceiptExtractor implements ReceiptExtractor
             $tmp = tempnam(sys_get_temp_dir(), 'ocr_');
             file_put_contents($tmp, $contents);
 
-            $raw = $this->ocrFile($tmp);
+            $ocr = $this->ocrPageAndLines($tmp);
+            $raw = $ocr['page'];
         } catch (Throwable $e) {
             Log::warning('Tesseract OCR unavailable', ['document_id' => $document->id, 'error' => $e->getMessage()]);
 
@@ -65,39 +66,85 @@ class TesseractReceiptExtractor implements ReceiptExtractor
             }
         }
 
-        return $raw === null ? new ReceiptExtractionResult(failed: true) : $this->parser->parse($raw);
+        return $raw === null ? new ReceiptExtractionResult(failed: true) : $this->parser->parse($raw, $ocr['lines'], $ocr['table']);
     }
 
-    /** Optional preprocessing (temp files always removed), then Tesseract. */
-    public function ocrFile(string $imagePath): ?string
+    /**
+     * Page OCR plus (when AI_OCR_LINE_PASS is on) a per-line pass (--psm 7 on each text
+     * band). Page text stays the source for amount/date/currency; the line text is used for
+     * line items and the shop header, which page layout analysis tends to drop.
+     *
+     * @return array{page: ?string, lines: ?string, table: ?array}
+     */
+    public function ocrPageAndLines(string $imagePath): array
     {
-        if (($missing = $this->missingLanguages()) !== []) {
-            // Without "ara" Tesseract silently falls back to English and returns gibberish
-            // for Arabic receipts, so don't OCR at all: empty suggestion for manual review.
-            Log::warning('Tesseract OCR skipped: language data missing ('.implode(', ', $missing).'). Install ara.traineddata/eng.traineddata or set TESSERACT_TESSDATA_DIR to the folder that contains them.');
-
-            return null;
-        }
-        if (! config('ai.ocr.preprocess', false)) {
-            return $this->run($imagePath);
+        if ($this->missingLanguages() !== []) {
+            return ['page' => $this->ocrFile($imagePath), 'lines' => null, 'table' => null];
         }
         $pre = $this->preprocessor ??= new ImagePreprocessor;
         try {
-            return $this->run($pre->prepare($imagePath));
+            $img = config('ai.ocr.preprocess', false) ? $pre->prepare($imagePath) : $imagePath;
+            $page = $this->run($img);
+            // Ruled-table invoices are read cell by cell from the original upload (own upscaling).
+            $table = $page !== null && config('ai.ocr.table_pass', true)
+                ? (new TableInvoiceReader(fn (string $f, int $psm, string $langs, ?string $wl) => $this->run($f, $psm, $langs, $wl)))->read($imagePath)
+                : null;
+            $lines = $page !== null && $table === null && config('ai.ocr.line_pass', true) ? $this->linePass($img) : null;
+
+            return ['page' => $page, 'lines' => $lines, 'table' => $table];
         } finally {
             $pre->cleanup();
         }
     }
 
+    /** OCR each detected text line on its own; null when the image can't be segmented. */
+    public function linePass(string $imagePath): ?string
+    {
+        $seg = new LineSegmenter;
+        $bands = $seg->bands($imagePath);
+        if ($bands === [] || count($bands) > (int) config('ai.ocr.line_pass_max_lines', 60)) {
+            return null;
+        }
+        $primary = $seg->crop($imagePath, $bands, 18);
+        $files = $primary;
+        try {
+            $out = [];
+            foreach ($primary as $k => $f) {
+                $t = $this->run($f, 7);
+                if ($t === null) {
+                    return null;
+                }
+                $t = trim(preg_replace('/\s*\R\s*/u', ' ', $t) ?? '');
+                if ($t === '') {
+                    // Nothing recognised at this size: retry the same band larger once.
+                    $retry = $seg->crop($imagePath, [$bands[$k]], 26);
+                    $files = [...$files, ...$retry];
+                    $t = $retry !== [] ? trim(preg_replace('/\s*\R\s*/u', ' ', (string) $this->run($retry[0], 7)) ?? '') : '';
+                }
+                $out[] = $t;
+            }
+
+            return implode("\n", array_filter($out, fn ($l) => $l !== ''));
+        } finally {
+            foreach ($files as $f) {
+                @unlink($f);
+            }
+        }
+    }
+
     /** Returns OCR text, or null when the binary is missing/failed. */
-    public function run(string $imagePath): ?string
+    public function run(string $imagePath, ?int $psmOverride = null, ?string $langs = null, ?string $whitelist = null): ?string
     {
         $command = [
             (string) config('ai.ocr.tesseract_path', 'tesseract'),
             $imagePath, 'stdout',
-            '-l', self::LANGS,
+            '-l', $langs ?? self::LANGS,
         ];
-        if (($psm = config('ai.ocr.psm')) !== null && $psm !== '') {
+        if ($whitelist !== null) {
+            $command = [...$command, '-c', 'tessedit_char_whitelist='.$whitelist];
+        }
+        $psm = $psmOverride ?? config('ai.ocr.psm');
+        if ($psm !== null && $psm !== '') {
             $command = [...$command, '--psm', (string) (int) $psm];
         }
         $command = [...$command, ...self::tessdataArgs()];

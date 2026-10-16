@@ -36,7 +36,8 @@ class ReceiptTextParser
         'EUR' => '/(يورو|€|\bEUR\b)/iu',
     ];
 
-    public function parse(string $raw): ReceiptExtractionResult
+    /** $lineText: optional per-line OCR pass, preferred for line items and the shop header. */
+    public function parse(string $raw, ?string $lineText = null, ?array $table = null): ReceiptExtractionResult
     {
         $text = $this->normaliseDigits($raw);
         $lines = array_values(array_filter(array_map('trim', preg_split('/\R/u', $text) ?: []), fn ($l) => $l !== ''));
@@ -46,7 +47,25 @@ class ReceiptTextParser
 
         $amount = $this->amount($lines);
         $date = $this->date($text);
-        $vendor = $this->vendor($lines);
+        $lineRows = $lineText !== null
+            ? array_values(array_filter(array_map('trim', preg_split('/\R/u', $this->normaliseDigits($lineText)) ?: []), fn ($l) => $l !== ''))
+            : [];
+        // Sales invoices name the customer («مطلوب من السادة / ...»); that is the counterparty.
+        $vendor = $this->customer($text) ?? ($lineRows !== [] ? $this->vendor($lineRows) : null) ?? $this->vendor($lines);
+        $itemParser = new ReceiptLineItemParser($this);
+        if ($table !== null && ($table['header_text'] ?? '') !== '') {
+            // Title lines above the table (e.g. «فاتورة مبيعات») feed the type suggestion.
+            $raw = trim($table['header_text'])."\n".$raw;
+        }
+        if ($table !== null && ($table['items'] ?? []) !== []) {
+            // Ruled table read cell by cell: its items and its «اجمالي الفاتورة» total win.
+            $items = $table['items'];
+            if (($table['total'] ?? null) !== null) {
+                $amount = $this->money((float) $table['total']);
+            }
+        } else {
+            $items = $this->bestItems($itemParser, [$lineRows !== [] ? $itemParser->parse($lineText) : [], $itemParser->parse($raw)], $amount);
+        }
         $currency = null;
         foreach (self::CURRENCIES as $code => $re) {
             if (preg_match($re, $text)) {
@@ -67,7 +86,25 @@ class ReceiptTextParser
             needsReview: true,
             failed: $found === 0,
             rawText: $raw,
+            items: $items,
+            invoiceNumber: $this->invoiceNumber($text),
         );
+    }
+
+    /**
+     * Pick between the line-pass and page-pass item lists: a list whose totals add up to the
+     * receipt amount wins, then the one with more fully read items (qty/unit/total).
+     */
+    private function bestItems(ReceiptLineItemParser $p, array $candidates, ?string $amount): array
+    {
+        $score = function (array $items) use ($p, $amount): float {
+            $complete = count(array_filter($items, fn ($i) => $i['quantity'] !== null && $i['unit_price'] !== null && $i['total'] !== null));
+
+            return ($items !== [] && $p->totalsMismatch($items, $amount) === false ? 1000 : 0) + 10 * $complete + count($items);
+        };
+        usort($candidates, fn ($a, $b) => $score($b) <=> $score($a)); // stable: line pass wins ties
+
+        return $candidates[0];
     }
 
     public function normaliseDigits(string $s): string
@@ -101,7 +138,7 @@ class ReceiptTextParser
         return $all === [] ? null : $this->money(max(array_map('floatval', $all)));
     }
 
-    private function money(float $v): ?string
+    public function money(float $v): ?string
     {
         $s = rtrim(rtrim(number_format($v, 2, '.', ''), '0'), '.');
 
@@ -130,6 +167,30 @@ class ReceiptTextParser
         }
 
         return checkdate($mo, $d, $y) ? sprintf('%04d-%02d-%02d', $y, $mo, $d) : null;
+    }
+
+    /** «رقم الفاتورة / 1002», «فاتورة رقم: 55», "Invoice No. 1002". */
+    public function invoiceNumber(string $text): ?string
+    {
+        $text = preg_replace('/[\x{200E}\x{200F}]/u', '', $text) ?? $text;
+        if (preg_match('/(?:رقم\s*ال?[فق]ا?تورة|[فق]اتورة\s*رقم|invoice\s*(?:no\.?|number|#))\s*[:\/#.\-]*\s*([A-Z]{0,4}-?\d{1,12})/iu', $text, $m)) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
+    /** Customer on a sales invoice: «مطلوب من السادة / X», «السيد/ة: X», «العميل: X», "Bill to: X". */
+    public function customer(string $text): ?string
+    {
+        $text = preg_replace('/[\x{200E}\x{200F}]/u', '', $text) ?? $text;
+        if (preg_match('/(?:مطلوب\s*من\s*)?(?:السادة|السيد|العميل|الزبون|bill\s*to|customer)\s*[:\/\-]+\s*([^\n|]{3,80})/iu', $text, $m)) {
+            $c = trim($m[1], " \t.:-/");
+
+            return preg_match('/\p{L}{2,}/u', $c) ? mb_substr($c, 0, 150) : null;
+        }
+
+        return null;
     }
 
     /** First line that has letters and is not a total/date line. */

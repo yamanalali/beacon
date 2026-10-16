@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Ocr\ReceiptLineItemParser;
 use App\Ai\Support\PaginatedProps;
 use App\Actions\Bookkeeping\ConfirmReceiptExtractionAction;
 use App\Actions\Bookkeeping\StartReceiptExtractionAction;
@@ -101,6 +102,11 @@ class ReceiptExtractionController extends Controller
                 'suggested_amount' => $extraction->suggested_amount,
                 'suggested_currency' => $extraction->suggested_currency,
                 'suggested_counterparty' => $extraction->suggested_counterparty,
+                'suggested_invoice_number' => $extraction->suggested_invoice_number,
+                // [{description, quantity, unit_price, total}], unread values null; [] when none.
+                'suggested_items' => $items = array_values($extraction->suggested_items ?? []),
+                // Warning only (never blocks saving): items don't add up to the amount; null = can't check.
+                'items_total_mismatch' => (new ReceiptLineItemParser)->totalsMismatch($items, $extraction->suggested_amount),
                 'document' => DocumentController::row($extraction->document),
                 'confirmed_transaction_public_id' => $extraction->confirmedTransaction?->public_id,
             ],
