@@ -1,6 +1,6 @@
-import { expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import {
-    groupNavigation, homeLink, iconFor, navigationOrFallback, splitMobile,
+    groupNavigation, homeLink, iconFor, filterByCan, visibleLinks, navigationOrFallback, splitMobile,
 } from "./navigationModel";
 
 type Item = { key: string; label: string; href: string; icon: string; group: string; active: boolean };
@@ -61,4 +61,31 @@ test("mobile: up to 3 tabs by key priority, everything else in More", () => {
 test("fallback when the prop is missing", () => {
     expect(navigationOrFallback(undefined, "/account").map((i) => [i.key, i.active])).toEqual([["account", true]]);
     expect(navigationOrFallback([], "/").length).toBe(0);
+});
+
+describe("auth.can filtering", () => {
+    const mk = (key: string, group = "enterprise") => item(key, group);
+    const list = [mk("enterprises"), mk("transactions"), mk("admin.users", "admin"), mk("admin.mfis", "admin")];
+
+    it("hides items whose can flag is false or missing", () => {
+        const can = { enterprises: true, transactions: false, "admin.users": true };
+        expect(filterByCan(list, can).map((i) => i.key)).toEqual(["enterprises", "admin.users"]);
+    });
+
+    it("drops a group that becomes empty", () => {
+        const can = { enterprises: true, transactions: true, "admin.users": false, "admin.mfis": false };
+        const groups = groupNavigation(navigationOrFallback(list, "/", can)).map((g) => g.key);
+        expect(groups).toEqual(["enterprise"]);
+    });
+
+    it("keeps the server list when no can map is present", () => {
+        expect(navigationOrFallback(list, "/", null)).toHaveLength(4);
+    });
+});
+
+test("dashboard shortcut links follow auth.can", () => {
+    const links = [{ href: "/enterprises" }, { href: "/transactions" }, { href: "/documents" }, { href: "/other" }];
+    expect(visibleLinks({ enterprises: true, transactions: false, documents: false }, links).map((l) => l.href))
+        .toEqual(["/enterprises", "/other"]);
+    expect(visibleLinks(undefined, links)).toHaveLength(4);
 });
