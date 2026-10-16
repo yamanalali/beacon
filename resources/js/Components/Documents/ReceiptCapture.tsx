@@ -2,6 +2,7 @@ import { router, useForm, usePage } from "@inertiajs/react";
 import { useEffect, useRef, useState } from "react";
 import type { DocumentRow } from "../../types/bookkeeping";
 import type { BeaconSharedProps } from "../../types/shared";
+import { handleInertiaConflict } from "../../lib/inertiaConflict";
 
 /** Pick the document that appeared after an upload (list is newest-first). */
 export function findNewDocument(before: ReadonlySet<string>, after: DocumentRow[] | undefined): DocumentRow | null {
@@ -40,6 +41,8 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
             forceFormData: true,
             preserveScroll: true,
             onError: () => setStep("error"),
+            // 409 + X-Inertia-Location (asset version changed): full load instead of an error.
+            onHttpException: (r) => (handleInertiaConflict(r) ? false : undefined),
             onSuccess: (p) => {
                 // With extract=1 the server goes straight to the review page (Extractions/Show).
                 if ((p as { component?: string } | undefined)?.component === "Extractions/Show") return;
@@ -48,7 +51,10 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
                 if (props.flash?.info) setInfo(props.flash.info);
                 if (!id) { setStep("error"); return; }
                 setStep("reading");
-                router.post(`/documents/${id}/extractions`, {}, { onError: () => setStep("error") });
+                router.post(`/documents/${id}/extractions`, {}, {
+                    onError: () => setStep("error"),
+                    onHttpException: (r) => (handleInertiaConflict(r) ? false : undefined),
+                });
             },
         });
     };
