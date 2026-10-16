@@ -27,7 +27,26 @@ SHOPS_EN = ['ACME Market', 'Blue Cafe', 'City Pharmacy', 'Star Bakery', 'Green G
 ITEMS_AR = ['خبز', 'حليب', 'سكر', 'شاي', 'رز', 'زيت']
 ITEMS_EN = ['Bread', 'Milk', 'Sugar', 'Tea', 'Rice', 'Oil']
 
+INVOICE_SHOPS = ['مطعم الزيتون 2', 'بيتزا النجمة 3', 'مقهى الواحة 1']
+ADDRESSES = ['شارع تجريبي - حي الاختبار - مدينة وهمية', 'طريق المثال - منطقة العرض']
+
+def invoice(i):
+    # Arabic restaurant invoice: header, address, items with decimals, 'المبلغ المستحق', m/d/yy date, no currency.
+    shop = rnd.choice(INVOICE_SHOPS)
+    d, m = rnd.randint(13, 28), rnd.randint(1, 12)  # day > 12 keeps m/d/yy unambiguous
+    prices = [round(rnd.uniform(2, 30), 2) for _ in range(2)]
+    total = round(sum(prices), 2)
+    names = rnd.sample(['سلطة الجبنة', 'عصير البطيخ', 'شاي بالنعناع', 'فطيرة زعتر'], 2)
+    lines = [shop, rnd.choice(ADDRESSES), 'فاتورة', 'أمين الصندوق: المالك']
+    for nm, p in zip(names, prices):
+        lines += [f'{nm} {p:.2f}', f'{p:.2f} x 1']
+    lines += [f'المبلغ المستحق {total:.2f}', f'{m}/{d}/21, 4:56 PM']
+    amount = f'{total:.2f}'.rstrip('0').rstrip('.')
+    return lines, {'amount': amount, 'date': f'2021-{m:02d}-{d:02d}', 'currency': None, 'counterparty': shop, 'text': '\n'.join(lines), 'lang': 'ar-invoice'}
+
 def receipt(i):
+    if i % 3 == 2:
+        return invoice(i)
     ar = i % 2 == 0
     cur = rnd.choice(['SYP', 'USD'])
     shop = rnd.choice(SHOPS_AR if ar else SHOPS_EN)
