@@ -135,6 +135,52 @@ class VoiceDraftTest extends TestCase
         $this->assertDatabaseCount('financial_transactions', 0);
     }
 
+    public function test_yaman_real_windows_transcript_draft(): void
+    {
+        $this->stubStt('دفعت خمسين ألف ليرائي جر محل اليوم عن ثلاث شهور');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_amount', '50000')
+            ->assertJsonPath('draft.suggested_currency', 'SYP')
+            ->assertJsonPath('draft.suggested_counterparty', null)
+            ->assertJsonPath('draft.suggested_note', 'عن ثلاث شهور')
+            ->assertJsonPath('draft.suggested_transaction_type', 'expense')
+            ->assertJsonPath('category_suggestion.category', 'rent');
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_no_spoken_currency_suggests_business_base_currency(): void
+    {
+        config(['bookkeeping.default_currency' => 'USD']);
+        $this->stubStt('دفعت مية اجار');
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_currency', 'USD')->assertJsonPath('draft.suggested_currency_source', 'default');
+    }
+
+    public function test_no_spoken_currency_and_no_base_currency_falls_back_to_syp(): void
+    {
+        config(['bookkeeping.default_currency' => null]);
+        $this->stubStt('دفعت مية اجار');
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_currency', 'SYP')->assertJsonPath('draft.suggested_currency_source', 'default');
+    }
+
+    public function test_spoken_currency_wins_over_base(): void
+    {
+        config(['bookkeeping.default_currency' => 'USD']);
+        $this->stubStt('دفعت مية ليرا اجار');
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_currency', 'SYP')->assertJsonPath('draft.suggested_currency_source', 'spoken');
+    }
+
+    public function test_voice_fuzzy_variants_end_to_end(): void
+    {
+        foreach (['دفعت مية ليرا جر محل', 'دفعت مية ليرائي جر محل', 'دفعت مية ليره ئي جر', 'دفعت مية لير جر محل'] as $t) {
+            $this->stubStt($t);
+            $this->send()->assertOk()
+                ->assertJsonPath('draft.suggested_currency', 'SYP')
+                ->assertJsonPath('draft.suggested_currency_source', 'spoken')
+                ->assertJsonPath('draft.suggested_transaction_type', 'expense')
+                ->assertJsonPath('category_suggestion.category', 'rent');
+        }
+    }
+
     public function test_encoding_failure_returns_clear_message(): void
     {
         $w = new class extends WhisperCppTranscriber
