@@ -3,6 +3,7 @@
 namespace App\Navigation;
 
 use App\Enums\UserRole;
+use App\Models\Enterprise;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 
@@ -19,6 +20,9 @@ class PageAccess
     public const OPERATIONS_TECHNICAL = 'page.operations.technical';
     public const OPERATIONS_DATA_CONTROL = 'page.operations.data-control';
     public const MFI_REFERRAL_INBOX = 'page.mfi.referral-inbox';
+    public const TRANSACTIONS_ENTRY = 'page.transactions.entry';
+    public const DOCUMENTS_ENTRY = 'page.documents.entry';
+    public const REPORTS_ENTRY = 'page.reports.entry';
 
     public static function register(): void
     {
@@ -32,7 +36,33 @@ class PageAccess
 
         Gate::define(self::OPERATIONS_DATA_CONTROL, fn (User $user): bool => self::is($user, UserRole::TechnicalAdmin, UserRole::BeaconAdmin));
 
+        self::registerSectionEntries();
+
         Gate::define(self::MFI_REFERRAL_INBOX, fn (User $user): bool => self::is($user, UserRole::MfiUser) && $user->mfi_institution_id !== null);
+    }
+
+    /**
+     * The /transactions, /documents and /reports entry pages open the user's OWN enterprise section.
+     * Only an active SME member has one; Beacon staff reach these sections from the enterprise page
+     * (they used to be bounced to /enterprises, which looked like "no access" in the sidebar).
+     */
+    private static function registerSectionEntries(): void
+    {
+        // TODO: BUSINESS DECISION REQUIRED - whether Beacon admins/advisors get a cross-enterprise
+        // transactions / documents / reports list. Until decided they open them per enterprise.
+        foreach ([self::TRANSACTIONS_ENTRY, self::DOCUMENTS_ENTRY, self::REPORTS_ENTRY] as $gate) {
+            Gate::define($gate, fn (User $user): bool => self::ownEnterprise($user) !== null);
+        }
+    }
+
+    /** The active SME user's own enterprise (same lookup the entry controllers used). */
+    public static function ownEnterprise(User $user): ?Enterprise
+    {
+        if (! self::is($user, UserRole::SmeUser)) {
+            return null;
+        }
+
+        return Enterprise::query()->whereHas('members', fn ($q) => $q->whereKey($user->id))->first();
     }
 
     private static function is(User $user, UserRole ...$roles): bool

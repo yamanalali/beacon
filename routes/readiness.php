@@ -5,6 +5,7 @@ use App\Http\Controllers\Readiness\EnterpriseComplianceController;
 use App\Http\Controllers\Readiness\MfiController;
 use App\Http\Controllers\Readiness\ReadinessAdminController;
 use App\Http\Controllers\Readiness\ReadinessAssessmentController;
+use App\Http\Controllers\Readiness\ReadinessMatrixController;
 use App\Http\Controllers\Readiness\ReferralController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,13 +33,29 @@ Route::middleware('auth')->group(function () {
         Route::post('/{ruleSet}/criteria', [ReadinessAdminController::class, 'storeCriterion'])->name('criteria.store');
         Route::delete('/criteria/{criterion}', [ReadinessAdminController::class, 'destroyCriterion'])->name('criteria.destroy');
         Route::post('/{ruleSet}/publish', [ReadinessAdminController::class, 'publish'])->name('publish');
+
+        // Scoring matrix v2: pillars, typed criteria, score bands (draft only), duplicate, export/import, preview.
+        Route::post('/import', [ReadinessMatrixController::class, 'import'])->name('import');
+        Route::put('/criteria/{criterion}', [ReadinessMatrixController::class, 'updateCriterion'])->name('criteria.update');
+        Route::post('/{ruleSet}/criteria/reorder', [ReadinessMatrixController::class, 'reorderCriteria'])->name('criteria.reorder');
+        Route::post('/{ruleSet}/pillars', [ReadinessMatrixController::class, 'storePillar'])->name('pillars.store');
+        Route::post('/{ruleSet}/pillars/reorder', [ReadinessMatrixController::class, 'reorderPillars'])->name('pillars.reorder');
+        Route::put('/pillars/{pillar}', [ReadinessMatrixController::class, 'updatePillar'])->name('pillars.update');
+        Route::delete('/pillars/{pillar}', [ReadinessMatrixController::class, 'destroyPillar'])->name('pillars.destroy');
+        Route::post('/{ruleSet}/bands', [ReadinessMatrixController::class, 'storeBand'])->name('bands.store');
+        Route::post('/{ruleSet}/bands/reorder', [ReadinessMatrixController::class, 'reorderBands'])->name('bands.reorder');
+        Route::put('/bands/{band}', [ReadinessMatrixController::class, 'updateBand'])->name('bands.update');
+        Route::delete('/bands/{band}', [ReadinessMatrixController::class, 'destroyBand'])->name('bands.destroy');
+        Route::post('/{ruleSet}/duplicate', [ReadinessMatrixController::class, 'duplicate'])->name('duplicate');
+        Route::get('/{ruleSet}/export', [ReadinessMatrixController::class, 'export'])->name('export');
+        Route::post('/{ruleSet}/preview', [ReadinessMatrixController::class, 'preview'])->name('preview');
     });
 
     // 24: readiness assessments
     Route::get('/enterprises/{enterprise:public_id}/readiness', [ReadinessAssessmentController::class, 'index'])->name('enterprises.readiness.index');
     Route::post('/enterprises/{enterprise:public_id}/readiness', [ReadinessAssessmentController::class, 'store'])->name('enterprises.readiness.store');
     Route::get('/readiness-assessments/{assessment:public_id}', [ReadinessAssessmentController::class, 'show'])->name('readiness-assessments.show');
-    Route::put('/readiness-assessments/{assessment:public_id}/results/{result}', [ReadinessAssessmentController::class, 'updateResult'])->name('readiness-assessments.results.update');
+    Route::put('/readiness-assessments/{assessment:public_id}/results/{result}', [ReadinessAssessmentController::class, 'updateResult'])->name('readiness-assessments.results.update')->scopeBindings(); // {result} must belong to {assessment}
     Route::post('/readiness-assessments/{assessment:public_id}/finalize', [ReadinessAssessmentController::class, 'finalize'])->name('readiness-assessments.finalize');
     Route::post('/readiness-assessments/{assessment:public_id}/recalculate', [ReadinessAssessmentController::class, 'recalculate'])->name('readiness-assessments.recalculate');
 

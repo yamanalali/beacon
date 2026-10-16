@@ -35,6 +35,8 @@ class NavigationBuilder
     public function definitions(): array
     {
         $entry = fn (User $u): bool => $this->smeEnterprise($u) !== null || $u->can('viewAny', Enterprise::class);
+        // Section entry pages (/transactions, /documents, /reports): same gate the entry controllers authorize.
+        $section = fn (string $gate): Closure => fn (User $u): bool => Gate::forUser($u)->allows($gate);
         $smeEnterpriseParams = fn (User $u): ?array => ($e = $this->smeEnterprise($u)) ? ['enterprise' => $e] : null;
         $smeCanView = fn (User $u): bool => ($e = $this->smeEnterprise($u)) !== null && ReadinessAccess::canViewEnterprise($u, $e);
 
@@ -43,9 +45,9 @@ class NavigationBuilder
             ['key' => 'dashboard.beacon', 'route' => 'dashboard.beacon', 'label' => 'لوحة البرنامج', 'icon' => 'layout-dashboard', 'group' => 'main', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::DASHBOARD_BEACON)],
 
             ['key' => 'enterprises', 'route' => 'enterprises.index', 'label' => 'المنشآت', 'icon' => 'building', 'group' => 'enterprise', 'ability' => $entry, 'active' => ['enterprises.index', 'enterprises.show', 'enterprises.create', 'enterprises.edit']],
-            ['key' => 'transactions', 'route' => 'transactions.entry', 'label' => 'المعاملات', 'icon' => 'receipt', 'group' => 'enterprise', 'ability' => $entry, 'active' => ['transactions.*', 'enterprises.transactions.*']],
-            ['key' => 'documents', 'route' => 'documents.entry', 'label' => 'المستندات', 'icon' => 'file-text', 'group' => 'enterprise', 'ability' => $entry, 'active' => ['documents.*', 'enterprises.documents.*']],
-            ['key' => 'reports', 'route' => 'reports.entry', 'label' => 'التقارير المالية', 'icon' => 'bar-chart', 'group' => 'enterprise', 'ability' => $entry, 'active' => ['reports.*', 'enterprises.reports.*']],
+            ['key' => 'transactions', 'route' => 'transactions.entry', 'label' => 'المعاملات', 'icon' => 'receipt', 'group' => 'enterprise', 'ability' => $section(PageAccess::TRANSACTIONS_ENTRY), 'active' => ['transactions.*', 'enterprises.transactions.*']],
+            ['key' => 'documents', 'route' => 'documents.entry', 'label' => 'المستندات', 'icon' => 'file-text', 'group' => 'enterprise', 'ability' => $section(PageAccess::DOCUMENTS_ENTRY), 'active' => ['documents.*', 'enterprises.documents.*']],
+            ['key' => 'reports', 'route' => 'reports.entry', 'label' => 'التقارير المالية', 'icon' => 'bar-chart', 'group' => 'enterprise', 'ability' => $section(PageAccess::REPORTS_ENTRY), 'active' => ['reports.*', 'enterprises.reports.*']],
             ['key' => 'readiness', 'route' => 'enterprises.readiness.index', 'label' => 'الجاهزية', 'icon' => 'gauge', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.readiness.*', 'readiness-assessments.*']],
             ['key' => 'compliance', 'route' => 'enterprises.compliance.index', 'label' => 'الامتثال', 'icon' => 'shield-check', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.compliance.*']],
             ['key' => 'referrals', 'route' => 'enterprises.referrals.index', 'label' => 'الإحالات', 'icon' => 'send', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.referrals.*', 'referrals.*']],
@@ -78,6 +80,38 @@ class NavigationBuilder
     /**
      * @return list<array{key: string, label: string, href: string, icon: string, group: string, active: bool}>
      */
+    /**
+     * `auth.can` sidebar flags: one boolean per navigation key, from the same checks as build().
+     *
+     * @return array<string, bool>
+     */
+    public function abilities(?User $user): array
+    {
+        $can = [];
+
+        foreach ($this->definitions() as $item) {
+            $can[$item['key']] = $user !== null && $user->isActive() && $this->resolve($user, $item) !== null;
+        }
+
+        return $can;
+    }
+
+    /** Route params when the user may open the item, otherwise null. */
+    private function resolve(User $user, array $item): ?array
+    {
+        $route = Route::has($item['route']) ? Route::getRoutes()->getByName($item['route']) : null;
+
+        if ($route === null || ! $this->middlewareAllows($user, $route)) {
+            return null;
+        }
+
+        if ($item['ability'] !== null && ! ($item['ability'])($user)) {
+            return null;
+        }
+
+        return isset($item['params']) ? ($item['params'])($user) : [];
+    }
+
     public function build(?User $user, ?Request $request = null): array
     {
         if ($user === null || ! $user->isActive()) {
@@ -88,17 +122,7 @@ class NavigationBuilder
         $items = [];
 
         foreach ($this->definitions() as $item) {
-            $route = Route::has($item['route']) ? Route::getRoutes()->getByName($item['route']) : null;
-
-            if ($route === null || ! $this->middlewareAllows($user, $route)) {
-                continue;
-            }
-
-            if ($item['ability'] !== null && ! ($item['ability'])($user)) {
-                continue;
-            }
-
-            $params = isset($item['params']) ? ($item['params'])($user) : [];
+            $params = $this->resolve($user, $item);
 
             if ($params === null) {
                 continue;

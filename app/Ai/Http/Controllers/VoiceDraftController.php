@@ -27,28 +27,46 @@ class VoiceDraftController extends Controller
 {
     public const MIMES = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'audio/wave', 'video/webm'];
 
+    public const TRANSCRIPT_MAX = 1000;
+
+    public const TRANSCRIPT_SOURCES = ['browser_speech'];
+
     public function store(Request $request, Enterprise $enterprise, SpeechToText $stt, VoiceDraftParser $parser, TransactionCategorizer $categorizer, TransactionTypeSuggester $typeSuggester, ReceiptTextCategorizer $textCategorizer): JsonResponse
     {
         abort_unless(config('ai.voice.enabled'), 404);
         abort_unless($request->user()->isActive(), 403);
         Gate::authorize('create', [FinancialTransaction::class, $enterprise]);
 
+        // Either a recording (whisper) or a browser-made transcript (Chrome ar-SY, opt-in).
+        if (is_string($request->input('transcript'))) {
+            $request->merge(['transcript' => trim($request->input('transcript'))]);
+        }
         $request->validate([
-            'audio' => ['required', 'file', 'mimetypes:'.implode(',', self::MIMES), 'max:'.(int) config('ai.voice.max_kb', 5120)],
+            'audio' => ['required_without:transcript', 'prohibits:transcript', 'file', 'mimetypes:'.implode(',', self::MIMES), 'max:'.(int) config('ai.voice.max_kb', 5120)],
+            'transcript' => ['required_without:audio', 'prohibits:audio', 'string', 'max:'.self::TRANSCRIPT_MAX],
+            'source' => ['required_with:transcript', 'prohibits:audio', 'string', 'in:'.implode(',', self::TRANSCRIPT_SOURCES)],
         ]);
 
-        $file = $request->file('audio');
-        $path = $file->getRealPath();
-        $mime = (string) $file->getMimeType();
-        try {
-            $text = $stt->transcribe($path, $mime);
-        } finally {
-            if ($path && is_file($path)) {
-                @unlink($path);
+        $fromTranscript = $request->has('transcript');
+        $inputSource = $fromTranscript ? (string) $request->input('source') : 'audio';
+        if ($fromTranscript) {
+            // Text goes straight to the parser: no recording, no whisper call.
+            $text = (string) $request->input('transcript');
+        } else {
+            $file = $request->file('audio');
+            $path = $file->getRealPath();
+            $mime = (string) $file->getMimeType();
+            try {
+                $text = $stt->transcribe($path, $mime);
+            } finally {
+                if ($path && is_file($path)) {
+                    @unlink($path);
+                }
             }
         }
+        $extractor = $fromTranscript ? $inputSource : $stt->name();
 
-        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'note' => null, 'confidence' => null];
+        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'note' => null, 'items' => [], 'items_mismatch' => false, 'amount_warning' => null, 'confidence' => null];
         // Voice-normalized text (e.g. «ليرائي جر محل» -> «ليرائي اجار محل») feeds the suggesters.
         $catText = $text !== null ? ($p['normalized'] ?? $text) : null;
         $suggestedType = $typeSuggester->suggest($catText);
@@ -75,14 +93,16 @@ class VoiceDraftController extends Controller
         AuditLog::query()->create([
             'actor_id' => $request->user()->id, 'action' => 'ai.voice_draft.created',
             'target_type' => Enterprise::class, 'target_id' => $enterprise->id,
-            'context' => ['stt' => $stt->name(), 'transcribed' => $text !== null], // no transcript stored
+            'context' => ['stt' => $extractor, 'input_source' => $inputSource, 'transcribed' => $text !== null], // no transcript stored
         ]);
 
         return response()->json([
             'enterprise' => ['public_id' => $enterprise->public_id, 'business_name' => $enterprise->business_name],
             'draft' => [
                 'source' => 'voice',
-                'extractor' => $stt->name(),
+                'extractor' => $extractor,
+                // 'audio' (whisper) or 'browser_speech' (transcript sent by the browser).
+                'input_source' => $inputSource,
                 'is_manual' => false,
                 'needs_review' => true,
                 'confidence' => $p['confidence'],
@@ -95,6 +115,12 @@ class VoiceDraftController extends Controller
                 'suggested_transaction_type' => $suggestedType,
                 // e.g. 'لمدة ثلاثة اشهر': prefill the transaction note; never changes the amount.
                 'suggested_note' => $p['note'] ?? null,
+                // Same shape as OCR: [{description, quantity, unit_price, total}], [] when none.
+                'suggested_items' => $p['items'] ?? [],
+                // Items' sum differs from the spoken total (non-blocking, same rule as transactions).
+                'items_mismatch' => (bool) ($p['items_mismatch'] ?? false),
+                // Arabic hint when the amount wording is ambiguous («3000 الاف») or items ≠ total.
+                'suggested_amount_warning' => $p['amount_warning'] ?? null,
                 'raw_text' => $text,
             ],
             'type' => $type,
