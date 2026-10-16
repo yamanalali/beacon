@@ -5,6 +5,7 @@ namespace App\Actions\Bookkeeping;
 use App\Actions\Audit\RecordAuditLog;
 use App\Contracts\ReceiptExtractor;
 use App\Enums\ExtractionStatus;
+use App\Finance\ReceiptTextCategorizer;
 use App\Finance\TransactionTypeSuggester;
 use App\Models\Document;
 use App\Models\FinancialTransaction;
@@ -19,6 +20,7 @@ class StartReceiptExtractionAction
         private readonly ReceiptExtractor $extractor,
         private readonly RecordAuditLog $audit,
         private readonly TransactionTypeSuggester $typeSuggester,
+        private readonly ReceiptTextCategorizer $textCategorizer,
     ) {}
 
     /** Same checks as documents.extractions.store: view the document AND create transactions in its enterprise. */
@@ -58,6 +60,13 @@ class StartReceiptExtractionAction
         // Suggestion only; null when OCR produced nothing (manual entry).
         $extraction->suggested_transaction_type = $hasSuggestion
             ? ($this->typeSuggester->suggest($result->rawText) ?? 'expense')
+            : null;
+        // Category from the receipt's line items + counterparty (raw text stays in memory only).
+        $extraction->suggested_category = $extraction->suggested_transaction_type !== null
+            ? $this->textCategorizer->suggest(
+                trim(($result->rawText ?? '')."\n".($extraction->suggested_counterparty ?? '')),
+                config('bookkeeping.categories.'.$extraction->suggested_transaction_type, []),
+            )?->category
             : null;
         $extraction->confidence = $result->confidence;
         // Always reviewed by a human; flag stays true unless provider is confident AND complete.

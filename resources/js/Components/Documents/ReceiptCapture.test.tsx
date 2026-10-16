@@ -78,3 +78,30 @@ describe("ReceiptCapture", () => {
         expect(routerPost).not.toHaveBeenCalled();
     });
 });
+
+describe("ReceiptCapture asset-version conflict", () => {
+    it("full-loads X-Inertia-Location when the upload or extraction visit gets 409", () => {
+        const assign = vi.fn();
+        const reload = vi.fn();
+        const orig = window.location;
+        Object.defineProperty(window, "location", { configurable: true, value: { ...orig, assign, reload } });
+        type Opts = { onSuccess: (p: unknown) => void; onHttpException: (r: unknown) => boolean | void };
+        let uploadResult: boolean | void = undefined;
+        post.mockImplementation((_u: string, opts: Opts) => {
+            uploadResult = opts.onHttpException({ status: 409, headers: { "x-inertia-location": "http://app/extractions/X1" }, data: "" });
+            opts.onSuccess({ props: { documents: { data: [doc("NEW")] } } });
+        });
+        let extractResult: boolean | void = undefined;
+        routerPost.mockImplementation((_u: string, _d: unknown, opts: Opts) => {
+            extractResult = opts.onHttpException({ status: 409, headers: {}, data: "" });
+        });
+        render(<ReceiptCapture enterpriseId="E1" currentIds={[]} />);
+        fireEvent.change(screen.getByTestId("file-input"), { target: { files: [new File(["x"], "r.pdf", { type: "application/pdf" })] } });
+        fireEvent.click(screen.getByRole("button", { name: /رفع ومراجعة/ }));
+        expect(assign).toHaveBeenCalledWith("http://app/extractions/X1");
+        expect(uploadResult).toBe(false);
+        expect(reload).toHaveBeenCalled();
+        expect(extractResult).toBe(false);
+        Object.defineProperty(window, "location", { configurable: true, value: orig });
+    });
+});
