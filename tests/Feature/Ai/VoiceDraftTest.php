@@ -123,6 +123,20 @@ class VoiceDraftTest extends TestCase
         $this->assertArrayNotHasKey('id', $res->json('enterprise'));
     }
 
+    public function test_encoding_failure_returns_clear_message(): void
+    {
+        $w = new class extends WhisperCppTranscriber
+        {
+            protected function makeProcess(array $command): Process
+            {
+                return new Process(['php', '-r', 'echo "?????? ?????? ??????";']);
+            }
+        };
+        $this->app->instance(SpeechToText::class, $w);
+        $this->send()->assertOk()->assertJsonPath('ai_available', false)->assertJsonPath('draft.raw_text', null)
+            ->assertJsonPath('draft.needs_review', true)->assertJsonPath('message', fn ($m) => str_contains($m, 'ترميز'));
+    }
+
     public function test_unavailable_stt_deletes_audio_and_returns_empty_draft(): void
     {
         $stub = $this->stubStt(null);
