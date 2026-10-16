@@ -1,15 +1,16 @@
 import { Link, usePage } from "@inertiajs/react";
 import { Brand } from "../Components/Common/Brand";
-import { SoonButton } from "./SoonButton";
-import { homeItem, isHomePath, workspaceGroups } from "./navigation";
-import { roleLabels } from "./navigation";
+import { homeItem, roleLabels } from "./navigation";
+import { groupNavigation, homeLink, iconFor, navigationOrFallback } from "./navigationModel";
 
 export function DesktopSidebar() {
     const { url, props } = usePage();
     const role = props.auth.user?.role;
-    const enterprise = props.enterprise as { public_id: string } | undefined;
-    const groups = workspaceGroups(role, enterprise?.public_id);
-    const homeActive = isHomePath(url);
+    // Links come from the server (`auth.navigation`); no role logic in the UI.
+    const items = navigationOrFallback(props.auth.navigation, url);
+    const groups = groupNavigation(items);
+    const home = homeLink(items, url);
+    const homeActive = home.active;
     return (
         <aside className="app-sidebar d-none d-lg-flex flex-column">
             <Link href="/" className="app-brand" aria-label="بيكون، الرئيسية">
@@ -28,7 +29,7 @@ export function DesktopSidebar() {
                 <ul className="app-nav-list">
                     <li>
                         <Link
-                            href="/"
+                            href={home.href}
                             className={`app-side-link${homeActive ? " is-active" : ""}`}
                             aria-current={homeActive ? "page" : undefined}
                         >
@@ -42,18 +43,24 @@ export function DesktopSidebar() {
                 </ul>
                 {groups.map((group) => (
                     <section
-                        key={group.label}
+                        key={group.key}
                         className="app-nav-group"
-                        aria-label={group.label}
+                        aria-label={group.label ?? undefined}
                     >
-                        <p className="app-nav-group__label">{group.label}</p>
+                        {group.label ? (
+                            <p className="app-nav-group__label">{group.label}</p>
+                        ) : null}
                         <ul className="app-nav-list">
                             {group.items.map((item) => (
                                 <li key={item.key}>
-                                    <SoonButton
-                                        item={item}
-                                        className="app-side-link"
-                                    />
+                                    <Link
+                                        href={item.href}
+                                        className={`app-side-link${item.active ? " is-active" : ""}`}
+                                        aria-current={item.active ? "page" : undefined}
+                                    >
+                                        <i className={`bi ${iconFor(item)}`} aria-hidden="true" />
+                                        <span>{item.label}</span>
+                                    </Link>
                                 </li>
                             ))}
                         </ul>
