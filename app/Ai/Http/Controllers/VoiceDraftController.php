@@ -48,7 +48,7 @@ class VoiceDraftController extends Controller
             }
         }
 
-        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'confidence' => null];
+        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'note' => null, 'confidence' => null];
         $suggestedType = $typeSuggester->suggest($text);
         // Categories follow the suggested type (as Extractions/Show does).
         $type = $suggestedType ?? 'expense';
@@ -83,6 +83,8 @@ class VoiceDraftController extends Controller
                 'suggested_currency' => in_array($p['currency'], $currencies, true) ? $p['currency'] : null,
                 'suggested_counterparty' => $p['counterparty'],
                 'suggested_transaction_type' => $suggestedType,
+                // e.g. 'لمدة ثلاثة اشهر': prefill the transaction note; never changes the amount.
+                'suggested_note' => $p['note'] ?? null,
                 'raw_text' => $text,
             ],
             'type' => $type,
