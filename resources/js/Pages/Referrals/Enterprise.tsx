@@ -1,8 +1,8 @@
-import { Link, useForm } from "@inertiajs/react";
+import { Link, router, useForm } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
-import { EmptyState } from "../../Components/Feedback/EmptyState";
+import { DataTable, type Column } from "../../Components/Data/DataTable";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { TextInput } from "../../Components/Forms/TextInput";
 
@@ -15,6 +15,13 @@ type Props = {
     assessments: { id: number; score: string | null; finalized_at: string | null }[];
     disclosableItems: Record<string, string>;
 };
+
+const columns: Column<Summary>[] = [
+    { key: "institution", header: "المؤسسة", cell: (r) => r.institution ?? "—", primary: true, sortable: true },
+    { key: "created_at", header: "التاريخ", cell: (r) => <bdi dir="ltr">{r.created_at ?? "—"}</bdi>, numeric: true, sortable: true },
+    { key: "status_label", header: "الحالة", cell: (r) => <StatusBadge label={r.status_label} tone="neutral" />, sortable: true },
+    { key: "actions", header: "", hideable: false, hideOnMobile: true, cell: (r) => <Link href={`/referrals/${r.public_id}`} className="btn btn-outline-primary btn-sm" style={{ minHeight: "40px" }} onClick={(e) => e.stopPropagation()}>التفاصيل</Link> },
+];
 
 export default function Enterprise({ enterprise, referrals, canCreate, institutions, assessments, disclosableItems }: Props) {
     const form = useForm<{ mfi_institution_id: string; purpose_ar: string; disclosed_items: string[]; readiness_assessment_id: string }>({
@@ -59,13 +66,16 @@ export default function Enterprise({ enterprise, referrals, canCreate, instituti
                     </SectionCard>
                 ) : null}
                 <div className="mt-4 d-flex flex-column gap-3">
-                    {referrals.length === 0 ? <EmptyState title="لا توجد إحالات" /> : null}
-                    {referrals.map((r) => (
-                        <Link key={r.public_id} href={`/referrals/${r.public_id}`} className="border rounded p-3 bg-white text-decoration-none text-body d-flex justify-content-between flex-wrap gap-2">
-                            <span>{r.institution} - {r.created_at}</span>
-                            <StatusBadge label={r.status_label} tone="neutral" />
-                        </Link>
-                    ))}
+                    <DataTable
+                        caption="الإحالات"
+                        columns={columns}
+                        rows={referrals}
+                        rowKey={(r) => r.public_id}
+                        rowLabel={(r) => `إحالة ${r.institution ?? ""}`}
+                        onRowClick={(r) => router.visit(`/referrals/${r.public_id}`)}
+                        searchable
+                        emptyTitle="لا توجد إحالات"
+                    />
                 </div>
             </div>
         </AppLayout>

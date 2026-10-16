@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Ai\Support\PaginatedProps;
 use App\Actions\Auth\ActivateUserAccount;
 use App\Actions\Auth\CreateUserAccount;
 use App\Actions\Auth\DeactivateUserAccount;
@@ -48,7 +49,7 @@ class UserAccountController extends Controller
             ]);
 
         return Inertia::render('Administration/Users/Index', [
-            'users' => $users,
+            'users' => PaginatedProps::from($users),
             'search' => $search,
             'currentUserId' => $request->user()->id,
             'roles' => collect(UserRole::cases())->map(fn (UserRole $role): array => [

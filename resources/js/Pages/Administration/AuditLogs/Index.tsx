@@ -1,12 +1,11 @@
 import { Link, router } from "@inertiajs/react";
 import { useState } from "react";
+import { DataTable, type Column, type Paginator } from "../../../Components/Data/DataTable";
 import AppLayout from "../../../Layouts/AppLayout";
 import { PageHeader } from "../../../Components/Common/PageHeader";
 import { SectionCard } from "../../../Components/Common/SectionCard";
-import { EmptyState } from "../../../Components/Feedback/EmptyState";
 import { SelectInput } from "../../../Components/Forms/SelectInput";
 import { TextInput } from "../../../Components/Forms/TextInput";
-import { Pagination, type PaginationLink } from "../../../Components/Navigation/Pagination";
 
 type Row = {
     id: number;
@@ -19,13 +18,31 @@ type Row = {
 };
 type Filters = { action: string; actor: string; target_type: string; from: string; to: string };
 
+const columns: Column<Row>[] = [
+    { key: "created_at", header: "الوقت", cell: (log) => <bdi dir="ltr">{log.created_at}</bdi>, numeric: true },
+    { key: "actor_name", header: "المستخدم", cell: (log) => log.actor_name ?? "النظام" },
+    { key: "action", header: "الإجراء", cell: (log) => <bdi dir="ltr">{log.action}</bdi>, primary: true },
+    { key: "target", header: "السجل", cell: (log) => <bdi dir="ltr">{log.target_type} #{log.target_id}</bdi> },
+    {
+        key: "actions",
+        header: "",
+        hideable: false,
+        hideOnMobile: true,
+        cell: (log) => (
+            <Link href={`/admin/audit-logs/${log.id}`} className="btn btn-outline-primary btn-sm" style={{ minHeight: "40px" }} onClick={(e) => e.stopPropagation()}>
+                التفاصيل
+            </Link>
+        ),
+    },
+];
+
 export default function Index({
     logs,
     filters,
     actions,
     target_types,
 }: {
-    logs: { data: Row[]; links: PaginationLink[] };
+    logs: Paginator<Row>;
     filters: Filters;
     actions: string[];
     target_types: string[];
@@ -73,53 +90,15 @@ export default function Index({
                     </form>
                 </SectionCard>
 
-                {logs.data.length === 0 ? (
-                    <EmptyState title="لا توجد سجلات مطابقة" />
-                ) : (
-                    <>
-                        <div className="d-lg-none d-flex flex-column gap-2">
-                            {logs.data.map((log) => (
-                                <Link key={log.id} href={`/admin/audit-logs/${log.id}`} className="card p-3 text-decoration-none text-body">
-                                    <span className="fw-semibold" dir="ltr">{log.action}</span>
-                                    <span className="small text-body-secondary">
-                                        {log.created_at} · {log.actor_name ?? "النظام"} · {log.target_type} #{log.target_id}
-                                    </span>
-                                </Link>
-                            ))}
-                        </div>
-                        <div className="d-none d-lg-block table-responsive">
-                            <table className="table align-middle">
-                                <thead>
-                                    <tr>
-                                        <th>الوقت</th>
-                                        <th>المستخدم</th>
-                                        <th>الإجراء</th>
-                                        <th>السجل</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {logs.data.map((log) => (
-                                        <tr key={log.id}>
-                                            <td dir="ltr">{log.created_at}</td>
-                                            <td>{log.actor_name ?? "النظام"}</td>
-                                            <td dir="ltr">{log.action}</td>
-                                            <td dir="ltr">
-                                                {log.target_type} #{log.target_id}
-                                            </td>
-                                            <td>
-                                                <Link href={`/admin/audit-logs/${log.id}`} className="btn btn-outline-primary btn-sm" style={{ minHeight: "40px" }}>
-                                                    التفاصيل
-                                                </Link>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <Pagination links={logs.links} />
-                    </>
-                )}
+                <DataTable
+                    caption="سجل التدقيق"
+                    columns={columns}
+                    rowKey={(log) => log.id}
+                    rowLabel={(log) => `${log.action} #${log.id}`}
+                    onRowClick={(log) => router.visit(`/admin/audit-logs/${log.id}`)}
+                    emptyTitle="لا توجد سجلات مطابقة"
+                    server={{ paginator: logs, url: "/admin/audit-logs", query: Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== "")), only: ["logs", "filters"] }}
+                />
             </div>
         </AppLayout>
     );

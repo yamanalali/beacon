@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Support\PaginatedProps;
 use App\Actions\Bookkeeping\CorrectTransactionAction;
 use App\Actions\Bookkeeping\CreateTransactionAction;
 use App\Actions\Bookkeeping\RecordSettlementAction;
@@ -86,7 +87,7 @@ class TransactionController extends Controller
 
         return Inertia::render('Transactions/Index', [
             'enterprise' => $this->enterpriseProps($enterprise),
-            'transactions' => $transactions,
+            'transactions' => PaginatedProps::from($transactions),
             'filters' => [
                 'search' => $search,
                 'type' => $filters['type'] ?? '',

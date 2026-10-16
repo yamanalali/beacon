@@ -2,7 +2,7 @@ import { Link, router, usePage } from "@inertiajs/react";
 import { FormEvent, useState } from "react";
 import { PageHeader } from "../../../Components/Common/PageHeader";
 import { SectionCard } from "../../../Components/Common/SectionCard";
-import { EmptyState } from "../../../Components/Feedback/EmptyState";
+import { DataTable, type Column, type Paginator as DataPaginator } from "../../../Components/Data/DataTable";
 import AppLayout from "../../../Layouts/AppLayout";
 
 type UserRow = {
@@ -14,13 +14,8 @@ type UserRow = {
     is_active: boolean;
 };
 
-type Paginator = {
-    data: UserRow[];
-    links: { url: string | null; label: string; active: boolean }[];
-};
-
 type UsersIndexProps = {
-    users: Paginator;
+    users: DataPaginator<UserRow>;
     search: string;
     currentUserId: number;
     mfaNote: string;
@@ -59,6 +54,54 @@ export default function Index({ users, search, currentUserId, mfaNote, roles }: 
         }
     }
 
+    const columns: Column<UserRow>[] = [
+        { key: "name", header: "الاسم", cell: (user) => user.name, primary: true },
+        { key: "email", header: "البريد الإلكتروني", cell: (user) => <bdi dir="ltr">{user.email}</bdi> },
+        {
+            key: "role",
+            header: "الدور",
+            cell: (user) =>
+                user.id !== currentUserId ? (
+                    <div style={{ maxWidth: "16rem" }}>
+                        <label className="visually-hidden" htmlFor={`role-${user.id}`}>
+                            الدور
+                        </label>
+                        <select
+                            id={`role-${user.id}`}
+                            className="form-select"
+                            style={{ minHeight: "44px", fontSize: "16px" }}
+                            value={user.role}
+                            onChange={(event) => changeRole(user, event.target.value)}
+                        >
+                            {roles.map((role) => (
+                                <option key={role.value} value={role.value}>
+                                    {role.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                ) : (
+                    user.role_label
+                ),
+        },
+        { key: "is_active", header: "الحالة", cell: (user) => (user.is_active ? "نشط" : "موقوف") },
+        {
+            key: "actions",
+            header: "",
+            hideable: false,
+            cell: (user) =>
+                user.id === currentUserId ? null : user.is_active ? (
+                    <button type="button" className="btn btn-outline-danger btn-sm" style={{ minHeight: "44px" }} onClick={() => confirmDeactivate(user)}>
+                        إيقاف الحساب
+                    </button>
+                ) : (
+                    <button type="button" className="btn btn-outline-success btn-sm" style={{ minHeight: "44px" }} onClick={() => confirmActivate(user)}>
+                        تفعيل الحساب
+                    </button>
+                ),
+        },
+    ];
+
     return (
         <AppLayout title="المستخدمون">
             <div className="app-page">
@@ -93,66 +136,13 @@ export default function Index({ users, search, currentUserId, mfaNote, roles }: 
                     </p>
                 ) : null}
                 <SectionCard title="الحسابات">
-                    {users.data.length === 0 ? (
-                        <EmptyState title="لا توجد حسابات مطابقة." />
-                    ) : (
-                        <ul className="list-group list-group-flush">
-                            {users.data.map((user) => (
-                                <li key={user.id} className="list-group-item px-0">
-                                    <div className="d-flex flex-column flex-md-row justify-content-between gap-2">
-                                        <div>
-                                            <div className="fw-semibold">{user.name}</div>
-                                            <div>{user.email}</div>
-                                            {user.id !== currentUserId ? (
-                                                <div className="mt-1" style={{ maxWidth: "16rem" }}>
-                                                    <label className="visually-hidden" htmlFor={`role-${user.id}`}>
-                                                        الدور
-                                                    </label>
-                                                    <select
-                                                        id={`role-${user.id}`}
-                                                        className="form-select"
-                                                        style={{ minHeight: "44px", fontSize: "16px" }}
-                                                        value={user.role}
-                                                        onChange={(event) => changeRole(user, event.target.value)}
-                                                    >
-                                                        {roles.map((role) => (
-                                                            <option key={role.value} value={role.value}>
-                                                                {role.label}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            ) : (
-                                                <div>{user.role_label}</div>
-                                            )}
-                                            <div>{user.is_active ? "نشط" : "موقوف"}</div>
-                                        </div>
-                                        {user.id !== currentUserId ? (
-                                            user.is_active ? (
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-outline-danger"
-                                                    style={{ minHeight: "44px" }}
-                                                    onClick={() => confirmDeactivate(user)}
-                                                >
-                                                    إيقاف الحساب
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-outline-success"
-                                                    style={{ minHeight: "44px" }}
-                                                    onClick={() => confirmActivate(user)}
-                                                >
-                                                    تفعيل الحساب
-                                                </button>
-                                            )
-                                        ) : null}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+                    <DataTable
+                        caption="الحسابات"
+                        columns={columns}
+                        rowKey={(user) => user.id}
+                        emptyTitle="لا توجد حسابات مطابقة."
+                        server={{ paginator: users, url: "/users", query: { search: search || undefined }, only: ["users", "search"] }}
+                    />
                 </SectionCard>
             </div>
         </AppLayout>
