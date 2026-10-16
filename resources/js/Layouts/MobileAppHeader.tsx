@@ -1,4 +1,5 @@
 import { usePage } from "@inertiajs/react";
+import { UserMenu } from "./UserMenu";
 
 type MobileAppHeaderProps = {
     title: string;
@@ -25,9 +26,7 @@ export function MobileAppHeader({ title, showBack = false }: MobileAppHeaderProp
             <button type="button" className="app-icon-button" aria-label="الإشعارات">
                 <i className="bi bi-bell" aria-hidden="true" />
             </button>
-            <button type="button" className="app-icon-button" aria-label="الملف الشخصي">
-                <i className="bi bi-person" aria-hidden="true" />
-            </button>
+            <UserMenu compact />
         </header>
     );
 }
