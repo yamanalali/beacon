@@ -1,6 +1,7 @@
 import { router, useForm, usePage } from "@inertiajs/react";
 import { useEffect, useRef, useState } from "react";
 import type { DocumentRow } from "../../types/bookkeeping";
+import type { BeaconSharedProps } from "../../types/shared";
 
 /** Pick the document that appeared after an upload (list is newest-first). */
 export function findNewDocument(before: ReadonlySet<string>, after: DocumentRow[] | undefined): DocumentRow | null {
@@ -19,6 +20,7 @@ export function ReceiptCapture({ enterpriseId, currentIds }: { enterpriseId: str
     const form = useForm<{ file: File | null; title: string }>({ file: null, title: "" });
     const [step, setStep] = useState<Step>("pick");
     const [preview, setPreview] = useState<string | null>(null);
+    const [info, setInfo] = useState<string | null>(null);
     const before = useRef<Set<string>>(new Set(currentIds));
 
     useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
@@ -41,8 +43,9 @@ export function ReceiptCapture({ enterpriseId, currentIds }: { enterpriseId: str
             onSuccess: (p) => {
                 // With extract=1 the server goes straight to the review page (Extractions/Show).
                 if ((p as { component?: string } | undefined)?.component === "Extractions/Show") return;
-                const props = ((p?.props ?? page.props) as { documents?: { data?: DocumentRow[] }; flash?: { created_document_id?: string | null } });
+                const props = (p?.props ?? page.props) as Partial<BeaconSharedProps> & { documents?: { data?: DocumentRow[] } };
                 const id = props.flash?.created_document_id ?? findNewDocument(before.current, props.documents?.data)?.public_id;
+                if (props.flash?.info) setInfo(props.flash.info);
                 if (!id) { setStep("error"); return; }
                 setStep("reading");
                 router.post(`/documents/${id}/extractions`, {}, { onError: () => setStep("error") });
@@ -98,6 +101,7 @@ export function ReceiptCapture({ enterpriseId, currentIds }: { enterpriseId: str
             <div aria-live="polite" className="small">
                 {step === "uploading" ? `جارٍ الرفع… ${pct}%` : step === "reading" ? "جارٍ قراءة الإيصال… سيفتح نموذج المراجعة تلقائياً." : null}
             </div>
+            {info ? <div className="alert alert-info mb-0" role="status">{info}</div> : null}
             {step === "error" || form.errors.file ? (
                 <div className="alert alert-danger mb-0" role="alert">
                     {form.errors.file ?? "تعذّر إكمال العملية. يمكنك المحاولة مرة أخرى، أو اختيار المستند من القائمة وتسجيله يدوياً."}
