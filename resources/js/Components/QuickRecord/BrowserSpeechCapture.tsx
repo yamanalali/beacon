@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { readSpeechPref, useBrowserSpeech, writeSpeechPref, type SpeechRecognitionCtor } from "./browserSpeech";
+import { VOICE_TRANSCRIPT_MAX } from "./voiceApi";
 
 /** Toggle (with Google notice) shown only when the browser has SpeechRecognition. OFF by default. */
 export function BrowserSpeechToggle({ enabled, onChange }: { enabled: boolean; onChange: (on: boolean) => void }) {
@@ -31,7 +32,9 @@ export const initialSpeechEnabled = (Ctor: SpeechRecognitionCtor | null) => Ctor
 export function BrowserSpeechCapture({ Ctor, onSubmit, busy }: { Ctor: SpeechRecognitionCtor; onSubmit: (text: string) => void; busy?: boolean }) {
     const sp = useBrowserSpeech(Ctor);
     const listening = sp.state === "listening";
-    const text = sp.text.trim();
+    const value = sp.text.slice(0, VOICE_TRANSCRIPT_MAX);
+    const text = value.trim();
+    const near = value.length >= VOICE_TRANSCRIPT_MAX * 0.9;
     return (
         <div className="d-flex flex-column align-items-center gap-3 w-100" data-testid="browser-speech">
             {sp.state === "denied" ? <div className="alert alert-warning mb-0 w-100" role="alert">لم يُسمح باستخدام الميكروفون. فعّله من إعدادات المتصفح ثم حاول مرة أخرى.</div> : null}
@@ -44,8 +47,9 @@ export function BrowserSpeechCapture({ Ctor, onSubmit, busy }: { Ctor: SpeechRec
             <div aria-live="polite" className="small">{listening ? "أستمع… تحدّث الآن." : "اضغط للتحدث، ويمكنك تعديل النص قبل الإرسال."}</div>
             <div className="w-100 text-start">
                 <label htmlFor="speech-text" className="form-label">النص</label>
-                <textarea id="speech-text" className="form-control" rows={3} dir="rtl" value={sp.text} readOnly={listening}
-                    onChange={(e) => sp.setText(e.target.value)} placeholder="سيظهر هنا ما تقوله" />
+                <textarea id="speech-text" className="form-control" rows={3} dir="rtl" value={value} readOnly={listening} maxLength={VOICE_TRANSCRIPT_MAX} aria-describedby="speech-count"
+                    onChange={(e) => sp.setText(e.target.value.slice(0, VOICE_TRANSCRIPT_MAX))} placeholder="سيظهر هنا ما تقوله" />
+                <div id="speech-count" className={`form-text text-end${near ? " fw-semibold" : ""}`} data-testid="speech-count"><bdi dir="ltr">{value.length} / {VOICE_TRANSCRIPT_MAX}</bdi></div>
                 {sp.interim ? <div className="form-text" data-testid="speech-interim">…{sp.interim}</div> : null}
             </div>
             <div className="d-flex flex-wrap gap-2">

@@ -23,7 +23,7 @@ export type VoiceDraftResponse = {
 
 export type VoiceResult =
     | { ok: true; data: VoiceDraftResponse }
-    | { ok: false; kind: "unavailable" | "invalid" | "error" | "unsupported_text"; message: string };
+    | { ok: false; kind: "unavailable" | "invalid" | "error"; message: string };
 
 function xsrf(): string | null {
     const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
@@ -31,6 +31,8 @@ function xsrf(): string | null {
 }
 
 /** POST the WAV to the voice endpoint. 404/503 => voice unavailable (feature off or STT down). */
+const RATE_LIMITED = "محاولات كثيرة خلال وقت قصير. انتظر دقيقة ثم حاول مرة أخرى.";
+
 export async function sendVoice(url: string, audio: Blob, fetchImpl: typeof fetch = fetch): Promise<VoiceResult> {
     const body = new FormData();
     body.append("audio", audio, "recording.wav");
@@ -44,6 +46,7 @@ export async function sendVoice(url: string, audio: Blob, fetchImpl: typeof fetc
         return { ok: false, kind: "error", message: "تعذّر الاتصال. تحقق من الشبكة وحاول مرة أخرى." };
     }
     if (res.status === 409 && handleInertiaConflict(res)) return { ok: false, kind: "error", message: "" };
+    if (res.status === 429) return { ok: false, kind: "error", message: RATE_LIMITED };
     if (res.status === 404 || res.status === 503) return { ok: false, kind: "unavailable", message: "التسجيل الصوتي غير متاح حالياً. يمكنك إدخال العملية يدوياً." };
     if (res.status === 422) {
         const j = (await res.json().catch(() => null)) as { errors?: Record<string, string[]> } | null;
@@ -54,15 +57,14 @@ export async function sendVoice(url: string, audio: Blob, fetchImpl: typeof fetc
 }
 
 /**
- * Browser speech: send recognised text instead of audio.
- * TODO: BUSINESS DECISION REQUIRED (see browserSpeech.ts). The endpoint currently requires `audio`;
- * this needs the backend to accept an optional `transcript` (string, max ~1000) when `audio` is absent,
- * skip STT and feed it to VoiceDraftParser. Until then a 422 on `audio` is reported as unavailable.
+ * Browser speech: send the recognised (and user-edited) text instead of audio.
+ * TODO: BUSINESS DECISION REQUIRED (see browserSpeech.ts) - not to be merged until Yaman approves.
  */
 export async function sendTranscript(url: string, transcript: string, fetchImpl: typeof fetch = fetch): Promise<VoiceResult> {
+    const req: VoiceTranscriptRequest = { transcript: transcript.trim().slice(0, VOICE_TRANSCRIPT_MAX), source: "browser_speech" };
     const body = new FormData();
-    body.append("transcript", transcript);
-    body.append("source", "browser_speech");
+    body.append("transcript", req.transcript);
+    body.append("source", req.source);
     const headers: Record<string, string> = { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" };
     const token = xsrf();
     if (token) headers["X-XSRF-TOKEN"] = token;
@@ -73,13 +75,11 @@ export async function sendTranscript(url: string, transcript: string, fetchImpl:
         return { ok: false, kind: "error", message: "تعذّر الاتصال. تحقّق من الشبكة وحاول مرة أخرى." };
     }
     if (res.status === 409 && handleInertiaConflict(res)) return { ok: false, kind: "error", message: "" };
+    if (res.status === 429) return { ok: false, kind: "error", message: RATE_LIMITED };
     if (res.status === 404 || res.status === 503) return { ok: false, kind: "unavailable", message: "التسجيل الصوتي غير متاح حالياً. يمكنك الإدخال اليدوي." };
     if (res.status === 422) {
         const j = (await res.json().catch(() => null)) as { errors?: Record<string, string[]> } | null;
-        if (j?.errors?.audio && !j.errors.transcript) {
-            return { ok: false, kind: "unsupported_text", message: "الخادم لا يقبل النص المكتوب من المتصفح بعد. استخدم التسجيل العادي." };
-        }
-        return { ok: false, kind: "invalid", message: j?.errors?.transcript?.[0] ?? "تعذّر فهم النص. عدّله وحاول مرة أخرى." };
+        return { ok: false, kind: "invalid", message: j?.errors?.transcript?.[0] ?? j?.errors?.source?.[0] ?? "تعذّر فهم النص. عدّله وحاول مرة أخرى." };
     }
     if (!res.ok) return { ok: false, kind: "error", message: "حدث خطأ أثناء معالجة النص. حاول مرة أخرى." };
     return { ok: true, data: (await res.json()) as VoiceDraftResponse };

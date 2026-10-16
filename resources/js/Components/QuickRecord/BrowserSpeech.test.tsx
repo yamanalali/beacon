@@ -6,7 +6,7 @@ vi.mock("./useWavRecorder", () => ({ MAX_SECONDS: 60, useWavRecorder: () => ({ s
 
 import { VoiceRecorder } from "./VoiceRecorder";
 import { SPEECH_LANG, SPEECH_PREF_KEY, getSpeechRecognition, type SpeechEvent, type SpeechRecognitionLike } from "./browserSpeech";
-import { sendTranscript, type VoiceResult } from "./voiceApi";
+import { VOICE_TRANSCRIPT_MAX, sendTranscript, sendVoice, type VoiceResult } from "./voiceApi";
 
 class MockRecognition implements SpeechRecognitionLike {
     static last: MockRecognition | null = null;
@@ -109,13 +109,26 @@ describe("browser speech capture", () => {
         expect(screen.getByRole("alert").textContent).toContain("الميكروفون");
     });
 
-    it("shows the server message when text is not accepted yet", async () => {
-        renderRec({ sendText: vi.fn().mockResolvedValue({ ok: false, kind: "unsupported_text", message: "الخادم لا يقبل النص" }) });
+    it("limits the textarea to VOICE_TRANSCRIPT_MAX with a counter", () => {
+        renderRec();
+        fireEvent.click(screen.getByRole("button", { name: "ابدأ الاستماع" }));
+        act(() => MockRecognition.last!.emit([["ب".repeat(VOICE_TRANSCRIPT_MAX + 50), true]]));
+        fireEvent.click(screen.getByRole("button", { name: "إيقاف الاستماع" }));
+        const ta = screen.getByLabelText("النص") as HTMLTextAreaElement;
+        expect(ta.maxLength).toBe(VOICE_TRANSCRIPT_MAX);
+        expect(ta.value).toHaveLength(VOICE_TRANSCRIPT_MAX);
+        expect(screen.getByTestId("speech-count").textContent).toBe(`${VOICE_TRANSCRIPT_MAX} / ${VOICE_TRANSCRIPT_MAX}`);
+        fireEvent.change(ta, { target: { value: "دفعت" } });
+        expect(screen.getByTestId("speech-count").textContent).toBe(`4 / ${VOICE_TRANSCRIPT_MAX}`);
+    });
+
+    it("shows the rate-limit message from the server", async () => {
+        renderRec({ sendText: vi.fn().mockResolvedValue({ ok: false, kind: "error", message: "محاولات كثيرة، انتظر دقيقة" }) });
         fireEvent.click(screen.getByRole("button", { name: "ابدأ الاستماع" }));
         act(() => MockRecognition.last!.emit([["نص", true]]));
         fireEvent.click(screen.getByRole("button", { name: "إيقاف الاستماع" }));
         fireEvent.click(screen.getByRole("button", { name: "تحويل إلى مسودة" }));
-        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("الخادم لا يقبل النص"));
+        await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("محاولات كثيرة، انتظر دقيقة"));
         expect(screen.getByRole("button", { name: "حاول مرة أخرى" })).toBeTruthy();
     });
 });
@@ -123,17 +136,25 @@ describe("browser speech capture", () => {
 describe("sendTranscript", () => {
     const json = (status: number, body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 
-    it("posts the transcript as form data", async () => {
-        const f = vi.fn().mockReturnValue(json(200, { draft: {} }));
-        const r = await sendTranscript("/voice", "دفعت 3000", f as unknown as typeof fetch);
-        expect(r.ok).toBe(true);
+    it("posts a trimmed, capped transcript with source=browser_speech and no audio", async () => {
+        const f = vi.fn().mockReturnValue(json(200, { draft: { input_source: "browser_speech" } }));
+        const r = await sendTranscript("/voice", `  ${"أ".repeat(VOICE_TRANSCRIPT_MAX + 5)}  `, f as unknown as typeof fetch);
+        expect(r.ok && r.data.draft.input_source).toBe("browser_speech");
         const body = f.mock.calls[0][1].body as FormData;
-        expect(body.get("transcript")).toBe("دفعت 3000");
+        expect((body.get("transcript") as string).length).toBe(VOICE_TRANSCRIPT_MAX);
+        expect(body.get("source")).toBe("browser_speech");
         expect(body.get("audio")).toBeNull();
     });
 
-    it("maps a 422 on audio to unsupported_text (backend lacks a transcript param)", async () => {
-        const f = vi.fn().mockReturnValue(json(422, { errors: { audio: ["مطلوب"] } }));
-        await expect(sendTranscript("/voice", "x", f as unknown as typeof fetch)).resolves.toMatchObject({ ok: false, kind: "unsupported_text" });
+    it("shows the transcript validation message on 422", async () => {
+        const f = vi.fn().mockReturnValue(json(422, { errors: { transcript: ["النص طويل جداً"] } }));
+        await expect(sendTranscript("/voice", "x", f as unknown as typeof fetch)).resolves.toMatchObject({ ok: false, kind: "invalid", message: "النص طويل جداً" });
+    });
+
+    it("handles 429 for text and audio", async () => {
+        const f = () => vi.fn().mockReturnValue(json(429, { message: "Too Many Attempts." }));
+        const a = await sendTranscript("/voice", "x", f() as unknown as typeof fetch);
+        const b = await sendVoice("/voice", new Blob(["x"]), f() as unknown as typeof fetch);
+        for (const r of [a, b]) expect(r).toMatchObject({ ok: false, kind: "error", message: expect.stringContaining("انتظر دقيقة") });
     });
 });
