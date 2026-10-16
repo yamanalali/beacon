@@ -198,3 +198,26 @@ describe("suggested_items in the review form", () => {
     });
 });
 
+
+describe("suggested_currency_source hint", () => {
+    const base: TransactionDraft = { suggested_date: "2026-10-01", suggested_amount: "3000", suggested_currency: "USD", suggested_counterparty: null };
+    const hint = "العملة الافتراضية، تأكد منها";
+
+    it("shows the hint next to the مقترح badge when the currency is the enterprise default", () => {
+        render(<Harness draft={{ ...base, suggested_currency_source: "default" }} onSubmit={vi.fn()} />);
+        expect(screen.getByTestId("currency-default-hint").textContent).toBe(hint);
+    });
+
+    it("does not show the hint when the currency was spoken", () => {
+        render(<Harness draft={{ ...base, suggested_currency_source: "spoken" }} onSubmit={vi.fn()} />);
+        expect(screen.queryByText(hint)).toBeNull();
+    });
+
+    it("does not show the hint when the source is missing or null", () => {
+        render(<Harness draft={base} onSubmit={vi.fn()} />);
+        expect(screen.queryByText(hint)).toBeNull();
+        cleanup();
+        render(<Harness draft={{ ...base, suggested_currency_source: null }} onSubmit={vi.fn()} />);
+        expect(screen.queryByText(hint)).toBeNull();
+    });
+});

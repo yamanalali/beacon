@@ -22,6 +22,8 @@ export type TransactionDraft = {
     suggested_transaction_type?: string | null;
     /** Free-text note the provider read (voice). Optional: older servers don't send it. */
     suggested_note?: string | null;
+    /** Where the suggested currency came from; 'default' = enterprise default, not read/spoken. */
+    suggested_currency_source?: string | null;
     /** Line items read from the receipt/voice (optional; unread values are null). */
     suggested_items?: SuggestedTransactionItem[] | null;
 };
@@ -179,6 +181,9 @@ export function ReviewForm({
                 <div className="col-5">
                     <SelectInput id="currency" label="العملة" required placeholder="اختر" value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />
                     <Suggested show={isPrefilled(draft.suggested_currency, data.currency)} />
+                {draft.suggested_currency_source === "default" && isPrefilled(draft.suggested_currency, data.currency) ? (
+                    <div className="form-text" data-testid="currency-default-hint">العملة الافتراضية، تأكد منها</div>
+                ) : null}
                 </div>
             </div>
             <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" required placeholder="اختر" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
