@@ -86,7 +86,8 @@ export function ReviewForm({
 }) {
     const manual = !hasSuggestions(draft);
     const pct = confidencePercent(draft.confidence);
-    const low = draft.needs_review || (pct !== null && pct < 60);
+    // Server decides (needs_review); no client-side confidence threshold.
+    const low = draft.needs_review === true;
     const categories = options.categories[data.type] ?? [];
     const submit = (e: FormEvent) => { e.preventDefault(); onSubmit(); };
 

@@ -56,6 +56,12 @@ describe("ReviewForm", () => {
         expect(screen.getAllByText("مقترح").length).toBe(2);
     });
 
+    it("low confidence alone does not warn; only server needs_review does", () => {
+        render(<Harness draft={{ ...read, confidence: 0.1, needs_review: false }} />);
+        expect(screen.getByText("تمت القراءة")).toBeTruthy();
+        expect(screen.queryByText("راجع القيم بعناية")).toBeNull();
+    });
+
     it("switching expense/income clears the category and submits edited data", () => {
         const onSubmit = vi.fn();
         render(<Harness draft={read} onSubmit={onSubmit} />);
