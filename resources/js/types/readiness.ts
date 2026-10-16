@@ -48,7 +48,8 @@ export interface Pillar {
     readiness_rule_set_id: number;
     code: string;
     label_ar: string;
-    weight: string | number;
+    /** null or 0 = no admin weight: equal share of the score. */
+    weight: string | number | null;
     min_score: string | number | null;
     sort_order: number;
     criteria?: Criterion[];
