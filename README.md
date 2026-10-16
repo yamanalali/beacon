@@ -106,7 +106,7 @@ Receipt OCR (section 15) can run fully **locally** with [Tesseract](https://gith
 ```
 AI_OCR_DRIVER=tesseract        # tesseract | ai | manual
 TESSERACT_PATH=tesseract       # full path on Windows, see below
-TESSERACT_LANGS=ara+eng
+TESSERACT_TESSDATA_DIR=        # optional: folder with ara/eng/osd .traineddata, e.g. C:\Tesseract-OCR\tessdata (empty = not passed)
 ```
 
 ### Windows install
