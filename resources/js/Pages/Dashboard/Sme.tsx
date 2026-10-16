@@ -7,6 +7,7 @@ import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { QuickRecordButton } from "../../Components/QuickRecord/QuickRecord";
 import { StatCard } from "../../Components/Common/StatCard";
+import { CurrencyCards } from "../../Components/Dashboard/CurrencyCards";
 import { Money } from "../../Components/Common/Money";
 import { changeLabel, currencyName, currencySymbol, formatMoneyIsolated } from "../../lib/money";
 import { StatusBadge, type StatusTone } from "../../Components/Feedback/StatusBadge";
@@ -121,7 +122,9 @@ export default function Sme({
                                 </div>
                             </SectionCard>
                         ) : null}
-                        {kpis ? (
+                        {kpis && (kpis.by_currency?.current_month?.length ?? 0) > 0 ? (
+                            <CurrencyCards kpis={kpis} />
+                        ) : kpis ? (
                             <section aria-label="مؤشرات هذا الشهر">
                                 <div className="row g-3">
                                     <div className="col-6 col-lg-3">
