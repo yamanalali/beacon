@@ -37,7 +37,7 @@ export default function Show({
     suggested_transaction_type?: string | null;
 }) {
     const draft: TransactionDraft = { ...extraction, suggested_transaction_type };
-    const form = useForm<ReviewFormData>(initialReviewData(draft, type, options, category_suggestion));
+    const form = useForm<ReviewFormData>(initialReviewData(draft, type, options, category_suggestion, transaction_type_options));
     const doc = extraction.document;
     const pending = extraction.status === "pending_review";
 

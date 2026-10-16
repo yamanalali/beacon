@@ -48,4 +48,24 @@ describe("VoiceRecorder", () => {
         expect(screen.getByRole("link", { name: "إدخال يدوي" }).getAttribute("href")).toBe("/manual");
         expect(screen.queryByRole("button", { name: "حاول مرة أخرى" })).toBeNull();
     });
+
+    it("does not default unread currency/date and prefills suggested type + category", async () => {
+        const res2 = {
+            ...response,
+            draft: { ...response.draft, suggested_currency: null, suggested_date: null, suggested_transaction_type: "income" },
+            transaction_type_options: [{ value: "expense", label: "مصروف" }, { value: "income", label: "دخل" }],
+            category_suggestion: { category: "rent", label: "إيجار", needs_review: false },
+            options: { ...response.options, categories: { expense: [], income: [{ value: "rent", label: "إيجار" }] } },
+        } as VoiceDraftResponse;
+        await recordAndStop(vi.fn().mockResolvedValue({ ok: true, data: res2 }));
+        expect((screen.getByLabelText(/العملة/) as HTMLSelectElement).value).toBe("");
+        expect((screen.getByLabelText(/التاريخ/) as HTMLInputElement).value).toBe("");
+        expect((screen.getByLabelText("التصنيف") as HTMLSelectElement).value).toBe("rent");
+        expect((screen.getByLabelText("دخل") as HTMLInputElement).checked).toBe(true);
+        expect(screen.getAllByText("مقترح").length).toBeGreaterThanOrEqual(2);
+        const confirm = screen.getByRole("button", { name: /تأكيد وحفظ/ }) as HTMLButtonElement;
+        expect(confirm.disabled).toBe(true);
+        fireEvent.click(confirm);
+        expect(routerPost).not.toHaveBeenCalled();
+    });
 });
