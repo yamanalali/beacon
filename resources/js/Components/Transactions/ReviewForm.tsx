@@ -19,6 +19,8 @@ export type TransactionDraft = {
     needs_review?: boolean;
     /** Provider's guess of the type; preselects the type selector when present. */
     suggested_transaction_type?: string | null;
+    /** Free-text note the provider read (voice). Optional: older servers don't send it. */
+    suggested_note?: string | null;
 };
 
 export type ReviewFormData = {
@@ -73,7 +75,7 @@ export function initialReviewData(draft: TransactionDraft, type: string, options
         payment_status: "paid",
         paid_amount: "",
         counterparty: draft.suggested_counterparty ?? "",
-        description: "",
+        description: typeof draft.suggested_note === "string" && draft.suggested_note.trim() !== "" ? draft.suggested_note : "",
     };
 }
 
@@ -184,6 +186,7 @@ export function ReviewForm({
                 <TextInput id="paid_amount" name="paid_amount" label="المبلغ المدفوع الآن" value={data.paid_amount} onChange={(v) => setData({ paid_amount: v })} error={errors.paid_amount} inputMode="decimal" />
             ) : null}
             <TextInput id="description" name="description" label="ملاحظة (اختياري)" value={data.description} onChange={(v) => setData({ description: v })} error={errors.description} />
+            <Suggested show={isPrefilled(draft.suggested_note, data.description)} />
 
             {missing.length > 0 ? (
                 <p id="review-missing" className="small text-danger mb-2" role="status">
