@@ -7,6 +7,7 @@ use App\Ai\Voice\VoiceDraftParser;
 use App\Contracts\TransactionCategorizer;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
+use App\Finance\TransactionTypeSuggester;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Enterprise;
@@ -25,7 +26,7 @@ class VoiceDraftController extends Controller
 {
     public const MIMES = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'audio/wave', 'video/webm'];
 
-    public function store(Request $request, Enterprise $enterprise, SpeechToText $stt, VoiceDraftParser $parser, TransactionCategorizer $categorizer): JsonResponse
+    public function store(Request $request, Enterprise $enterprise, SpeechToText $stt, VoiceDraftParser $parser, TransactionCategorizer $categorizer, TransactionTypeSuggester $typeSuggester): JsonResponse
     {
         abort_unless(config('ai.voice.enabled'), 404);
         abort_unless($request->user()->isActive(), 403);
@@ -46,8 +47,10 @@ class VoiceDraftController extends Controller
             }
         }
 
-        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'type' => null, 'confidence' => null];
-        $type = $p['type'] ?? 'expense';
+        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'confidence' => null];
+        $suggestedType = $typeSuggester->suggest($text);
+        // Categories follow the suggested type (as Extractions/Show does).
+        $type = $suggestedType ?? 'expense';
         $allowed = config('bookkeeping.categories.'.$type, []);
         $suggestion = $text !== null ? $categorizer->suggest($type, $text, $p['counterparty'], $allowed) : null;
         if ($suggestion !== null && ! array_key_exists($suggestion->category, $allowed)) {
@@ -74,7 +77,7 @@ class VoiceDraftController extends Controller
                 'suggested_amount' => $p['amount'] !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $p['amount']) ? $p['amount'] : null,
                 'suggested_currency' => in_array($p['currency'], $currencies, true) ? $p['currency'] : null,
                 'suggested_counterparty' => $p['counterparty'],
-                'suggested_transaction_type' => $p['type'],
+                'suggested_transaction_type' => $suggestedType,
                 'raw_text' => $text,
             ],
             'type' => $type,
