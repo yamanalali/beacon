@@ -15,6 +15,7 @@ use App\Models\Document;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
+use App\Services\Ai\CategorySuggestion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -76,7 +77,10 @@ class ReceiptExtractionController extends Controller
         $allowed = config('bookkeeping.categories.'.$type, []);
 
         $suggestion = $extraction->status === ExtractionStatus::PendingReview
-            ? $categorizer->suggest($type, null, $extraction->suggested_counterparty, $allowed)
+            // Receipt-text suggestion (computed at extraction) first; bound categorizer as fallback.
+            ? ($extraction->suggested_category !== null && array_key_exists($extraction->suggested_category, $allowed)
+                ? new CategorySuggestion($extraction->suggested_category, null, true)
+                : $categorizer->suggest($type, null, $extraction->suggested_counterparty, $allowed))
             : null;
         // Only categories from the configured list are ever offered.
         if ($suggestion !== null && ! array_key_exists($suggestion->category, $allowed)) {
