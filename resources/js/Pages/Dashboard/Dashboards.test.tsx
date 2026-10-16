@@ -18,7 +18,7 @@ afterEach(cleanup);
 
 const period = (income: string) => ({ from: "2026-10-01", to: "2026-10-31", income, expense: "200.00", net: "800.00", count: 3 });
 const kpis: SmeDashboardKpis = {
-    currency: "SYP", current_month: period("1000.00"), previous_month: period("500.00"), other_currencies: ["USD"],
+    currency: "SYP", current_month: period("1000.00"), previous_month: period("500.00"), other_currencies: ["USD"], by_currency: { current_month: [], previous_month: [] }, unposted_count: 0,
     transaction_count: 9, pending_extractions_count: 2, readiness_score: "72", overdue_compliance_count: 1, upcoming_compliance_count: 0, open_escalations_count: 0,
 };
 
