@@ -40,10 +40,16 @@ class VoiceDraftParser
         return mb_strlen($name) >= 2 ? mb_substr($name, 0, 150) : null;
     }
 
-    /** @return array{amount:?string,date:?string,counterparty:?string,currency:?string,confidence:float} */
+    /** @return array{amount:?string,date:?string,counterparty:?string,currency:?string,note:?string,confidence:float} */
+    /** "لمدة ثلاثة اشهر", "مدة شهرين", "لمدة سنة"... goes to the note only (manager decision). */
+    private const PERIOD = '/(?:لمدة|لمده|مدة|مده|عن\s+مدة)\s+(?:(?:[\p{L}\d]+)\s+)?(?:شهر|شهرين|أشهر|اشهر|شهور|سنة|سنه|سنتين|سنوات|سنين|أسبوع|اسبوع|أسبوعين|اسبوعين|أسابيع|اسابيع|يوم|يومين|أيام|ايام)(?=\s|[\p{P}]|$)/u';
+
     public function parse(string $text): array
     {
-        $t = (new SpokenNumberNormalizer)->normalize($text);
+        // A period phrase is kept verbatim as a note and removed before reading the
+        // amount, so "3 اشهر" never becomes or multiplies the amount.
+        $note = preg_match(self::PERIOD, $text, $pm) ? trim($pm[0]) : null;
+        $t = (new SpokenNumberNormalizer)->normalize($note !== null ? str_replace($pm[0], ' ', $text) : $text);
 
         $amount = null;
         if (preg_match_all('/\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?/u', $t, $m)) {
@@ -75,6 +81,6 @@ class VoiceDraftParser
 
         $found = count(array_filter([$amount, $date, $counterparty]));
 
-        return compact('amount', 'date', 'counterparty', 'currency') + ['confidence' => round(min(0.5, 0.15 * $found), 2)];
+        return compact('amount', 'date', 'counterparty', 'currency', 'note') + ['confidence' => round(min(0.5, 0.15 * $found), 2)];
     }
 }

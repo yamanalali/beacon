@@ -123,6 +123,18 @@ class VoiceDraftTest extends TestCase
         $this->assertArrayNotHasKey('id', $res->json('enterprise'));
     }
 
+    public function test_yaman_rent_sentence_draft(): void
+    {
+        $this->stubStt('دفعت اجار محل 50 الف ليرة سوريا لمدة ثلاثة اشهر');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_amount', '50000')
+            ->assertJsonPath('draft.suggested_currency', 'SYP')
+            ->assertJsonPath('draft.suggested_note', 'لمدة ثلاثة اشهر')
+            ->assertJsonPath('draft.suggested_transaction_type', 'expense')
+            ->assertJsonPath('category_suggestion.category', 'rent');
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
     public function test_unavailable_stt_deletes_audio_and_returns_empty_draft(): void
     {
         $stub = $this->stubStt(null);
