@@ -31,7 +31,7 @@ class ReadinessRuleSetValidator
             'change_summary' => $set->change_summary,
             'source_version_number' => $set->version_number,
             'pillars' => $set->pillars->map(fn ($p) => [
-                'code' => $p->code, 'label_ar' => $p->label_ar, 'weight' => (float) $p->weight,
+                'code' => $p->code, 'label_ar' => $p->label_ar, 'weight' => $p->weight === null ? null : (float) $p->weight,
                 'min_score' => $p->min_score !== null ? (float) $p->min_score : null, 'sort_order' => (int) $p->sort_order,
             ])->values()->all(),
             'criteria' => $set->criteria->sortBy([['sort_order', 'asc'], ['id', 'asc']])->map(fn ($c) => [

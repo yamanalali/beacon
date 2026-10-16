@@ -72,3 +72,7 @@
 - **ما في قيم مكتوبة بالكود:** الأوزان والحدود الدنيا والنطاقات كلها بيحطها الأدمن من الواجهة.
 - **النشر بلا نطاقات ممنوع:** `ReadinessRuleSetValidator` بيرجّع خطأ «لا يمكن نشر القواعد بدون نطاقات تصنيف.» عند النشر بس. المعاينة بتشتغل بلا نطاقات (الـband بيطلع null)، والاستيراد بيعمل مسودة فمسموح.
 - التنفيذ بـ`ReadinessScorer::evaluate()` و`ReadinessRuleSetValidator::errors(forPublish: true)`.
+
+## 2026-10-16 — Whisper prompt (مدير لارافيل)
+- `WHISPER_PROMPT` stays empty by default on every OS. Inventing words that were never said in a financial transaction is riskier than lower accuracy.
+- `WhisperMoneyCorrector` (post-transcription money-word fixes) is enough for now.

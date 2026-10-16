@@ -251,6 +251,11 @@ class VoiceDraftTest extends TestCase
     {
         $w = new class extends WhisperCppTranscriber
         {
+            protected function modelExists(string $path): bool
+            {
+                return true;
+            }
+
             protected function makeProcess(array $command): Process
             {
                 return new Process(['php', '-r', 'echo "?????? ?????? ??????";']);
@@ -291,6 +296,15 @@ class VoiceDraftTest extends TestCase
         $w = new class extends WhisperCppTranscriber
         {
             public array $cmd = [];
+
+            protected function modelExists(string $path): bool
+
+            {
+
+                return true;
+
+            }
+
 
             protected function makeProcess(array $command): Process
             {

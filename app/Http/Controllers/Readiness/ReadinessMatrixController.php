@@ -207,7 +207,7 @@ class ReadinessMatrixController extends Controller
             $pillarIds = [];
             foreach ($definition['pillars'] ?? [] as $i => $p) {
                 $pillarIds[$p['code']] = $set->pillars()->create([
-                    'code' => $p['code'], 'label_ar' => $p['label_ar'], 'weight' => $p['weight'] ?? 0,
+                    'code' => $p['code'], 'label_ar' => $p['label_ar'], 'weight' => $p['weight'] ?? null,
                     'min_score' => $p['min_score'] ?? null, 'sort_order' => $p['sort_order'] ?? $i,
                 ])->id;
             }
