@@ -34,6 +34,18 @@ class FakeAiProvider implements AiProvider
         return new AiAnswer(true, 'بحسب إرشادات بيكون: '.mb_substr($first['body'], 0, 300), array_map(fn ($k) => $k['id'], $knowledge));
     }
 
+    public string $transcript = 'دفعت اليوم 5000 ليرة لمحل الأمل أجار';
+
+    public function transcribe(string $audio, string $mimeType): string
+    {
+        $this->calls[] = ['transcribe' => strlen($audio), 'mime' => $mimeType];
+        if ($this->failing) {
+            throw new AiUnavailableException('Fake failure.');
+        }
+
+        return $this->transcript;
+    }
+
     public function extractReceipt(string $contents, string $mimeType): array
     {
         $this->calls[] = ['extractReceipt' => strlen($contents), 'mime' => $mimeType];

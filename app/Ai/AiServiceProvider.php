@@ -11,6 +11,9 @@ use App\Ai\Models\AiEscalation;
 use App\Ai\Models\KnowledgeArticle;
 use App\Ai\Policies\AiEscalationPolicy;
 use App\Ai\Policies\KnowledgeArticlePolicy;
+use App\Ai\Voice\ProviderTranscriber;
+use App\Ai\Voice\SpeechToText;
+use App\Ai\Voice\WhisperCppTranscriber;
 use App\Contracts\ReceiptExtractor;
 use App\Contracts\TransactionCategorizer;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -24,6 +27,8 @@ class AiServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->registerVoice();
+
         $this->app->singleton(AiProvider::class, fn () => match (config('ai.driver')) {
             'fake' => new FakeAiProvider,
             // TODO: BUSINESS DECISION REQUIRED — add the approved vendor adapter here.
@@ -36,6 +41,13 @@ class AiServiceProvider extends ServiceProvider
             $this->app->bind(ReceiptExtractor::class, AiReceiptExtractor::class);
             $this->app->bind(TransactionCategorizer::class, AiTransactionCategorizer::class);
         }
+    }
+
+    private function registerVoice(): void
+    {
+        $this->app->bind(SpeechToText::class, fn ($app) => config('ai.voice.stt_driver') === 'provider'
+            ? $app->make(ProviderTranscriber::class)
+            : new WhisperCppTranscriber);
     }
 
     public function boot(): void

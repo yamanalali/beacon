@@ -4,10 +4,15 @@ use App\Ai\Http\Controllers\AiPageController;
 use App\Ai\Http\Controllers\AssistantController;
 use App\Ai\Http\Controllers\FinanceAiController;
 use App\Ai\Http\Controllers\KnowledgeArticleController;
+use App\Ai\Http\Controllers\VoiceDraftController;
 use Illuminate\Support\Facades\Route;
 
 // AI assistant, escalation and knowledge base (rules §33–§37). JSON endpoints.
 Route::middleware('auth')->prefix('ai')->name('ai.')->group(function () {
+    // Voice draft transaction (off unless AI_VOICE_ENABLED); access = transaction create policy.
+    Route::post('/enterprises/{enterprise:public_id}/voice-drafts', [VoiceDraftController::class, 'store'])
+        ->middleware('throttle:10,1')->name('voice-drafts.store');
+
     Route::middleware('role:sme_user,beacon_advisor,beacon_admin')->group(function () {
         Route::post('/assistant/ask', [AssistantController::class, 'ask'])
             ->middleware('throttle:ai-assistant')->name('assistant.ask');

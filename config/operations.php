@@ -47,6 +47,12 @@ return [
             'agreement_reference' => env('BEACON_DPA_INSIGHTS_REFERENCE'),
             'allowed_data' => [],
         ],
+        'speech_to_text' => [
+            'label_ar' => 'مزوّد تحويل الصوت إلى نص (خارجي)',
+            'approved' => (bool) env('BEACON_DPA_STT_APPROVED', false),
+            'agreement_reference' => env('BEACON_DPA_STT_REFERENCE'),
+            'allowed_data' => [],
+        ],
         'email' => [
             'label_ar' => 'مزوّد البريد الإلكتروني للإشعارات',
             'approved' => (bool) env('BEACON_DPA_EMAIL_APPROVED', false),

@@ -14,6 +14,11 @@ class NullAiProvider implements AiProvider
         throw new AiUnavailableException('No AI provider configured.');
     }
 
+    public function transcribe(string $audio, string $mimeType): string
+    {
+        throw new AiUnavailableException('No AI provider configured.');
+    }
+
     public function extractReceipt(string $contents, string $mimeType): array
     {
         throw new AiUnavailableException('No AI provider configured.');
