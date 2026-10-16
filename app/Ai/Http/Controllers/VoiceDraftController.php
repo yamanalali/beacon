@@ -7,6 +7,7 @@ use App\Ai\Voice\VoiceDraftParser;
 use App\Contracts\TransactionCategorizer;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
+use App\Finance\ReceiptTextCategorizer;
 use App\Finance\TransactionTypeSuggester;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
@@ -26,7 +27,7 @@ class VoiceDraftController extends Controller
 {
     public const MIMES = ['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/wav', 'audio/x-wav', 'audio/wave', 'video/webm'];
 
-    public function store(Request $request, Enterprise $enterprise, SpeechToText $stt, VoiceDraftParser $parser, TransactionCategorizer $categorizer, TransactionTypeSuggester $typeSuggester): JsonResponse
+    public function store(Request $request, Enterprise $enterprise, SpeechToText $stt, VoiceDraftParser $parser, TransactionCategorizer $categorizer, TransactionTypeSuggester $typeSuggester, ReceiptTextCategorizer $textCategorizer): JsonResponse
     {
         abort_unless(config('ai.voice.enabled'), 404);
         abort_unless($request->user()->isActive(), 403);
@@ -53,6 +54,10 @@ class VoiceDraftController extends Controller
         $type = $suggestedType ?? 'expense';
         $allowed = config('bookkeeping.categories.'.$type, []);
         $suggestion = $text !== null ? $categorizer->suggest($type, $text, $p['counterparty'], $allowed) : null;
+        // Fall back to the keyword categorizer used for receipts (e.g. «اجار» -> rent).
+        if ($suggestion === null && $text !== null) {
+            $suggestion = $textCategorizer->suggest($text, $allowed);
+        }
         if ($suggestion !== null && ! array_key_exists($suggestion->category, $allowed)) {
             $suggestion = null;
         }

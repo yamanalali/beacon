@@ -217,4 +217,37 @@ class VoiceDraftTest extends TestCase
         $this->stubStt(null);
         $this->send()->assertOk()->assertJsonPath('draft.suggested_transaction_type', null)->assertJsonPath('type', 'expense');
     }
+
+    public function test_voice_rent_sentence_suggests_rent_category(): void
+    {
+        $this->stubStt('دفعت خمسين الف ليرة اجار محل اليوم');
+        $this->send()->assertOk()->assertJsonPath('category_suggestion.category', 'rent')->assertJsonPath('type', 'expense');
+    }
+
+    public function test_voice_rent_variants_map_to_rent(): void
+    {
+        foreach (['دفعت أجار المحل', 'دفعت إيجار المحل', 'دفعت ايجار المحل'] as $t) {
+            $this->stubStt($t);
+            $this->send()->assertOk()->assertJsonPath('category_suggestion.category', 'rent');
+        }
+    }
+
+    public function test_voice_food_sentence_suggests_meals(): void
+    {
+        $this->stubStt('دفعت عشرين الف ليرة بيتزا وعصير بالمطعم');
+        $this->send()->assertOk()->assertJsonPath('category_suggestion.category', 'meals');
+    }
+
+    public function test_voice_unknown_sentence_has_no_category(): void
+    {
+        $this->stubStt('دفعت خمسين الف ليرة');
+        $this->send()->assertOk()->assertJsonPath('category_suggestion', null);
+    }
+
+    public function test_voice_category_never_outside_config(): void
+    {
+        config(['bookkeeping.categories.expense' => ['other' => 'أخرى']]);
+        $this->stubStt('دفعت خمسين الف ليرة اجار محل اليوم');
+        $this->send()->assertOk()->assertJsonPath('category_suggestion', null);
+    }
 }
