@@ -15,7 +15,7 @@ type Step = "pick" | "ready" | "uploading" | "reading" | "error";
  * (existing documents.extractions.store) → the server redirects to the review page.
  * Provider-agnostic: if reading is unavailable the review page opens in manual-entry mode.
  */
-export function ReceiptCapture({ enterpriseId, currentIds }: { enterpriseId: string; currentIds: string[] }) {
+export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterpriseId: string; currentIds: string[]; uploadUrl?: string }) {
     const page = usePage();
     const form = useForm<{ file: File | null; title: string }>({ file: null, title: "" });
     const [step, setStep] = useState<Step>("pick");
@@ -36,7 +36,7 @@ export function ReceiptCapture({ enterpriseId, currentIds }: { enterpriseId: str
     const upload = () => {
         before.current = new Set(currentIds);
         setStep("uploading");
-        form.post(`/enterprises/${enterpriseId}/documents?extract=1`, {
+        form.post(uploadUrl ?? `/enterprises/${enterpriseId}/documents?extract=1`, {
             forceFormData: true,
             preserveScroll: true,
             onError: () => setStep("error"),

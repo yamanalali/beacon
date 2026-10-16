@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NavigationItem } from "../types/shared";
 import { homeItem } from "./navigation";
+import { QuickRecordButton, useQuickRecord } from "../Components/QuickRecord/QuickRecord";
 import { homeLink, iconFor, navigationOrFallback, splitMobile } from "./navigationModel";
 
 function NavLink({ item, className, onClick }: { item: NavigationItem; className: string; onClick?: () => void }) {
@@ -23,7 +24,10 @@ export function MobileBottomNavigation() {
     const { url, props } = usePage();
     // Links come from the server (`auth.navigation`); no role logic in the UI.
     const items = navigationOrFallback(props.auth.navigation, url);
-    const { tabs: primaryItems, more: moreItems } = splitMobile(items);
+    const quick = useQuickRecord();
+    // Centre «سجّل معاملة» tab takes one slot when available.
+    const { tabs, more: moreItems } = splitMobile(items, quick ? 2 : 3);
+    const primaryItems = tabs;
     const home = homeLink(items, url);
     const homeActive = home.active;
     const moreActive = moreItems.some((item) => item.active);
@@ -114,7 +118,17 @@ export function MobileBottomNavigation() {
                         <span className="app-tab__label">{homeItem.label}</span>
                     </Link>
                 </li>
-                {primaryItems.map((item) => (
+                {primaryItems.slice(0, quick ? 1 : primaryItems.length).map((item) => (
+                    <li key={item.key} className="app-bottom-nav__item">
+                        <NavLink item={item} className="app-tab" />
+                    </li>
+                ))}
+                {quick && (
+                    <li className="app-bottom-nav__item">
+                        <QuickRecordButton variant="tab" />
+                    </li>
+                )}
+                {primaryItems.slice(quick ? 1 : primaryItems.length).map((item) => (
                     <li key={item.key} className="app-bottom-nav__item">
                         <NavLink item={item} className="app-tab" />
                     </li>
