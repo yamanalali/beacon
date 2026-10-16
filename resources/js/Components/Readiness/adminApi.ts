@@ -70,7 +70,7 @@ export async function mutate(method: "POST" | "PUT" | "DELETE", url: string, bod
 
 const num = (v: unknown) => (v === "" || v === null || v === undefined ? null : Number(v));
 
-export const pillarBody = (p: Pillar) => ({ code: p.code, label_ar: p.label_ar, weight: num(p.weight) ?? 0, min_score: num(p.min_score) }); // PillarRequest needs a number; 0 = equal default share
+export const pillarBody = (p: Pillar) => ({ code: p.code, label_ar: p.label_ar, weight: num(p.weight), min_score: num(p.min_score) }); // empty = null = equal default share (#82)
 export const bandBody = (b: ScoreBand) => ({ label_ar: b.label_ar, min: num(b.min), max: num(b.max), color_token: b.color_token });
 export const criterionBody = (c: Criterion) => ({
     code: c.code, label_ar: c.label_ar, description_ar: c.description_ar, weight: num(c.weight), is_mandatory: c.is_mandatory,

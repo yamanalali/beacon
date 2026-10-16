@@ -37,7 +37,7 @@ export type RuleSetExport = {
     name_ar: string;
     change_summary: string | null;
     source_version_number?: number | null;
-    pillars: { code: string; label_ar: string; weight: number | string; min_score: number | string | null; sort_order: number }[];
+    pillars: { code: string; label_ar: string; weight: number | string | null; min_score: number | string | null; sort_order: number }[];
     criteria: (Omit<Criterion, "id" | "readiness_rule_set_id" | "readiness_pillar_id" | "compliance_requirement_id"> & { pillar_code: string | null; compliance_requirement_code?: string | null; type: CriterionType })[];
     bands: { label_ar: string; min: number | string; max: number | string; color_token: string; sort_order: number }[];
 };

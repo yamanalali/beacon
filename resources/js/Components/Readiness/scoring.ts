@@ -323,7 +323,7 @@ export function exportRuleSet(rs: RuleSetDraft): RuleSetExport {
         name_ar: rs.name_ar,
         change_summary: rs.change_summary ?? null,
         source_version_number: rs.version_number,
-        pillars: sortByOrder(rs.pillars).map((p) => ({ code: p.code, label_ar: p.label_ar, weight: num(p.weight), min_score: p.min_score === null || p.min_score === "" ? null : num(p.min_score), sort_order: p.sort_order })),
+        pillars: sortByOrder(rs.pillars).map((p) => ({ code: p.code, label_ar: p.label_ar, weight: p.weight === null || p.weight === "" ? null : num(p.weight), min_score: p.min_score === null || p.min_score === "" ? null : num(p.min_score), sort_order: p.sort_order })),
         criteria: sortByOrder(rs.criteria).map(({ id: _i, readiness_rule_set_id: _r, readiness_pillar_id, compliance_requirement_id: _c, ...c }) => ({ ...c, weight: num(c.weight), pillar_code: readiness_pillar_id !== null ? codeOf.get(readiness_pillar_id) ?? null : null })),
         bands: sortByOrder(rs.bands).map((b) => ({ label_ar: b.label_ar, min: num(b.min), max: num(b.max), color_token: b.color_token, sort_order: b.sort_order })),
     };

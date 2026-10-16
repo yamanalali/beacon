@@ -67,3 +67,13 @@ describe("PackageView (referral package)", () => {
         expect(container.querySelector("pre")).toBeNull();
     });
 });
+
+describe("PackageView empty labels", () => {
+    it("shows «—» instead of a raw code when the label is empty", () => {
+        const { container } = render(<PackageView pkg={{ enterprise_profile: { business_name: "ورشة", sector: "textiles", sector_label: "", location: null, founding_date: null, employee_count: null, registration_status: "registered", registration_status_label: null } }} />);
+        const t = container.textContent ?? "";
+        expect(t).not.toContain("textiles");
+        expect(t).not.toContain("registered");
+        expect(t.match(/—/g)?.length).toBe(2);
+    });
+});
