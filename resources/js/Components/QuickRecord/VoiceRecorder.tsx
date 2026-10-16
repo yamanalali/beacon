@@ -22,7 +22,7 @@ export function VoiceRecorder({ voiceUrl, manualUrl, onDone, send = sendVoice }:
         const r = await send(voiceUrl, blob);
         if (!r.ok) { setPhase({ name: "error", message: r.message, unavailable: r.kind === "unavailable" }); return; }
         const d = r.data;
-        setPhase({ name: "review", res: d, data: initialReviewData(d.draft, d.type, d.options, d.category_suggestion) });
+        setPhase({ name: "review", res: d, data: initialReviewData(d.draft, d.type, d.options, d.category_suggestion, d.transaction_type_options) });
     };
 
     if (phase.name === "review") {
