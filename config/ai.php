@@ -17,4 +17,17 @@ return [
 
     // Max published knowledge snippets sent as context (data minimisation §74).
     'max_context_articles' => 3,
+
+    /*
+     * Receipt OCR driver (rules §15). "tesseract" = free LOCAL OCR (image never
+     * leaves the server, so no DataControl approval is needed). Default: tesseract
+     * in APP_ENV=local, otherwise the AI/manual binding above applies.
+     * Values: tesseract | ai | manual.
+     */
+    'ocr' => [
+        'driver' => env('AI_OCR_DRIVER', env('APP_ENV') === 'local' ? 'tesseract' : null),
+        'tesseract_path' => env('TESSERACT_PATH', 'tesseract'),
+        'tesseract_langs' => env('TESSERACT_LANGS', 'ara+eng'),
+        'timeout' => (int) env('TESSERACT_TIMEOUT', 30),
+    ],
 ];
