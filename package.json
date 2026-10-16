@@ -5,7 +5,6 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "test:nav": "node --test tests/js/navigation.test.ts",
         "test": "vitest run"
     },
     "devDependencies": {
