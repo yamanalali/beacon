@@ -1,5 +1,6 @@
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { QuickLinks } from "../../Components/Common/QuickLinks";
+import { visibleLinks } from "../../Layouts/navigationModel";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
@@ -90,6 +91,7 @@ export default function Sme({
     compliance = { overdue: [], upcoming: [] },
     alerts = [],
 }: Props) {
+    const can = usePage().props.auth?.can;
     return (
         <AppLayout title="الرئيسية">
             <div className="app-page">
@@ -192,11 +194,11 @@ export default function Sme({
                     </>
                 )}
                 <QuickLinks
-                    items={[
+                    items={visibleLinks(can, [
                         { href: "/transactions", label: "المعاملات", description: "المبيعات والمشتريات والدفعات", icon: "bi-wallet2" },
                         { href: "/reports", label: "التقارير", description: "فهم وضع منشأتك المالي", icon: "bi-bar-chart-line" },
                         { href: "/documents", label: "المستندات", description: "كل وثائقك في مكان واحد", icon: "bi-folder2-open" },
-                    ]}
+                    ])}
                 />
             </div>
         </AppLayout>

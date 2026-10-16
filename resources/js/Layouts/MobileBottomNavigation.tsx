@@ -23,7 +23,7 @@ function NavLink({ item, className, onClick }: { item: NavigationItem; className
 export function MobileBottomNavigation() {
     const { url, props } = usePage();
     // Links come from the server (`auth.navigation`); no role logic in the UI.
-    const items = navigationOrFallback(props.auth.navigation, url);
+    const items = navigationOrFallback(props.auth.navigation, url, props.auth.can);
     const quick = useQuickRecord();
     // Centre «سجّل معاملة» tab takes one slot when available.
     const { tabs, more: moreItems } = splitMobile(items, quick ? 2 : 3);

@@ -20,6 +20,7 @@ use App\Models\TransactionItem;
 use App\Models\TransactionSettlement;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
+use App\Navigation\PageAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -34,21 +35,10 @@ class TransactionController extends Controller
      */
     public function entry(Request $request): RedirectResponse
     {
-        $user = $request->user();
+        // Same gate the sidebar uses (auth.can.*): only a user with an own enterprise has this page.
+        Gate::authorize(PageAccess::TRANSACTIONS_ENTRY);
 
-        if ($user->role === UserRole::SmeUser) {
-            $enterprise = Enterprise::query()
-                ->whereHas('members', fn ($query) => $query->whereKey($user->id))
-                ->first();
-
-            return $enterprise !== null
-                ? redirect()->route('enterprises.transactions.index', $enterprise)
-                : redirect('/');
-        }
-
-        Gate::authorize('viewAny', Enterprise::class);
-
-        return redirect()->route('enterprises.index');
+        return redirect()->route('enterprises.transactions.index', PageAccess::ownEnterprise($request->user()));
     }
 
     public function index(Request $request, Enterprise $enterprise): Response
