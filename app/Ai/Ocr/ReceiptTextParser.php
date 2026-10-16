@@ -13,9 +13,28 @@ use App\Services\Ai\ReceiptExtractionResult;
  */
 class ReceiptTextParser
 {
+    /** Strong "amount payable" wording, checked first (bottom-up). */
+    private const TOTAL_STRONG = '/(المبلغ\s*المستحق|الإجمالي|الاجمالي|إجمالي|اجمالي|المجموع\s*الكلي|الصافي|grand\s*total|total\s*due|amount\s*due|\btotal\b)/iu';
+
+    /** Weaker wording, used only when no strong line has a number. */
     private const TOTAL_WORDS = '/(الإجمالي|الاجمالي|المجموع|الصافي|المبلغ|total|amount|sum)/iu';
 
-    private const CURRENCIES = ['SYP' => '/(ل\.?\s?س|ليرة|SYP|S\.P)/iu', 'USD' => '/(\$|USD|دولار)/iu', 'EUR' => '/(€|EUR|يورو)/iu', 'TRY' => '/(₺|TRY|TL\b)/iu'];
+    /** Sub-totals / tax lines are never the payable amount. */
+    private const NOT_TOTAL = '/(المجموع\s*الفرعي|الإجمالي\s*الفرعي|sub\s*-?\s*total|ضريبة|vat|tax|خصم|discount|الباقي|change|نقدا|cash)/iu';
+
+    /**
+     * Currency only from explicit tokens printed on the receipt (never inferred from
+     * the address/country). Codes outside config('bookkeeping.currencies') are
+     * dropped later, leaving the field empty; amounts are never converted.
+     */
+    private const CURRENCIES = [
+        'AED' => '/(درهم|د\.\s?إ|\bAED\b|\bDHS?\b)/iu',
+        'SAR' => '/(ريال\s*سعودي|ر\.\s?س|\bSAR\b)/iu',
+        'SYP' => '/(ليرة\s*سورية|ل\.\s?س|\bSYP\b|\bS\.P\b)/iu',
+        'TRY' => '/(ليرة\s*تركية|₺|\bTRY\b|\bTL\b)/iu',
+        'USD' => '/(دولار|\$|\bUSD\b)/iu',
+        'EUR' => '/(يورو|€|\bEUR\b)/iu',
+    ];
 
     public function parse(string $raw): ReceiptExtractionResult
     {
@@ -65,9 +84,11 @@ class ReceiptTextParser
 
             return array_values(array_filter(array_map(fn ($n) => str_replace(',', '', $n), $m[0]), fn ($n) => (float) $n > 0 && ! preg_match('/^(19|20)\d{2}$/', $n)));
         };
-        foreach (array_reverse($lines) as $line) {
-            if (preg_match(self::TOTAL_WORDS, $line) && ($nums = $pick($line)) !== []) {
-                return $this->money(max(array_map('floatval', $nums)));
+        foreach ([self::TOTAL_STRONG, self::TOTAL_WORDS] as $re) {
+            foreach (array_reverse($lines) as $line) {
+                if (preg_match($re, $line) && ! preg_match(self::NOT_TOTAL, $line) && ($nums = $pick($line)) !== []) {
+                    return $this->money((float) end($nums));
+                }
             }
         }
         $all = [];
@@ -94,6 +115,16 @@ class ReceiptTextParser
         } elseif (preg_match('/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](20\d{2})\b/', $text, $m)) {
             // Day-first (common in Syria/Türkiye).
             [$d, $mo, $y] = [(int) $m[1], (int) $m[2], (int) $m[3]];
+        } elseif (preg_match('/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})\b/', $text, $m)) {
+            // Two-digit year: only when day/month order is unambiguous (one part > 12).
+            [$a, $b, $y] = [(int) $m[1], (int) $m[2], 2000 + (int) $m[3]];
+            if ($a > 12 && $b <= 12) {
+                [$d, $mo] = [$a, $b];
+            } elseif ($b > 12 && $a <= 12) {
+                [$mo, $d] = [$a, $b];
+            } else {
+                return null; // ambiguous: leave empty for the user
+            }
         } else {
             return null;
         }

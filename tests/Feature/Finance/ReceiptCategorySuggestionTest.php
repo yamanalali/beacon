@@ -35,14 +35,14 @@ class ReceiptCategorySuggestionTest extends TestCase
         $this->document = Document::query()->sole();
     }
 
-    private function extractWithText(string $raw): ReceiptExtraction
+    private function extractWithText(string $raw, string $counterparty = 'بيتزا 1'): ReceiptExtraction
     {
-        $this->app->bind(ReceiptExtractor::class, fn () => new class($raw) implements ReceiptExtractor {
-            public function __construct(private string $raw) {}
+        $this->app->bind(ReceiptExtractor::class, fn () => new class($raw, $counterparty) implements ReceiptExtractor {
+            public function __construct(private string $raw, private string $counterparty) {}
             public function name(): string { return 'fake'; }
             public function extract(Document $document): ReceiptExtractionResult
             {
-                return new ReceiptExtractionResult('2021-01-22', '21.54', null, 'بيتزا 1', 0.8, rawText: $this->raw);
+                return new ReceiptExtractionResult('2021-01-22', '21.54', null, $this->counterparty, 0.8, rawText: $this->raw);
             }
         });
         $this->actingAs($this->sme)->post(route('documents.extractions.store', $this->document))->assertRedirect();
@@ -52,7 +52,6 @@ class ReceiptCategorySuggestionTest extends TestCase
 
     public function test_line_items_drive_category_suggestion(): void
     {
-        config(['bookkeeping.categories.expense.meals' => 'طعام ومشروبات']);
         $extraction = $this->extractWithText("سلطة الجبنة 17.24\nعصير البطيخ 4.30\nالمبلغ المستحق 21.54");
         $this->assertSame('meals', $extraction->suggested_category);
 
@@ -66,7 +65,7 @@ class ReceiptCategorySuggestionTest extends TestCase
 
     public function test_unknown_text_gives_no_suggestion(): void
     {
-        $extraction = $this->extractWithText("رقم 55\nالمجموع 21.54");
+        $extraction = $this->extractWithText("رقم 55\nالمجموع 21.54", 'محل عام');
 
         $this->actingAs($this->sme)->get(route('extractions.show', $extraction))
             ->assertOk()
@@ -75,6 +74,10 @@ class ReceiptCategorySuggestionTest extends TestCase
 
     public function test_food_text_without_food_category_in_config_gives_no_suggestion(): void
     {
+        $expense = config('bookkeeping.categories.expense');
+        unset($expense['meals']);
+        config(['bookkeeping.categories.expense' => $expense]);
+
         $extraction = $this->extractWithText("سلطة الجبنة 17.24\nعصير البطيخ 4.30");
 
         $this->actingAs($this->sme)->get(route('extractions.show', $extraction))

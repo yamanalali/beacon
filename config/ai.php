@@ -32,7 +32,9 @@ return [
         'stt_driver' => env('AI_STT_DRIVER', 'whisper'),
         'whisper_path' => env('WHISPER_PATH', 'whisper-cli'),
         'whisper_model' => env('WHISPER_MODEL', storage_path('app/whisper/ggml-small.bin')),
-        'language' => env('WHISPER_LANGUAGE', 'ar'),
+        // Language is fixed to Arabic ("-l ar", no auto-detect). Optional initial prompt
+        // biasing Whisper toward finance vocabulary; empty = no --prompt.
+        'whisper_prompt' => env('WHISPER_PROMPT', 'تسجيل مصروف أو دخل: دفعت، قبضت، اشتريت، بعت، ليرة، دولار، ألف، مية، مبلغ، فاتورة، إيجار، رواتب.'),
         'timeout' => (int) env('WHISPER_TIMEOUT', 60),
         'max_kb' => (int) env('AI_VOICE_MAX_KB', 5120),
     ],
@@ -46,7 +48,9 @@ return [
     'ocr' => [
         'driver' => env('AI_OCR_DRIVER', env('APP_ENV') === 'local' ? 'tesseract' : null),
         'tesseract_path' => env('TESSERACT_PATH', 'tesseract'),
-        'tesseract_langs' => env('TESSERACT_LANGS', 'ara+eng'),
+        // Languages are always ara+eng. Folder with ara/eng(/osd).traineddata, passed as
+        // --tessdata-dir (e.g. C:\\Tesseract-OCR\\tessdata); empty = flag not passed; null = Tesseract's own tessdata folder.
+        'tessdata_dir' => env('TESSERACT_TESSDATA_DIR'),
         'timeout' => (int) env('TESSERACT_TIMEOUT', 30),
         // Image clean-up before OCR (ImageMagick CLI, else GD, else skipped). On by default in local.
         'preprocess' => (bool) env('AI_OCR_PREPROCESS', env('APP_ENV') === 'local'),

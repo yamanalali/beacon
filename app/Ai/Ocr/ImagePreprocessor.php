@@ -51,7 +51,7 @@ class ImagePreprocessor
     /** Clockwise degrees to rotate so text is upright (0 when unknown). */
     public function osdRotation(string $path): int
     {
-        $p = $this->makeProcess([(string) config('ai.ocr.tesseract_path', 'tesseract'), $path, 'stdout', '--psm', '0']);
+        $p = $this->makeProcess([(string) config('ai.ocr.tesseract_path', 'tesseract'), $path, 'stdout', '--psm', '0', ...TesseractReceiptExtractor::tessdataArgs()]);
         $p->setTimeout(15);
         $p->run();
         if (! $p->isSuccessful() || ! preg_match('/Rotate:\s*(\d+)/', $p->getOutput(), $m)) {

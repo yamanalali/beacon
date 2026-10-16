@@ -13,6 +13,9 @@ use Throwable;
  */
 class WhisperCppTranscriber implements SpeechToText
 {
+    /** Arabic only (MSA + Levantine assumed, TODO: BUSINESS DECISION REQUIRED). */
+    public const LANGUAGE = 'ar';
+
     public function name(): string
     {
         return 'whisper';
@@ -25,8 +28,9 @@ class WhisperCppTranscriber implements SpeechToText
                 (string) config('ai.voice.whisper_path', 'whisper-cli'),
                 '-m', (string) config('ai.voice.whisper_model'),
                 '-f', $path,
-                '-l', (string) config('ai.voice.language', 'ar'),
+                '-l', self::LANGUAGE, // fixed: never auto-detect
                 '-nt', '-np',
+                ...self::promptArgs(),
             ]);
             $p->setTimeout((float) config('ai.voice.timeout', 60));
             $p->run();
@@ -43,6 +47,14 @@ class WhisperCppTranscriber implements SpeechToText
 
             return null;
         }
+    }
+
+    /** @return list<string> */
+    public static function promptArgs(): array
+    {
+        $prompt = config('ai.voice.whisper_prompt');
+
+        return is_string($prompt) && trim($prompt) !== '' ? ['--prompt', $prompt] : [];
     }
 
     /** Seam for tests. */

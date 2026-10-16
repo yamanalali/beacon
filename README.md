@@ -78,7 +78,7 @@ AI_VOICE_ENABLED=true
 AI_STT_DRIVER=whisper
 WHISPER_PATH=whisper-cli
 WHISPER_MODEL=/full/path/ggml-small.bin
-WHISPER_LANGUAGE=ar
+WHISPER_PROMPT=               # optional Arabic finance prompt (default set in config/ai.php; empty = none)
 ```
 
 ### Windows install (whisper.cpp)
@@ -88,6 +88,10 @@ WHISPER_LANGUAGE=ar
 3. In `.env`, set `WHISPER_PATH="C:\whisper\whisper-cli.exe"` and `WHISPER_MODEL="C:\whisper\models\ggml-small.bin"`, plus `AI_VOICE_ENABLED=true`.
 4. Test it with `C:\whisper\whisper-cli.exe -m C:\whisper\models\ggml-small.bin -f sample.wav -l ar -nt`.
 5. Run `php artisan config:clear`.
+
+Language is always Arabic (`-l ar`, no auto-detect). Spoken numbers like «خمسين ألف», «ميتين وخمسين» or «مليون ونص» are converted to digits. Currency and date are only filled when they are said («ليرة», «دولار», «اليوم», «مبارح», «أول مبارح»); otherwise they stay empty.
+
+**Better accuracy (optional):** `ggml-medium.bin` (~1.5 GB, from the same Hugging Face page) is noticeably better on Arabic and dialect than `small`, but slower and needs more RAM. Set `WHISPER_MODEL=C:\whisper\models\ggml-medium.bin` and raise `WHISPER_TIMEOUT` (e.g. 120) if needed.
 
 ## Free local receipt OCR (Tesseract)
 
@@ -102,7 +106,7 @@ Receipt OCR (section 15) can run fully **locally** with [Tesseract](https://gith
 ```
 AI_OCR_DRIVER=tesseract        # tesseract | ai | manual
 TESSERACT_PATH=tesseract       # full path on Windows, see below
-TESSERACT_LANGS=ara+eng
+TESSERACT_TESSDATA_DIR=        # optional: folder with ara/eng/osd .traineddata, e.g. C:\Tesseract-OCR\tessdata (empty = not passed)
 ```
 
 ### Windows install
