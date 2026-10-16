@@ -193,7 +193,8 @@ class TesseractOcrTest extends TestCase
         $this->assertTrue($c['ocr']['preprocess']);
         $this->assertSame('whisper', $c['voice']['stt_driver']);
         $this->assertSame('whisper-cli', $c['voice']['whisper_path']);
-        $this->assertStringEndsWith('ggml-small.bin', $c['voice']['whisper_model']);
+        $this->assertSame('', $c['voice']['whisper_model']);
+        $this->assertSame('large-v3-turbo', $c['voice']['whisper_default_model']);
         $this->assertEmpty($c['ocr']['tessdata_dir'], 'tessdata dir stays optional/empty');
 
         // explicit "false" is still respected
