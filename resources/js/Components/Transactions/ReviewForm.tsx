@@ -1,0 +1,171 @@
+import type { FormEvent } from "react";
+import { SelectInput } from "../Forms/SelectInput";
+import { TextInput } from "../Forms/TextInput";
+import type { BookkeepingOptions } from "../../types/bookkeeping";
+
+/**
+ * Provider-agnostic draft of a transaction (OCR receipt today, voice later).
+ * All suggested_* null => nothing was read => manual entry.
+ */
+export type TransactionDraft = {
+    suggested_date: string | null;
+    suggested_amount: string | null;
+    suggested_currency: string | null;
+    suggested_counterparty: string | null;
+    confidence?: number | string | null;
+    extractor?: string | null;
+    needs_review?: boolean;
+    /** Provider's guess of the type; preselects the type selector when present. */
+    suggested_transaction_type?: string | null;
+};
+
+export type ReviewFormData = {
+    type: string;
+    transaction_date: string;
+    amount: string;
+    currency: string;
+    category: string;
+    payment_status: string;
+    paid_amount: string;
+    counterparty: string;
+    description: string;
+};
+
+export type CategorySuggestion = { category: string; label: string; needs_review: boolean } | null;
+
+export function hasSuggestions(d: TransactionDraft): boolean {
+    return [d.suggested_date, d.suggested_amount, d.suggested_currency, d.suggested_counterparty].some((v) => v !== null && v !== "");
+}
+
+/** 0..1 or 0..100 → integer percent, or null. */
+export function confidencePercent(c: TransactionDraft["confidence"]): number | null {
+    if (c === null || c === undefined || c === "") return null;
+    const n = Number(c);
+    if (!Number.isFinite(n)) return null;
+    return Math.round(n <= 1 ? n * 100 : n);
+}
+
+export function initialReviewData(draft: TransactionDraft, type: string, options: BookkeepingOptions, suggestion: CategorySuggestion, today = new Date().toISOString().slice(0, 10)): ReviewFormData {
+    return {
+        type: draft.suggested_transaction_type && options.types.some((t) => t.value === draft.suggested_transaction_type) ? draft.suggested_transaction_type : type,
+        transaction_date: draft.suggested_date ?? today,
+        amount: draft.suggested_amount ?? "",
+        currency: draft.suggested_currency ?? options.default_currency,
+        category: suggestion?.category ?? "",
+        payment_status: "paid",
+        paid_amount: "",
+        counterparty: draft.suggested_counterparty ?? "",
+        description: "",
+    };
+}
+
+function Suggested({ show }: { show: boolean }) {
+    return show ? (
+        <span className="app-status app-status--warning ms-2" style={{ fontSize: "12px" }}>
+            <i className="bi bi-stars" aria-hidden="true" /> مقترح
+        </span>
+    ) : null;
+}
+
+/** Review/confirm form. Reusable for any draft source; owns no network logic. */
+export function ReviewForm({
+    draft, data, setData, options, suggestion, errors = {}, processing = false, onSubmit, onReject, sourceLabel = "الإيصال", typeOptions,
+}: {
+    draft: TransactionDraft;
+    data: ReviewFormData;
+    setData: (patch: Partial<ReviewFormData>) => void;
+    options: BookkeepingOptions;
+    suggestion: CategorySuggestion;
+    errors?: Partial<Record<keyof ReviewFormData, string>>;
+    processing?: boolean;
+    onSubmit: () => void;
+    onReject?: () => void;
+    sourceLabel?: string;
+    /** `transaction_type_options` from the server when provided; defaults to options.types. */
+    typeOptions?: { value: string; label: string }[];
+}) {
+    const manual = !hasSuggestions(draft);
+    const pct = confidencePercent(draft.confidence);
+    const low = draft.needs_review || (pct !== null && pct < 60);
+    const categories = options.categories[data.type] ?? [];
+    const submit = (e: FormEvent) => { e.preventDefault(); onSubmit(); };
+
+    return (
+        <form onSubmit={submit} noValidate aria-describedby="review-hint">
+            <div id="review-hint" className={`alert ${manual ? "alert-info" : low ? "alert-warning" : "alert-success"} d-flex gap-2 align-items-start`} role="status">
+                <i className={`bi ${manual ? "bi-pencil-square" : low ? "bi-exclamation-triangle" : "bi-check2-circle"}`} aria-hidden="true" />
+                <div>
+                    {manual ? (
+                        <>
+                            <strong>إدخال يدوي</strong>
+                            <div className="small">لم نتمكن من قراءة {sourceLabel} تلقائياً. أدخل البيانات كما تظهر فيه ثم احفظ.</div>
+                        </>
+                    ) : (
+                        <>
+                            <strong>{low ? "راجع القيم بعناية" : "تمت القراءة"}</strong>
+                            <div className="small">
+                                القيم المعلّمة بـ «مقترح» قُرئت تلقائياً من {sourceLabel}، صحّحها إن لزم.
+                                {pct !== null ? <> درجة الثقة: <bdi dir="ltr">{pct}%</bdi>.</> : null}
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <fieldset className="mb-3">
+                <legend className="form-label mb-1 fw-semibold" style={{ fontSize: "0.9375rem" }}>نوع العملية</legend>
+                <div className="d-flex flex-wrap gap-2" role="radiogroup">
+                    {(typeOptions?.length ? typeOptions : options.types).map((t) => (
+                        <label key={t.value} className={`btn ${data.type === t.value ? "btn-primary" : "btn-outline-primary"}`} style={{ minHeight: "44px" }}>
+                            <input type="radio" className="visually-hidden" name="type" value={t.value} checked={data.type === t.value}
+                                onChange={() => setData({ type: t.value, category: "" })} />
+                            {t.label}
+                        </label>
+                    ))}
+                </div>
+                {errors.type ? <div className="invalid-feedback d-block" role="alert">{errors.type}</div> : null}
+            </fieldset>
+
+            <div className="row g-2">
+                <div className="col-7">
+                    <TextInput id="amount" name="amount" label="المبلغ" value={data.amount} onChange={(v) => setData({ amount: v })} error={errors.amount} inputMode="decimal" />
+                    <Suggested show={!!draft.suggested_amount && data.amount === draft.suggested_amount} />
+                </div>
+                <div className="col-5">
+                    <SelectInput id="currency" label="العملة" value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />
+                </div>
+            </div>
+            <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
+            <Suggested show={!!draft.suggested_date && data.transaction_date === draft.suggested_date} />
+            <TextInput id="counterparty" name="counterparty" label="المورد أو الزبون" value={data.counterparty} onChange={(v) => setData({ counterparty: v })} error={errors.counterparty} />
+            <Suggested show={!!draft.suggested_counterparty && data.counterparty === draft.suggested_counterparty} />
+            <SelectInput id="category" label="التصنيف" value={data.category} options={categories} placeholder="اختر التصنيف" onChange={(v) => setData({ category: v })} error={errors.category} />
+            {suggestion && data.category === suggestion.category ? (
+                <p className="small text-body-secondary mt-n2">
+                    <i className="bi bi-stars me-1" aria-hidden="true" />
+                    تصنيف مقترح: {suggestion.label}{suggestion.needs_review ? " (يحتاج مراجعة)" : ""}
+                </p>
+            ) : null}
+            <SelectInput id="payment_status" label="هل تم الدفع؟" value={data.payment_status} options={options.payment_statuses} onChange={(v) => setData({ payment_status: v })} error={errors.payment_status} />
+            {data.payment_status === "partially_paid" ? (
+                <TextInput id="paid_amount" name="paid_amount" label="المبلغ المدفوع الآن" value={data.paid_amount} onChange={(v) => setData({ paid_amount: v })} error={errors.paid_amount} inputMode="decimal" />
+            ) : null}
+            <TextInput id="description" name="description" label="ملاحظة (اختياري)" value={data.description} onChange={(v) => setData({ description: v })} error={errors.description} />
+
+            <div className="d-flex flex-column flex-sm-row gap-2 mt-2">
+                <button type="submit" className="btn btn-primary flex-grow-1 flex-sm-grow-0" style={{ minHeight: "48px" }} disabled={processing}>
+                    <i className="bi bi-check2 me-2" aria-hidden="true" />
+                    {processing ? "جارٍ الحفظ..." : "تأكيد وحفظ العملية"}
+                </button>
+                {onReject ? (
+                    <button type="button" className="btn btn-outline-secondary" style={{ minHeight: "48px" }} disabled={processing} onClick={onReject}>
+                        تجاهل
+                    </button>
+                ) : null}
+            </div>
+        </form>
+    );
+}
+
+/** Name used by other draft sources (voice, …). */
+export const TransactionDraftReview = ReviewForm;
