@@ -131,14 +131,13 @@ class ReceiptTextParser
 
             return array_values(array_filter(array_map(fn ($n) => str_replace(',', '', $n), $m[0]), fn ($n) => (float) $n > 0 && ! preg_match('/^(19|20)\d{2}$/', $n)));
         };
-        foreach (array_reverse($lines) as $line) {
-            if (preg_match(self::TOTAL_STRONG, $line) && ! preg_match(self::NOT_TOTAL, $line) && ($nums = $pick($line)) !== []) {
-                return $this->money((float) end($nums));
-            }
-        }
-        foreach (array_reverse($lines) as $line) {
-            if (preg_match('/(المجموع|اجمال|إجمال)/u', $line) && ! preg_match(self::NOT_TOTAL, $line) && ($nums = $pick($line)) !== []) {
-                return $this->money((float) end($nums));
+        // 1) اجمالي / الإجمالي / المجموع win when read (BEACON-DECISIONS 2026-10-16 «مبلغ فاتورة الـOCR»).
+        // 2) «المبلغ المستحق» / "total" / "amount due" only when no Arabic total line has a number.
+        foreach (['/(الإجمال[يى]|الاجمال[يى]|إجمال[يى]|اجمال[يى]|المجموع)/u', self::TOTAL_STRONG] as $re) {
+            foreach (array_reverse($lines) as $line) {
+                if (preg_match($re, $line) && ! preg_match(self::NOT_TOTAL, $line) && ($nums = $pick($line)) !== []) {
+                    return $this->money((float) end($nums));
+                }
             }
         }
 

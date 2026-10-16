@@ -339,7 +339,10 @@ class TableInvoiceReader
         ]);
     }
 
-    /** Fill one missing value from the other two only when the result is exact (qty × unit = total). */
+    /**
+     * Fill one missing value from the other two only when it is exactly derivable
+     * (BEACON-DECISIONS 2026-10-16 «قيم البنود»); read values are never changed.
+     */
     public function crossCheck(array $row): array
     {
         [$q, $u, $t] = [$row['quantity'], $row['unit_price'], $row['total']];

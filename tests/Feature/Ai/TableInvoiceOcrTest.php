@@ -41,6 +41,10 @@ class TableInvoiceOcrTest extends TestCase
         $this->assertSame([[2, 12000, 24000], [1, 4000, 4000], [1, 6000, 6000], [3, 2500, 7500]],
             array_map(fn ($i) => [$i['quantity'], $i['unit_price'], $i['total']], $r->items));
         $this->assertSame('حاسوب محمول', $r->items[0]['description']);
+        $this->assertSame([3, 2500, 7500], [$r->items[3]['quantity'], $r->items[3]['unit_price'], $r->items[3]['total']], 'row 4 = 3 × 2500 = 7500');
+        $this->assertSame(41500, array_sum(array_column($r->items, 'total')));
+        $lip = new \App\Ai\Ocr\ReceiptLineItemParser;
+        $this->assertFalse($lip->totalsMismatch($r->items, $r->amount) === true || $lip->inconsistentRows($r->items) > 0, 'items_mismatch false');
         $this->assertSame('41500', $r->amount, 'from «اجمالي الفاتورة», not the largest/first number');
         $this->assertSame('1002', $r->invoiceNumber);
         $this->assertSame('2022-06-08', $r->transactionDate);

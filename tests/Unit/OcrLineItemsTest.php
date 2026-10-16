@@ -126,4 +126,23 @@ class OcrLineItemsTest extends TestCase
     {
         $this->assertSame('41500', (new ReceiptTextParser)->parse("محل\nحاسوب 2 12000 24000\nاجمالى الفاتورة 41500")->amount);
     }
+
+    public function test_arabic_total_line_wins_over_amount_due_and_total(): void
+    {
+        $p = new ReceiptTextParser;
+        $this->assertSame('115', $p->parse("مطعم\nالإجمالي 115\nالمبلغ المستحق 120")->amount);
+        $this->assertSame('115', $p->parse("Shop\nالمجموع 115\nTotal 130")->amount);
+        $this->assertSame('120', $p->parse("مطعم\nالمبلغ المستحق 120")->amount, '«المبلغ المستحق» counts when no اجمالي line');
+        $this->assertSame('50.5', $p->parse("Shop\nTotal: 50.50")->amount);
+    }
+
+    public function test_inconsistent_row_is_kept_as_read_and_counted(): void
+    {
+        $p = new ReceiptLineItemParser;
+        $items = $p->parse("محل\nحاسوب 2 12,000 25,000\nفأرة 1 4,000 4,000");
+        $this->assertSame(['description' => 'حاسوب', 'quantity' => 2, 'unit_price' => 12000, 'total' => 25000], $items[0], 'kept as read, never corrected');
+        $this->assertSame(1, $p->inconsistentRows($items));
+        $this->assertSame(1, $p->inconsistentRows([['description' => 'a', 'quantity' => 2, 'unit_price' => 12000, 'total' => 25000], ['description' => 'b', 'quantity' => 1, 'unit_price' => 4000, 'total' => 4000]]));
+        $this->assertSame(0, $p->inconsistentRows([['description' => 'a', 'quantity' => null, 'unit_price' => 12000, 'total' => 25000]]));
+    }
 }

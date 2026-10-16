@@ -78,6 +78,16 @@ class ReceiptLineItemParser
         return abs($sum - (float) $total) > 0.01;
     }
 
+    /**
+     * Rows where quantity, unit price and total were all read but quantity × unit ≠ total.
+     * Values stay as read (BEACON-DECISIONS 2026-10-16 «قيم البنود»); the draft only warns.
+     */
+    public function inconsistentRows(array $items): int
+    {
+        return count(array_filter($items, fn ($i) => ($i['quantity'] ?? null) !== null && ($i['unit_price'] ?? null) !== null && ($i['total'] ?? null) !== null
+            && abs($i['quantity'] * $i['unit_price'] - $i['total']) > 0.01));
+    }
+
     private function parseLine(string $line): ?array
     {
         $N = self::NUM;
@@ -104,9 +114,6 @@ class ReceiptLineItemParser
             $q = isset($m['q']) && $m['q'] !== '' ? $this->num($m['q']) : null;
             $t = $this->num($m['t']);
             $u = $full ? $this->num($m['u']) : ($q === 1 ? $t : null);
-            if ($full && $q !== null && $u !== null && $t !== null && abs($q * $u - $t) > 0.011 * max(1, $t)) {
-                continue; // not a consistent qty × unit = total line; try the next layout
-            }
             if ($t === null || $t <= 0) {
                 return null;
             }

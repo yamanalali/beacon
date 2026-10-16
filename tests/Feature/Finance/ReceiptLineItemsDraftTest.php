@@ -77,6 +77,7 @@ class ReceiptLineItemsDraftTest extends TestCase
                 ])
                 ->where('extraction.items_mismatch', false) // one total unread: can't check
                 ->where('extraction.suggested_invoice_number', '4521')
+                ->where('extraction.suggested_note', 'فاتورة رقم 4521')
                 ->where('suggested_transaction_type', 'income'));
 
         $this->assertDatabaseCount('financial_transactions', 0);
@@ -131,5 +132,39 @@ class ReceiptLineItemsDraftTest extends TestCase
                 ->where('extraction.suggested_items', [])
                 ->whereType('extraction.suggested_amount_warning', 'string'));
         $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_row_qty_times_unit_not_equal_total_warns_but_keeps_values(): void
+    {
+        $this->fakeExtractor([
+            ['description' => 'حاسوب محمول', 'quantity' => 2, 'unit_price' => 12000, 'total' => 25000],
+            ['description' => 'فأرة', 'quantity' => 1, 'unit_price' => 4000, 'total' => 4000],
+        ], '29000');
+        $this->actingAs($this->sme)->post(route('documents.extractions.store', $this->document));
+
+        $this->actingAs($this->sme)->get(route('extractions.show', ReceiptExtraction::query()->sole()))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('extraction.suggested_items.0.total', 25000)
+                ->where('extraction.items_mismatch', true)
+                ->whereType('extraction.suggested_amount_warning', 'string')
+                ->where('extraction.suggested_note', null));
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_consistent_items_matching_total_have_no_warning(): void
+    {
+        $this->fakeExtractor([
+            ['description' => 'حاسوب محمول', 'quantity' => 2, 'unit_price' => 12000, 'total' => 24000],
+            ['description' => 'فأرة لاسلكية', 'quantity' => 1, 'unit_price' => 4000, 'total' => 4000],
+            ['description' => 'طابعة ملونة', 'quantity' => 1, 'unit_price' => 6000, 'total' => 6000],
+            ['description' => 'شاشة عرض', 'quantity' => 3, 'unit_price' => 2500, 'total' => 7500],
+        ], '41500', '1002');
+        $this->actingAs($this->sme)->post(route('documents.extractions.store', $this->document));
+
+        $this->actingAs($this->sme)->get(route('extractions.show', ReceiptExtraction::query()->sole()))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('extraction.items_mismatch', false)
+                ->where('extraction.suggested_amount_warning', null)
+                ->where('extraction.suggested_note', 'فاتورة رقم 1002'));
     }
 }
