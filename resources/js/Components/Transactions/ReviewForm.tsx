@@ -20,6 +20,8 @@ export type TransactionDraft = {
     needs_review?: boolean;
     /** Provider's guess of the type; preselects the type selector when present. */
     suggested_transaction_type?: string | null;
+    /** Client-only: voice draft had no date, so suggested_date was set to browser-local today. */
+    date_defaulted_today?: boolean;
     /** Free-text note the provider read (voice). Optional: older servers don't send it. */
     suggested_note?: string | null;
     /** Receipt OCR: invoice number. The server already prefixes suggested_note with «فاتورة رقم X». */
@@ -86,7 +88,7 @@ export function confidencePercent(c: TransactionDraft["confidence"]): number | n
 
 type TypeOption = { value: string; label: string };
 
-/** Fields the user must fill when the reader could not (never defaulted to today / base currency). */
+/** Fields the user must fill when the reader could not (invoices: never defaulted; voice date defaults to today, see withVoiceDefaultDate). */
 export const REQUIRED_FIELDS = ["transaction_date", "currency"] as const;
 export function missingRequired(data: ReviewFormData): (typeof REQUIRED_FIELDS)[number][] {
     return REQUIRED_FIELDS.filter((k) => !data[k]);
@@ -96,6 +98,23 @@ export function missingRequired(data: ReviewFormData): (typeof REQUIRED_FIELDS)[
  * Initial form values from a draft. Unread date/currency stay empty (user must choose);
  * type comes from suggested_transaction_type and category from category_suggestion when valid.
  */
+/** Browser-local today as YYYY-MM-DD (not UTC-shifted). */
+export function localToday(now: Date = new Date()): string {
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+}
+
+/** Yaman 2026-10-16: voice drafts without a spoken date default to today (browser). Invoices stay empty/required. */
+export function isVoiceDraft(d: TransactionDraft): boolean {
+    return (d as { source?: unknown }).source === "voice";
+}
+
+/** Draft with suggested_date filled with today for voice drafts that have no date; flags `date_defaulted_today`. */
+export function withVoiceDefaultDate<T extends TransactionDraft>(draft: T, now: Date = new Date()): T {
+    if (!isVoiceDraft(draft) || (typeof draft.suggested_date === "string" && draft.suggested_date.trim() !== "")) return draft;
+    return { ...draft, suggested_date: localToday(now), date_defaulted_today: true };
+}
+
 export function initialReviewData(draft: TransactionDraft, type: string, options: BookkeepingOptions, suggestion: CategorySuggestion, typeOptions?: TypeOption[]): ReviewFormData {
     const allowed = typeOptions?.length ? typeOptions : options.types;
     const resolvedType = draft.suggested_transaction_type && allowed.some((t) => t.value === draft.suggested_transaction_type) ? draft.suggested_transaction_type : type;
@@ -155,6 +174,8 @@ export function ReviewForm({
     const submit = (e: FormEvent) => { e.preventDefault(); if (missing.length === 0) onSubmit(); };
     const missingLabels = missing.map((k) => (k === "currency" ? "العملة" : "التاريخ")).join("، ");
     const amountUntouched = isPrefilled(draft.suggested_amount, data.amount);
+    // Server date warning (#87, e.g. an old date): hint only while the suggested date is unchanged; never blocks save.
+    const dateWarning = draft.suggested_date_warning && draft.suggested_date_warning.trim() !== "" && isPrefilled(draft.suggested_date, data.transaction_date) ? draft.suggested_date_warning : null;
     const amountWarning = draft.suggested_amount_warning && draft.suggested_amount_warning.trim() !== "" && amountUntouched ? draft.suggested_amount_warning : null;
     // Server flag only applies while amount and items are still what the server compared.
     const itemsUntouched = JSON.stringify(toItemsPayload(data.items)) === JSON.stringify(toItemsPayload(rowsFromSuggested(draft.suggested_items)));
@@ -223,6 +244,15 @@ export function ReviewForm({
             </div>
             <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" required placeholder="اختر" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
             <Suggested show={isPrefilled(draft.suggested_date, data.transaction_date)} />
+            {draft.date_defaulted_today && isPrefilled(draft.suggested_date, data.transaction_date) ? (
+                <div className="form-text" data-testid="date-default-hint">ما انذكر تاريخ، انحط اليوم</div>
+            ) : null}
+                    {dateWarning ? (
+                        <div className="alert alert-warning d-flex gap-2 align-items-start py-2 px-3 mt-1 mb-2 small" role="status" data-testid="date-warning">
+                            <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+                            <span>{dateWarning}</span>
+                        </div>
+                    ) : null}
             <TextInput id="counterparty" name="counterparty" label="المورد أو الزبون" value={data.counterparty} onChange={(v) => setData({ counterparty: v })} error={errors.counterparty} />
             <Suggested show={isPrefilled(draft.suggested_counterparty, data.counterparty)} />
             <SelectInput id="category" label="التصنيف" value={data.category} options={categories} placeholder="اختر التصنيف" onChange={(v) => setData({ category: v })} error={errors.category} />

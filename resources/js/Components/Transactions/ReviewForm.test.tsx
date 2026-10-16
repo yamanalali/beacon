@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReviewForm, withInvoicePrefix, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, reviewPayload, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
+import { ReviewForm, withInvoicePrefix, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, reviewPayload, missingRequired, localToday, withVoiceDefaultDate, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
 
 const options: BookkeepingOptions = {
@@ -334,5 +334,64 @@ describe("invoice number", () => {
         fireEvent.change(screen.getByLabelText(/ملاحظة/), { target: { value: "توصيل" } });
         fireEvent.click(screen.getByRole("button", { name: /تأكيد وحفظ/ }));
         expect(reviewPayload(onSubmit.mock.calls[0][0]).description).toBe("فاتورة رقم 12 - توصيل");
+    });
+});
+describe("suggested_date_warning (#87)", () => {
+    const dateWarning = "التاريخ 2024-01-05 قديم، تأكد منه.";
+    const voice: TransactionDraft = { suggested_date: "2024-01-05", suggested_amount: "3000", suggested_currency: "SYP", suggested_counterparty: null, suggested_date_warning: dateWarning };
+
+    it("shows the warning next to the date while it is the suggested one", () => {
+        render(<Harness draft={voice} />);
+        expect(screen.getByTestId("date-warning").textContent).toContain(dateWarning);
+        fireEvent.change(document.getElementById("transaction_date")!, { target: { value: "2026-10-16" } });
+        expect(screen.queryByTestId("date-warning")).toBeNull();
+        fireEvent.change(document.getElementById("transaction_date")!, { target: { value: "2024-01-05" } });
+        expect(screen.getByTestId("date-warning")).toBeTruthy();
+    });
+
+    it("works for an invoice extraction spread into the draft", () => {
+        const extraction = { ...voice, suggested_invoice_number: "77", confidence: 0.8 } as TransactionDraft;
+        render(<Harness draft={extraction} />);
+        expect(screen.getByTestId("date-warning")).toBeTruthy();
+    });
+
+    it("is hidden when null, blank or missing", () => {
+        render(<Harness draft={{ ...voice, suggested_date_warning: null }} />);
+        expect(screen.queryByTestId("date-warning")).toBeNull();
+        cleanup();
+        render(<Harness draft={{ ...voice, suggested_date_warning: "   " }} />);
+        expect(screen.queryByTestId("date-warning")).toBeNull();
+        cleanup();
+        render(<Harness draft={{ ...voice, suggested_date_warning: undefined }} />);
+        expect(screen.queryByTestId("date-warning")).toBeNull();
+    });
+
+    it("never blocks save", () => {
+        const onSubmit = vi.fn();
+        const { container } = render(<Harness draft={voice} onSubmit={onSubmit} />);
+        expect(screen.getByTestId("date-warning")).toBeTruthy();
+        fireEvent.submit(container.querySelector("form")!);
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        expect(missingRequired(onSubmit.mock.calls[0][0])).not.toContain("transaction_date");
+    });
+});
+describe("default date (Yaman 2026-10-16)", () => {
+    it("localToday uses the browser-local date, not UTC", () => {
+        expect(localToday(new Date(2026, 9, 16, 23, 59))).toBe("2026-10-16");
+        expect(localToday(new Date(2026, 0, 1, 0, 5))).toBe("2026-01-01");
+    });
+    it("voice draft without date -> today; with date -> unchanged", () => {
+        const now = new Date(2026, 9, 16, 1, 0);
+        expect(withVoiceDefaultDate({ ...empty, source: "voice" } as TransactionDraft, now)).toMatchObject({ suggested_date: "2026-10-16", date_defaulted_today: true });
+        const kept = withVoiceDefaultDate({ ...empty, source: "voice", suggested_date: "2026-01-05" } as TransactionDraft, now);
+        expect(kept.suggested_date).toBe("2026-01-05");
+        expect(kept.date_defaulted_today).toBeUndefined();
+    });
+    it("invoice extraction without date stays empty and required", () => {
+        const d = withVoiceDefaultDate({ ...read, suggested_date: null } as TransactionDraft);
+        expect(d.suggested_date).toBeNull();
+        const data = initialReviewData(d, "expense", options, null);
+        expect(data.transaction_date).toBe("");
+        expect(missingRequired(data)).toContain("transaction_date");
     });
 });
