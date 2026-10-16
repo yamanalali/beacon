@@ -16,6 +16,18 @@ trait AiTestHelpers
     {
         $this->fakeAi = new FakeAiProvider;
         $this->app->instance(AiProvider::class, $this->fakeAi);
+        $this->approveAiSharing();
+    }
+
+    /** Approve the AI processors for tests (sharing is denied by default, §54). */
+    protected function approveAiSharing(bool $approved = true): void
+    {
+        config([
+            'operations.data_processors.ocr.approved' => $approved,
+            'operations.data_processors.ocr.allowed_data' => ['receipt_image'],
+            'operations.data_processors.ai_assistant.approved' => $approved,
+            'operations.data_processors.ai_assistant.allowed_data' => ['transaction_type', 'transaction_description', 'counterparty', 'user_question', 'approved_knowledge', 'aggregate_financial_figures'],
+        ]);
     }
 
     protected function userWithRole(UserRole $role, bool $active = true): User
