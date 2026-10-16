@@ -34,14 +34,15 @@ class WhisperCppTranscriber implements SpeechToText
         try {
             $p = $this->makeProcess([
                 (string) config('ai.voice.whisper_path', 'whisper-cli'),
-                '-m', (string) config('ai.voice.whisper_model'),
+                '-m', self::modelPath(),
                 '-f', $path,
                 '-l', self::LANGUAGE, // fixed: never auto-detect
                 '-nt', '-np',
                 '-otxt', '-of', $base,
+                ...$this->threadArgs(),
                 ...$this->promptArgs(),
             ]);
-            $p->setTimeout((float) config('ai.voice.timeout', 60));
+            $p->setTimeout((float) config('ai.voice.timeout', 120));
             $p->run();
             if (! $p->isSuccessful()) {
                 Log::warning('Whisper STT failed', ['exit' => $p->getExitCode(), 'error' => mb_substr($p->getErrorOutput(), 0, 300)]);
@@ -92,6 +93,31 @@ class WhisperCppTranscriber implements SpeechToText
         $bad = count(array_filter($chars, fn ($c) => $c === '§'));
 
         return $bad / count($chars) >= 0.5;
+    }
+
+    /**
+     * WHISPER_MODEL is either a file path or a short model name such as
+     * "large-v3-turbo" / "small", resolved to storage/app/whisper/ggml-<name>.bin.
+     */
+    public static function modelPath(): string
+    {
+        $model = trim((string) config('ai.voice.whisper_model'));
+        if ($model === '') {
+            $model = (string) config('ai.voice.whisper_default_model', 'large-v3-turbo');
+        }
+        if (preg_match('/^[A-Za-z0-9.\-]+$/', $model) && ! str_ends_with($model, '.bin')) {
+            return storage_path('app/whisper/ggml-'.$model.'.bin');
+        }
+
+        return $model;
+    }
+
+    /** @return list<string> */
+    public function threadArgs(): array
+    {
+        $t = (int) config('ai.voice.whisper_threads', 0);
+
+        return $t > 0 ? ['-t', (string) $t] : [];
     }
 
     /** @return list<string> */
