@@ -73,12 +73,38 @@ class VoiceDraftTest extends TestCase
         return $this->actingAs($u ?? $this->sme)->post(route('ai.voice-drafts.store', $this->enterprise), ['audio' => $this->audio()], ['Accept' => 'application/json']);
     }
 
+    /** Evaluate config/ai.php with explicit env values, independent of the local .env. */
+    private function aiConfigWith(array $vars): array
+    {
+        $saved = [];
+        foreach ($vars as $k => $v) {
+            $saved[$k] = [$_ENV[$k] ?? null, $_SERVER[$k] ?? null, getenv($k)];
+            if ($v === null) {
+                unset($_ENV[$k], $_SERVER[$k]);
+                putenv($k);
+            } else {
+                $_ENV[$k] = $_SERVER[$k] = $v;
+                putenv("$k=$v");
+            }
+        }
+        try {
+            return require base_path('config/ai.php');
+        } finally {
+            foreach ($saved as $k => [$e, $s, $g]) {
+                $e === null ? \Illuminate\Support\Arr::forget($_ENV, $k) : $_ENV[$k] = $e;
+                $s === null ? \Illuminate\Support\Arr::forget($_SERVER, $k) : $_SERVER[$k] = $s;
+                $g === false ? putenv($k) : putenv("$k=$g");
+            }
+        }
+    }
+
     public function test_disabled_by_default_returns_404(): void
     {
         config(['ai.voice.enabled' => false]);
         $this->stubStt('دفعت 100');
         $this->send()->assertNotFound();
-        $this->assertFalse((bool) (require base_path('config/ai.php'))['voice']['enabled']);
+        // Default pinned with AI_VOICE_ENABLED unset, independent of the local .env (as in #60).
+        $this->assertFalse((bool) $this->aiConfigWith(['AI_VOICE_ENABLED' => null])['voice']['enabled']);
     }
 
     public function test_roles_follow_transaction_create_policy(): void
@@ -133,6 +159,44 @@ class VoiceDraftTest extends TestCase
             ->assertJsonPath('draft.suggested_transaction_type', 'expense')
             ->assertJsonPath('category_suggestion.category', 'rent');
         $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_yaman_monthly_rent_sentence_gives_one_item_and_ambiguity_warning(): void
+    {
+        $this->stubStt('دفعت ايجار محل 3000 الاف لمدة 3 اشهر كل شهر الف');
+        $r = $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_amount', '3000')
+            ->assertJsonPath('draft.suggested_transaction_type', 'expense')
+            ->assertJsonPath('category_suggestion.category', 'rent')
+            ->assertJsonPath('draft.items_mismatch', false)
+            ->assertJsonPath('draft.suggested_items', [['description' => 'إيجار محل (شهري)', 'quantity' => 3, 'unit_price' => 1000, 'total' => 3000]]);
+        $this->assertStringContainsString('لمدة 3 اشهر', $r->json('draft.suggested_note'));
+        $this->assertNotNull($r->json('draft.suggested_amount_warning'));
+        $this->assertDatabaseCount('financial_transactions', 0);
+        $this->assertDatabaseCount('transaction_items', 0);
+    }
+
+    public function test_multiple_goods_sentence_gives_separate_items(): void
+    {
+        $this->stubStt('اشتريت 2 كرسي بـ500 وطاولة بـ1000');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_amount', '2000')
+            ->assertJsonPath('draft.items_mismatch', false)
+            ->assertJsonPath('draft.suggested_amount_warning', null)
+            ->assertJsonPath('draft.suggested_items', [
+                ['description' => 'كرسي', 'quantity' => 2, 'unit_price' => 500, 'total' => 1000],
+                ['description' => 'طاولة', 'quantity' => 1, 'unit_price' => 1000, 'total' => 1000],
+            ]);
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_clear_sentence_has_no_items_and_no_warning(): void
+    {
+        $this->stubStt('دفعت اجار محل 50 الف ليرة سوريا لمدة ثلاثة اشهر');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_items', [])
+            ->assertJsonPath('draft.items_mismatch', false)
+            ->assertJsonPath('draft.suggested_amount_warning', null);
     }
 
     public function test_yaman_real_windows_transcript_draft(): void

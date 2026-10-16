@@ -48,7 +48,7 @@ class VoiceDraftController extends Controller
             }
         }
 
-        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'note' => null, 'confidence' => null];
+        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'note' => null, 'items' => [], 'items_mismatch' => false, 'amount_warning' => null, 'confidence' => null];
         // Voice-normalized text (e.g. «ليرائي جر محل» -> «ليرائي اجار محل») feeds the suggesters.
         $catText = $text !== null ? ($p['normalized'] ?? $text) : null;
         $suggestedType = $typeSuggester->suggest($catText);
@@ -95,6 +95,12 @@ class VoiceDraftController extends Controller
                 'suggested_transaction_type' => $suggestedType,
                 // e.g. 'لمدة ثلاثة اشهر': prefill the transaction note; never changes the amount.
                 'suggested_note' => $p['note'] ?? null,
+                // Same shape as OCR: [{description, quantity, unit_price, total}], [] when none.
+                'suggested_items' => $p['items'] ?? [],
+                // Items' sum differs from the spoken total (non-blocking, same rule as transactions).
+                'items_mismatch' => (bool) ($p['items_mismatch'] ?? false),
+                // Arabic hint when the amount wording is ambiguous («3000 الاف») or items ≠ total.
+                'suggested_amount_warning' => $p['amount_warning'] ?? null,
                 'raw_text' => $text,
             ],
             'type' => $type,
