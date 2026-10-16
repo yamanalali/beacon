@@ -1,41 +1,32 @@
 import { Link, usePage } from "@inertiajs/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { SoonButton } from "./SoonButton";
-import {
-    accountItem,
-    homeItem,
-    isAccountPath,
-    isHomePath,
-    isNavItemActive,
-    workspaceGroups,
-} from "./navigation";
+import type { NavigationItem } from "../types/shared";
+import { homeItem } from "./navigation";
+import { homeLink, iconFor, navigationOrFallback, splitMobile } from "./navigationModel";
+
+function NavLink({ item, className, onClick }: { item: NavigationItem; className: string; onClick?: () => void }) {
+    return (
+        <Link
+            href={item.href}
+            className={item.active ? `${className} is-active` : className}
+            aria-current={item.active ? "page" : undefined}
+            onClick={onClick}
+        >
+            <i className={`bi ${iconFor(item)}`} aria-hidden="true" />
+            <span className={className === "app-tab" ? "app-tab__label" : undefined}>{item.label}</span>
+        </Link>
+    );
+}
 
 export function MobileBottomNavigation() {
     const { url, props } = usePage();
-    const enterprise = props.enterprise as { public_id: string } | undefined;
-    const groups = workspaceGroups(
-        props.auth.user?.role,
-        enterprise?.public_id,
-    );
-    const allItems = groups.flatMap((group) => group.items);
-    const primaryItems =
-        props.auth.user?.role === "technical_admin"
-            ? allItems.slice(0, 3)
-            : props.auth.user?.role === "mfi_user"
-              ? allItems
-              : allItems.filter((item) =>
-                    ["transactions", "reports", "enterprises"].includes(
-                        item.key,
-                    ),
-                );
-    const moreItems = allItems.filter(
-        (item) => !primaryItems.some((primary) => primary.key === item.key),
-    );
-    const homeActive = isHomePath(url);
-    const accountActive = isAccountPath(url);
-    const moreActive =
-        accountActive || moreItems.some((item) => isNavItemActive(item, url));
+    // Links come from the server (`auth.navigation`); no role logic in the UI.
+    const items = navigationOrFallback(props.auth.navigation, url);
+    const { tabs: primaryItems, more: moreItems } = splitMobile(items);
+    const home = homeLink(items, url);
+    const homeActive = home.active;
+    const moreActive = moreItems.some((item) => item.active);
     const [open, setOpen] = useState(false);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -112,7 +103,7 @@ export function MobileBottomNavigation() {
             <ul className="app-bottom-nav__list">
                 <li className="app-bottom-nav__item">
                     <Link
-                        href="/"
+                        href={home.href}
                         className={homeActive ? "app-tab is-active" : "app-tab"}
                         aria-current={homeActive ? "page" : undefined}
                     >
@@ -125,11 +116,7 @@ export function MobileBottomNavigation() {
                 </li>
                 {primaryItems.map((item) => (
                     <li key={item.key} className="app-bottom-nav__item">
-                        <SoonButton
-                            item={item}
-                            className="app-tab"
-                            soonClassName="app-tab__soon"
-                        />
+                        <NavLink item={item} className="app-tab" />
                     </li>
                 ))}
                 <li className="app-bottom-nav__item">
@@ -185,32 +172,9 @@ export function MobileBottomNavigation() {
                               <ul className="app-sheet__list">
                                   {moreItems.map((item) => (
                                       <li key={item.key}>
-                                          <SoonButton
-                                              item={item}
-                                              className="app-side-link"
-                                          />
+                                          <NavLink item={item} className="app-side-link" onClick={close} />
                                       </li>
                                   ))}
-                                  <li>
-                                      <Link
-                                          href="/account"
-                                          className={
-                                              accountActive
-                                                  ? "app-side-link is-active"
-                                                  : "app-side-link"
-                                          }
-                                          aria-current={
-                                              accountActive ? "page" : undefined
-                                          }
-                                          onClick={close}
-                                      >
-                                          <i
-                                              className={`bi ${accountItem.icon}`}
-                                              aria-hidden="true"
-                                          />
-                                          <span>{accountItem.label}</span>
-                                      </Link>
-                                  </li>
                               </ul>
                           </div>
                       </>,
