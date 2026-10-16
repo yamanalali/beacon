@@ -128,3 +128,11 @@ export function filterByCan(items: NavigationItem[], can?: Partial<AuthCan> | Re
     const flags = can as Record<string, boolean | undefined>;
     return items.filter((item) => flags[item.key] === true);
 }
+
+/** Page shortcut links (dashboards): hide `/transactions`, `/documents`, `/reports`, `/enterprises` when the matching `auth.can` flag is false. */
+const LINK_KEYS: Record<string, string> = { "/enterprises": "enterprises", "/transactions": "transactions", "/documents": "documents", "/reports": "reports" };
+export function visibleLinks<T extends { href: string }>(can: Partial<AuthCan> | Record<string, boolean> | null | undefined, links: T[]): T[] {
+    if (!can) return links;
+    const flags = can as Record<string, boolean | undefined>;
+    return links.filter((l) => (LINK_KEYS[l.href] ? flags[LINK_KEYS[l.href]] === true : true));
+}

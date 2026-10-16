@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "vitest";
 import {
-    groupNavigation, homeLink, iconFor, filterByCan, navigationOrFallback, splitMobile,
+    groupNavigation, homeLink, iconFor, filterByCan, visibleLinks, navigationOrFallback, splitMobile,
 } from "./navigationModel";
 
 type Item = { key: string; label: string; href: string; icon: string; group: string; active: boolean };
@@ -81,4 +81,11 @@ describe("auth.can filtering", () => {
     it("keeps the server list when no can map is present", () => {
         expect(navigationOrFallback(list, "/", null)).toHaveLength(4);
     });
+});
+
+test("dashboard shortcut links follow auth.can", () => {
+    const links = [{ href: "/enterprises" }, { href: "/transactions" }, { href: "/documents" }, { href: "/other" }];
+    expect(visibleLinks({ enterprises: true, transactions: false, documents: false }, links).map((l) => l.href))
+        .toEqual(["/enterprises", "/other"]);
+    expect(visibleLinks(undefined, links)).toHaveLength(4);
 });
