@@ -74,9 +74,30 @@ class VoiceSpokenNumbersTest extends TestCase
 
     public function test_whisper_uses_fixed_arabic_and_optional_prompt(): void
     {
+        // Pin voice config so a local .env WHISPER_PROMPT (or path/model) cannot leak into this test.
+        config()->set([
+            'ai.voice.whisper_path' => 'whisper-cli',
+            'ai.voice.whisper_model' => '/tmp/fake-model.bin',
+            'ai.voice.whisper_prompt' => 'مصروف ودخل',
+        ]);
+
         $w = new class extends WhisperCppTranscriber
         {
             public array $cmd = [];
+
+            private bool $windows = false;
+
+            public function pretendWindows(bool $windows): static
+            {
+                $this->windows = $windows;
+
+                return $this;
+            }
+
+            protected function isWindows(): bool
+            {
+                return $this->windows;
+            }
 
             protected function makeProcess(array $command): Process
             {
@@ -85,13 +106,24 @@ class VoiceSpokenNumbersTest extends TestCase
                 return new Process(['php', '-r', 'echo "دفعت مية";']);
             }
         };
-        config(['ai.voice.whisper_prompt' => 'مصروف ودخل']);
-        $w->transcribe('/tmp/a.wav', 'audio/wav');
-        $this->assertSame(['-l', 'ar'], array_slice($w->cmd, 5, 2));
-        $this->assertSame(['--prompt', 'مصروف ودخل'], array_slice($w->cmd, -2));
 
-        config(['ai.voice.whisper_prompt' => '']);
-        $w->transcribe('/tmp/a.wav', 'audio/wav');
+        // Non-Windows: Arabic prompt must appear as an adjacent --prompt <value> pair (not assumed at end;
+        // since #53 the command also ends with -otxt -of <tmp> when the prompt is omitted).
+        $w->pretendWindows(false)->transcribe('/tmp/a.wav', 'audio/wav');
+        $this->assertSame(['-l', 'ar'], array_slice($w->cmd, 5, 2));
+        $i = array_search('--prompt', $w->cmd, true);
+        $this->assertNotFalse($i, '--prompt should be present when a prompt is set on non-Windows');
+        $this->assertSame('مصروف ودخل', $w->cmd[$i + 1] ?? null);
+
+        // ASCII prompt is safe on Windows too (same adjacent-pair check, still not tied to argv tail).
+        config()->set('ai.voice.whisper_prompt', 'expense income rent');
+        $w->pretendWindows(true)->transcribe('/tmp/a.wav', 'audio/wav');
+        $i = array_search('--prompt', $w->cmd, true);
+        $this->assertNotFalse($i, '--prompt should be present for an ASCII prompt on Windows');
+        $this->assertSame('expense income rent', $w->cmd[$i + 1] ?? null);
+
+        config()->set('ai.voice.whisper_prompt', '');
+        $w->pretendWindows(false)->transcribe('/tmp/a.wav', 'audio/wav');
         $this->assertNotContains('--prompt', $w->cmd);
         $this->assertNotContains('auto', $w->cmd);
     }
