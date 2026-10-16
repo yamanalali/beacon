@@ -24,7 +24,8 @@ class VoiceLineItemsTest extends TestCase
         $this->assertSame('1000', $r['amount']);
         $this->assertSame([['description' => 'إيجار بيت (شهري)', 'quantity' => 2, 'unit_price' => 500, 'total' => 1000]], $r['items']);
         $this->assertFalse($r['items_mismatch']);
-        $this->assertNull($r['amount_warning']);
+        // Computed N × X total asks to confirm (manager decision 2026-10-16).
+        $this->assertStringContainsString('تأكد من المبلغ', (string) $r['amount_warning']);
     }
 
     public function test_spoken_total_differs_from_items_sets_mismatch_and_warning(): void
