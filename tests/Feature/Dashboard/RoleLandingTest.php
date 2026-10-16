@@ -5,7 +5,6 @@ namespace Tests\Feature\Dashboard;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class RoleLandingTest extends TestCase
@@ -38,11 +37,10 @@ class RoleLandingTest extends TestCase
             ->get('/')->assertRedirect('/mfi/referrals');
     }
 
-    public function test_technical_admin_keeps_current_home(): void
+    public function test_technical_admin_lands_on_operations_security(): void
     {
         $this->actingAs(User::factory()->create(['role' => UserRole::TechnicalAdmin]))
-            ->get('/')->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Dashboard/Index'));
+            ->get('/')->assertRedirect('/operations/security');
     }
 
     public function test_login_redirects_through_role_landing(): void
