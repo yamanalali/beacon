@@ -25,6 +25,13 @@ class AiServiceProvider extends ServiceProvider
             // TODO: BUSINESS DECISION REQUIRED — add the approved vendor adapter here.
             default => new NullAiProvider,
         });
+
+        // Replace Finance's manual defaults only when an AI driver is enabled,
+        // so with the default "null" driver the manual workflow is unchanged.
+        if (config('ai.driver', 'null') !== 'null') {
+            $this->app->bind(\App\Contracts\ReceiptExtractor::class, \App\Ai\Finance\AiReceiptExtractor::class);
+            $this->app->bind(\App\Contracts\TransactionCategorizer::class, \App\Ai\Finance\AiTransactionCategorizer::class);
+        }
     }
 
     public function boot(): void
@@ -33,6 +40,9 @@ class AiServiceProvider extends ServiceProvider
         Gate::policy(AiEscalation::class, AiEscalationPolicy::class);
 
         RateLimiter::for('ai-assistant', fn (Request $r) => Limit::perMinute((int) config('ai.assistant_rate_per_minute', 10))
+            ->by((string) ($r->user()?->id ?? $r->ip())));
+
+        RateLimiter::for('ai-insights', fn (Request $r) => Limit::perMinute((int) config('ai.assistant_rate_per_minute', 10))
             ->by((string) ($r->user()?->id ?? $r->ip())));
 
         Route::middleware('web')->group(base_path('routes/ai.php'));

@@ -1,6 +1,7 @@
 <?php
 
 use App\Ai\Http\Controllers\AssistantController;
+use App\Ai\Http\Controllers\FinanceAiController;
 use App\Ai\Http\Controllers\KnowledgeArticleController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,10 @@ Route::middleware('auth')->prefix('ai')->name('ai.')->group(function () {
             ->middleware('throttle:ai-assistant')->name('escalations.store');
         Route::get('/escalations', [AssistantController::class, 'escalations'])->name('escalations.index');
         Route::get('/escalations/{escalation}', [AssistantController::class, 'showEscalation'])->name('escalations.show');
+        // §16 review flags and §19 insights; enterprise access via reports.view.
+        Route::get('/enterprises/{enterprise:public_id}/review-flags', [FinanceAiController::class, 'flags'])->name('finance.flags');
+        Route::get('/enterprises/{enterprise:public_id}/insights', [FinanceAiController::class, 'insights'])
+            ->middleware('throttle:ai-insights')->name('finance.insights');
         Route::get('/knowledge/published', [KnowledgeArticleController::class, 'published'])->name('knowledge.published');
     });
 

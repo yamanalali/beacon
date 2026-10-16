@@ -38,6 +38,16 @@ class AuditLog extends Model
         throw new LogicException('Audit history cannot be edited.');
     }
 
+    public function delete()
+    {
+        throw new LogicException('Audit history cannot be deleted.');
+    }
+
+    public function actor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'actor_id');
+    }
+
     public function save(array $options = [])
     {
         if ($this->exists) {

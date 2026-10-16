@@ -2,10 +2,11 @@ import { Link, usePage } from "@inertiajs/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SoonButton } from "./SoonButton";
-import { accountItem, homeItem, isAccountPath, isHomePath, mobileSoonItems, moreSoonItems } from "./navigation";
+import { accountItem, adminItem, homeItem, isAccountPath, isHomePath, mobileSoonItems, moreSoonItems } from "./navigation";
 
 export function MobileBottomNavigation() {
-    const { url } = usePage();
+    const { url, props } = usePage();
+    const isAdmin = props.auth.user?.role === "beacon_admin";
     const homeActive = isHomePath(url);
     const accountActive = isAccountPath(url);
     const [open, setOpen] = useState(false);
@@ -142,6 +143,11 @@ export function MobileBottomNavigation() {
                                           <SoonButton item={item} className="app-side-link" />
                                       </li>
                                   ))}
+                                  {isAdmin ? (
+                                      <li>
+                                          <SoonButton item={adminItem} className="app-side-link" />
+                                      </li>
+                                  ) : null}
                                   <li>
                                       <Link
                                           href="/account"
