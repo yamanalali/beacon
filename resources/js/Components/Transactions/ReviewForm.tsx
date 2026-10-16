@@ -155,6 +155,8 @@ export function ReviewForm({
     const submit = (e: FormEvent) => { e.preventDefault(); if (missing.length === 0) onSubmit(); };
     const missingLabels = missing.map((k) => (k === "currency" ? "العملة" : "التاريخ")).join("، ");
     const amountUntouched = isPrefilled(draft.suggested_amount, data.amount);
+    // Server date warning (#87, e.g. an old date): hint only while the suggested date is unchanged; never blocks save.
+    const dateWarning = draft.suggested_date_warning && draft.suggested_date_warning.trim() !== "" && isPrefilled(draft.suggested_date, data.transaction_date) ? draft.suggested_date_warning : null;
     const amountWarning = draft.suggested_amount_warning && draft.suggested_amount_warning.trim() !== "" && amountUntouched ? draft.suggested_amount_warning : null;
     // Server flag only applies while amount and items are still what the server compared.
     const itemsUntouched = JSON.stringify(toItemsPayload(data.items)) === JSON.stringify(toItemsPayload(rowsFromSuggested(draft.suggested_items)));
@@ -223,6 +225,12 @@ export function ReviewForm({
             </div>
             <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" required placeholder="اختر" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
             <Suggested show={isPrefilled(draft.suggested_date, data.transaction_date)} />
+                    {dateWarning ? (
+                        <div className="alert alert-warning d-flex gap-2 align-items-start py-2 px-3 mt-1 mb-2 small" role="status" data-testid="date-warning">
+                            <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+                            <span>{dateWarning}</span>
+                        </div>
+                    ) : null}
             <TextInput id="counterparty" name="counterparty" label="المورد أو الزبون" value={data.counterparty} onChange={(v) => setData({ counterparty: v })} error={errors.counterparty} />
             <Suggested show={isPrefilled(draft.suggested_counterparty, data.counterparty)} />
             <SelectInput id="category" label="التصنيف" value={data.category} options={categories} placeholder="اختر التصنيف" onChange={(v) => setData({ category: v })} error={errors.category} />

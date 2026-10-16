@@ -336,3 +336,42 @@ describe("invoice number", () => {
         expect(reviewPayload(onSubmit.mock.calls[0][0]).description).toBe("فاتورة رقم 12 - توصيل");
     });
 });
+describe("suggested_date_warning (#87)", () => {
+    const dateWarning = "التاريخ 2024-01-05 قديم، تأكد منه.";
+    const voice: TransactionDraft = { suggested_date: "2024-01-05", suggested_amount: "3000", suggested_currency: "SYP", suggested_counterparty: null, suggested_date_warning: dateWarning };
+
+    it("shows the warning next to the date while it is the suggested one", () => {
+        render(<Harness draft={voice} />);
+        expect(screen.getByTestId("date-warning").textContent).toContain(dateWarning);
+        fireEvent.change(document.getElementById("transaction_date")!, { target: { value: "2026-10-16" } });
+        expect(screen.queryByTestId("date-warning")).toBeNull();
+        fireEvent.change(document.getElementById("transaction_date")!, { target: { value: "2024-01-05" } });
+        expect(screen.getByTestId("date-warning")).toBeTruthy();
+    });
+
+    it("works for an invoice extraction spread into the draft", () => {
+        const extraction = { ...voice, suggested_invoice_number: "77", confidence: 0.8 } as TransactionDraft;
+        render(<Harness draft={extraction} />);
+        expect(screen.getByTestId("date-warning")).toBeTruthy();
+    });
+
+    it("is hidden when null, blank or missing", () => {
+        render(<Harness draft={{ ...voice, suggested_date_warning: null }} />);
+        expect(screen.queryByTestId("date-warning")).toBeNull();
+        cleanup();
+        render(<Harness draft={{ ...voice, suggested_date_warning: "   " }} />);
+        expect(screen.queryByTestId("date-warning")).toBeNull();
+        cleanup();
+        render(<Harness draft={{ ...voice, suggested_date_warning: undefined }} />);
+        expect(screen.queryByTestId("date-warning")).toBeNull();
+    });
+
+    it("never blocks save", () => {
+        const onSubmit = vi.fn();
+        const { container } = render(<Harness draft={voice} onSubmit={onSubmit} />);
+        expect(screen.getByTestId("date-warning")).toBeTruthy();
+        fireEvent.submit(container.querySelector("form")!);
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        expect(missingRequired(onSubmit.mock.calls[0][0])).not.toContain("transaction_date");
+    });
+});
