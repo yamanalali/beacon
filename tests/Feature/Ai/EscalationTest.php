@@ -20,8 +20,10 @@ class EscalationTest extends TestCase
 
         $id = $this->actingAs($sme)->postJson(route('ai.escalations.store'), ['question' => 'سؤال غير مغطى', 'enterprise' => $e->public_id])
             ->assertCreated()->assertJsonPath('status', 'open')->json('id');
-        $this->assertDatabaseHas('ai_escalations', ['id' => $id, 'enterprise_id' => $e->id, 'question' => 'سؤال غير مغطى']);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'ai.escalation.created', 'target_id' => $id]);
+        $numericId = \App\Ai\Models\AiEscalation::query()->where('public_id', $id)->value('id');
+        $this->getJson('/ai/escalations/'.$numericId)->assertNotFound();
+        $this->assertDatabaseHas('ai_escalations', ['id' => $numericId, 'enterprise_id' => $e->id, 'question' => 'سؤال غير مغطى']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'ai.escalation.created', 'target_id' => $numericId]);
 
         $this->getJson(route('ai.escalations.show', $id))->assertOk();
         $this->getJson(route('ai.escalations.index'))->assertJsonPath('total', 1);

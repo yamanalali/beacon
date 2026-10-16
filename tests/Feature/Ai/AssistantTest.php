@@ -38,7 +38,7 @@ class AssistantTest extends TestCase
             ->assertJsonPath('supported', true)
             ->assertJsonPath('ai_generated', true)
             ->assertJsonPath('label', KnowledgeAssistantService::AI_LABEL)
-            ->assertJsonPath('sources.0.id', $a->id);
+            ->assertJsonPath('sources.0.id', $a->public_id);
     }
 
     public function test_draft_or_archived_knowledge_is_never_used(): void

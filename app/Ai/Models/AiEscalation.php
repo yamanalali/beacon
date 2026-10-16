@@ -4,6 +4,7 @@ namespace App\Ai\Models;
 
 use App\Models\Enterprise;
 use App\Models\User;
+use App\Ai\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -16,9 +17,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class AiEscalation extends Model
 {
+    use HasPublicId;
+
     protected $fillable = ['user_id', 'enterprise_id', 'question', 'context', 'status'];
 
-    protected $hidden = ['user_id', 'enterprise_id'];
+    protected $hidden = ['id', 'user_id', 'enterprise_id'];
 
     protected function casts(): array
     {
