@@ -9,7 +9,8 @@ import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { PaymentStatusBadge } from "../../Components/Financial/PaymentStatusBadge";
 import { TextInput } from "../../Components/Forms/TextInput";
-import type { DocumentRow, EnterpriseRef, TransactionRow } from "../../types/bookkeeping";
+import type { DocumentRow, EnterpriseRef, TransactionItemsProps, TransactionRow } from "../../types/bookkeeping";
+import { ItemsTable } from "../../Components/Transactions/ItemsEditor";
 import { Money } from "../../Components/Common/Money";
 
 type Detail = TransactionRow & {
@@ -18,7 +19,7 @@ type Detail = TransactionRow & {
     created_at: string | null;
     corrects_public_id: string | null;
     corrected_by_public_id: string | null;
-};
+} & Partial<TransactionItemsProps>;
 
 type Settlement = { id: number; settlement_date: string | null; amount: string; note: string | null; creator_name: string | null };
 
@@ -75,7 +76,7 @@ export default function Show({
                 ) : null}
 
                 <div className="row g-3">
-                    <div className="col-12 col-lg-6">
+                    <div className="col-12 col-lg-6 d-flex flex-column gap-3">
                         <SectionCard title="البيانات">
                             <Line label="التاريخ" value={transaction.transaction_date} />
                             <Line label="المبلغ" value={<Money amount={transaction.amount} currency={transaction.currency} />} />
@@ -91,6 +92,15 @@ export default function Show({
                                     <Line label="السجل الأصلي" value={<Link href={`/transactions/${transaction.corrects_public_id}`}>عرض</Link>} />
                                 </>
                             ) : null}
+                        </SectionCard>
+                        <SectionCard title="البنود">
+                            <ItemsTable
+                                items={transaction.items ?? []}
+                                itemsTotal={transaction.items_total ?? null}
+                                mismatch={transaction.items_mismatch === true}
+                                amount={transaction.amount}
+                                currency={transaction.currency}
+                            />
                         </SectionCard>
                     </div>
                     <div className="col-12 col-lg-6 d-flex flex-column gap-3">
