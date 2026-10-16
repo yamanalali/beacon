@@ -67,6 +67,28 @@ class FinancialTransaction extends Model
         return $this->hasMany(TransactionSettlement::class);
     }
 
+    public function items(): HasMany
+    {
+        return $this->hasMany(TransactionItem::class, 'transaction_id')->orderBy('position')->orderBy('id');
+    }
+
+    /**
+     * Sum of item totals in minor units (0 when there are no items).
+     */
+    public function itemsTotalMinor(): int
+    {
+        return $this->items->sum(fn (TransactionItem $i): int => Money::toMinor((string) $i->total));
+    }
+
+    /**
+     * Item totals differ from the transaction amount. Warning only, never blocks saving
+     * (tax / discount / delivery can legitimately cause a difference).
+     */
+    public function itemsMismatch(): bool
+    {
+        return $this->items->isNotEmpty() && $this->itemsTotalMinor() !== $this->amountMinor();
+    }
+
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);

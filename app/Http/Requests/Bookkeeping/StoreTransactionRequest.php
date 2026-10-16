@@ -51,6 +51,13 @@ class StoreTransactionRequest extends FormRequest
             'paid_amount' => ['nullable', 'required_if:payment_status,partially_paid', 'regex:/^\d{1,16}(\.\d{1,2})?$/'],
             'counterparty' => ['nullable', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:2000'],
+            // Optional invoice line items (manual entry, correction, or reviewed receipt/voice draft).
+            'items' => ['nullable', 'array', 'max:200'],
+            'items.*' => ['array'],
+            'items.*.description' => ['required', 'string', 'max:255'],
+            'items.*.quantity' => ['required', 'numeric', 'gt:0', 'max:999999999'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0', 'max:9999999999999999'],
+            'items.*.total' => ['nullable', 'numeric', 'min:0', 'max:9999999999999999'],
         ];
     }
 
@@ -72,6 +79,18 @@ class StoreTransactionRequest extends FormRequest
             'payment_status.required' => 'اختر حالة الدفع.',
             'paid_amount.required_if' => 'اكتب المبلغ المدفوع.',
             'paid_amount.regex' => 'اكتب المبلغ المدفوع بالأرقام فقط.',
+            'items.array' => 'صيغة البنود غير صحيحة.',
+            'items.max' => 'عدد البنود كبير جداً.',
+            'items.*.description.required' => 'اكتب وصف البند.',
+            'items.*.description.max' => 'وصف البند طويل جداً.',
+            'items.*.quantity.required' => 'اكتب كمية البند.',
+            'items.*.quantity.numeric' => 'اكتب الكمية بالأرقام.',
+            'items.*.quantity.gt' => 'يجب أن تكون الكمية أكبر من صفر.',
+            'items.*.unit_price.required' => 'اكتب سعر الوحدة.',
+            'items.*.unit_price.numeric' => 'اكتب سعر الوحدة بالأرقام.',
+            'items.*.unit_price.min' => 'لا يمكن أن يكون سعر الوحدة سالباً.',
+            'items.*.total.numeric' => 'اكتب إجمالي البند بالأرقام.',
+            'items.*.total.min' => 'لا يمكن أن يكون إجمالي البند سالباً.',
         ];
     }
 }

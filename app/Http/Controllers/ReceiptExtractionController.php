@@ -131,7 +131,7 @@ class ReceiptExtractionController extends Controller
 
         $transaction = $action->confirm($request->user(), $extraction, $request->validated());
 
-        return redirect()->route('transactions.show', $transaction)->with('success', 'تم حفظ العملية بعد مراجعتك.');
+        return TransactionController::withItemsWarning(redirect()->route('transactions.show', $transaction)->with('success', 'تم حفظ العملية بعد مراجعتك.'), $transaction);
     }
 
     public function reject(Request $request, ReceiptExtraction $extraction, ConfirmReceiptExtractionAction $action): RedirectResponse

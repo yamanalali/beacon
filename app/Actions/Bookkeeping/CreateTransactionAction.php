@@ -8,6 +8,7 @@ use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
+use App\Models\TransactionItem;
 use App\Models\TransactionSettlement;
 use App\Models\User;
 use App\Support\Money;
@@ -56,6 +57,8 @@ class CreateTransactionAction
                 $settlement->save();
             }
 
+            $this->saveItems($transaction, $data['items'] ?? []);
+
             $this->audit->record($actor, 'transaction.created', $transaction, [
                 'enterprise_id' => $enterprise->id,
                 'type' => $transaction->type->value,
@@ -63,10 +66,50 @@ class CreateTransactionAction
                 'currency' => $transaction->currency,
                 'payment_status' => $paymentStatus->value,
                 'corrects_transaction_id' => $corrects?->id,
+                'items_count' => count($data['items'] ?? []),
             ]);
 
             return $transaction;
         });
+    }
+
+    /**
+     * Stores the submitted item set. A correction is a new record, so its items
+     * fully replace the original's (the original keeps its own set as history).
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function saveItems(FinancialTransaction $transaction, array $items): void
+    {
+        foreach (array_values($items) as $position => $row) {
+            $quantity = $this->decimal($row['quantity'], 3);
+            $unitPrice = $this->decimal($row['unit_price'], 2);
+            $total = isset($row['total']) && $row['total'] !== ''
+                ? $this->decimal($row['total'], 2)
+                : bcadd(bcmul($quantity, $unitPrice, 6), '0.005', 2); // round half up
+
+            $item = new TransactionItem;
+            $item->transaction_id = $transaction->id;
+            $item->position = $position;
+            $item->description = trim((string) $row['description']);
+            $item->quantity = $quantity;
+            $item->unit_price = $unitPrice;
+            $item->total = $total;
+            $item->save();
+        }
+    }
+
+    /**
+     * Normalises a validated numeric value to a fixed-scale decimal string (half up), without floats.
+     */
+    private function decimal(mixed $value, int $scale): string
+    {
+        $value = trim((string) $value);
+        if (preg_match('/[eE]/', $value)) {
+            $value = sprintf('%.'.($scale + 2).'F', (float) $value);
+        }
+
+        return bcadd($value, '0.'.str_repeat('0', $scale).'5', $scale);
     }
 
     private function initialPaidMinor(PaymentStatus $status, int $amountMinor, mixed $paidAmount): int

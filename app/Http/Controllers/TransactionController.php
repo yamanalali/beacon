@@ -16,6 +16,7 @@ use App\Http\Requests\Bookkeeping\StoreTransactionRequest;
 use App\Models\Document;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
+use App\Models\TransactionItem;
 use App\Models\TransactionSettlement;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
@@ -118,12 +119,12 @@ class TransactionController extends Controller
 
         $transaction = $action->execute($request->user(), $enterprise, $request->validated());
 
-        return redirect()->route('transactions.show', $transaction)->with('success', 'تم حفظ العملية.');
+        return self::withItemsWarning(redirect()->route('transactions.show', $transaction)->with('success', 'تم حفظ العملية.'), $transaction);
     }
 
     public function show(Request $request, FinancialTransaction $transaction): Response
     {
-        $transaction->load(['enterprise', 'settlements.creator:id,name', 'creator:id,name', 'correctedTransaction', 'correction', 'documents']);
+        $transaction->load(['enterprise', 'settlements.creator:id,name', 'creator:id,name', 'correctedTransaction', 'correction', 'documents', 'items']);
         Gate::authorize('view', $transaction);
 
         $user = $request->user();
@@ -136,7 +137,7 @@ class TransactionController extends Controller
                 'created_at' => $transaction->created_at?->toDateTimeString(),
                 'corrects_public_id' => $transaction->correctedTransaction?->public_id,
                 'corrected_by_public_id' => $transaction->correction?->public_id,
-            ],
+            ] + self::itemsProps($transaction),
             'settlements' => $transaction->settlements
                 ->sortBy('settlement_date')
                 ->values()
@@ -162,7 +163,7 @@ class TransactionController extends Controller
         return Inertia::render('Transactions/Form', [
             'enterprise' => $this->enterpriseProps($transaction->enterprise),
             'options' => $this->options(),
-            'original' => $this->row($transaction->load('settlements')),
+            'original' => $this->row($transaction->load(['settlements', 'items'])) + self::itemsProps($transaction),
         ]);
     }
 
@@ -173,7 +174,7 @@ class TransactionController extends Controller
 
         $corrected = $action->execute($request->user(), $transaction, $request->validated());
 
-        return redirect()->route('transactions.show', $corrected)->with('success', 'تم حفظ التصحيح مع الاحتفاظ بالسجل الأصلي.');
+        return self::withItemsWarning(redirect()->route('transactions.show', $corrected)->with('success', 'تم حفظ التصحيح مع الاحتفاظ بالسجل الأصلي.'), $corrected);
     }
 
     public function storeSettlement(StoreSettlementRequest $request, FinancialTransaction $transaction, RecordSettlementAction $action): RedirectResponse
@@ -212,6 +213,31 @@ class TransactionController extends Controller
             'status_label' => $t->status->label(),
             'is_superseded' => $t->status === TransactionStatus::Superseded,
         ];
+    }
+
+    /**
+     * Line items as numbers plus the mismatch warning (never blocks saving).
+     *
+     * @return array{items: list<array<string, mixed>>, items_total: float|null, items_mismatch: bool}
+     */
+    public static function itemsProps(FinancialTransaction $t): array
+    {
+        $t->loadMissing('items');
+
+        return [
+            'items' => $t->items->map(fn (TransactionItem $i): array => $i->toProps())->values()->all(),
+            'items_total' => $t->items->isEmpty() ? null : (float) Money::fromMinor($t->itemsTotalMinor()),
+            'items_mismatch' => $t->itemsMismatch(),
+        ];
+    }
+
+    public static function withItemsWarning(RedirectResponse $response, FinancialTransaction $t): RedirectResponse
+    {
+        $t->load('items');
+
+        return $t->itemsMismatch()
+            ? $response->with('warning', 'مجموع البنود ('.Money::fromMinor($t->itemsTotalMinor()).') لا يساوي مبلغ العملية ('.Money::fromMinor($t->amountMinor()).'). تم الحفظ، راجع الفرق (ضريبة أو خصم مثلاً).')
+            : $response;
     }
 
     /**
