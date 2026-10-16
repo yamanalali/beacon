@@ -131,6 +131,8 @@ class VoiceDraftParser
         $amount = $amount !== null ? rtrim(rtrim(number_format($amount, 2, '.', ''), '0'), '.') : null;
         $amount_warning = match (true) {
             $itemsMismatch => 'تأكد من المبلغ: مجموع البنود ('.$this->fmt($sum).') لا يساوي المبلغ المذكور ('.$amount.').',
+            // «3 مية ألف» (often whisper's «3 مياه ألف»): digits before «مية» are easy to mis-hear.
+            (bool) preg_match('/(?<![\d٠-٩])[\d٠-٩]+\s+مي(?:ة|ه|ات)\s+(?:ألف|الف|آلاف|الاف)/u', $normalized) => 'تأكد من المبلغ: «رقم + مية ألف» ممكن تكون انسمعت غلط، واعتُبر المبلغ '.$amount.'.',
             $ambiguous => 'تأكد من المبلغ: صيغة الرقم مع «آلاف» غير واضحة، واعتُبر المبلغ '.$amount.'.',
             default => null,
         };
