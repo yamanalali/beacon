@@ -10,6 +10,7 @@ use App\Models\Enterprise;
 use App\Models\EnterpriseComplianceRecord;
 use App\Models\ReadinessAssessment;
 use App\Models\ReadinessAssessmentResult;
+use App\Models\ReadinessAssessmentSnapshot;
 use App\Models\ReadinessRuleSet;
 use App\Support\ReadinessAccess;
 use App\Support\ReadinessScorer;
@@ -114,7 +115,9 @@ class ReadinessAssessmentController extends Controller
                 'finalized_at' => $assessment->finalized_at?->toDateTimeString(),
             ],
             'evaluation' => $evaluation,
-            'snapshot' => $snapshot?->load('computedBy:id,name')->toDisplay(),
+            // Full frozen result for finalized assessments; drafts expose the live result in the same shape.
+            'result' => ReadinessAssessmentSnapshot::presentResult($evaluation),
+            'snapshot' => $snapshot?->load('computedBy:id,name')->toDisplayWithResult(),
             'snapshotHistory' => $assessment->isFinalized()
                 ? $assessment->snapshots()->with('computedBy:id,name')->get()->map->toDisplay()->reverse()->values()
                 : [],
