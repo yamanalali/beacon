@@ -213,7 +213,7 @@ class ReadinessScorer
                 'meta' => [
                     'code' => $key,
                     'label_ar' => $pillar?->label_ar,
-                    'weight' => $pillar ? (float) $pillar->weight : null,
+                    'weight' => $pillar && $pillar->weight !== null ? (float) $pillar->weight : null,
                     'min_score' => $pillar?->min_score !== null ? (float) $pillar->min_score : null,
                     'sort' => $pillar ? [(int) $pillar->sort_order, (int) $pillar->id] : [PHP_INT_MAX, PHP_INT_MAX],
                 ],
