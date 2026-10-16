@@ -5,10 +5,14 @@ namespace App\Ai;
 use App\Ai\Contracts\AiProvider;
 use App\Ai\Drivers\FakeAiProvider;
 use App\Ai\Drivers\NullAiProvider;
+use App\Ai\Finance\AiReceiptExtractor;
+use App\Ai\Finance\AiTransactionCategorizer;
 use App\Ai\Models\AiEscalation;
 use App\Ai\Models\KnowledgeArticle;
 use App\Ai\Policies\AiEscalationPolicy;
 use App\Ai\Policies\KnowledgeArticlePolicy;
+use App\Contracts\ReceiptExtractor;
+use App\Contracts\TransactionCategorizer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,8 +33,8 @@ class AiServiceProvider extends ServiceProvider
         // Replace Finance's manual defaults only when an AI driver is enabled,
         // so with the default "null" driver the manual workflow is unchanged.
         if (config('ai.driver', 'null') !== 'null') {
-            $this->app->bind(\App\Contracts\ReceiptExtractor::class, \App\Ai\Finance\AiReceiptExtractor::class);
-            $this->app->bind(\App\Contracts\TransactionCategorizer::class, \App\Ai\Finance\AiTransactionCategorizer::class);
+            $this->app->bind(ReceiptExtractor::class, AiReceiptExtractor::class);
+            $this->app->bind(TransactionCategorizer::class, AiTransactionCategorizer::class);
         }
     }
 

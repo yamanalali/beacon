@@ -2,9 +2,9 @@
 
 namespace App\Ai\Models;
 
+use App\Ai\Models\Concerns\HasPublicId;
 use App\Models\Enterprise;
 use App\Models\User;
-use App\Ai\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 

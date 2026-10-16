@@ -3,6 +3,7 @@
 namespace App\Ai\Finance;
 
 use App\Ai\Contracts\AiProvider;
+use App\Ai\Support\AiDataGuard;
 use App\Models\Enterprise;
 use App\Services\FinancialReports\FinancialReportService;
 use Carbon\CarbonImmutable;
@@ -54,11 +55,15 @@ class FinancialInsightService
         $explanation = null;
         $aiAvailable = true;
         if (! in_array('لا توجد سجلات كافية في هذه الفترة.', $limitations, true)) {
-            try {
-                $explanation = mb_substr(strip_tags($this->provider->explainFigures($figures)), 0, 4000);
-            } catch (Throwable $e) {
-                report($e);
+            if (! AiDataGuard::allows(AiDataGuard::INSIGHTS)) {
                 $aiAvailable = false;
+            } else {
+                try {
+                    $explanation = mb_substr(strip_tags($this->provider->explainFigures($figures)), 0, 4000);
+                } catch (Throwable $e) {
+                    report($e);
+                    $aiAvailable = false;
+                }
             }
         }
 

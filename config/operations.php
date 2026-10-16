@@ -41,6 +41,12 @@ return [
             'agreement_reference' => env('BEACON_DPA_AI_REFERENCE'),
             'allowed_data' => [],
         ],
+        'insights' => [
+            'label_ar' => 'مزوّد الذكاء الاصطناعي للملاحظات المالية',
+            'approved' => (bool) env('BEACON_DPA_INSIGHTS_APPROVED', false),
+            'agreement_reference' => env('BEACON_DPA_INSIGHTS_REFERENCE'),
+            'allowed_data' => [],
+        ],
         'email' => [
             'label_ar' => 'مزوّد البريد الإلكتروني للإشعارات',
             'approved' => (bool) env('BEACON_DPA_EMAIL_APPROVED', false),

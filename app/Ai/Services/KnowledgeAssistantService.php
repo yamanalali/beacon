@@ -5,6 +5,7 @@ namespace App\Ai\Services;
 use App\Ai\Contracts\AiProvider;
 use App\Ai\Exceptions\AiUnavailableException;
 use App\Ai\Models\KnowledgeArticle;
+use App\Ai\Support\AiDataGuard;
 use App\Models\AuditLog;
 use App\Models\Enterprise;
 use App\Models\User;
@@ -77,6 +78,10 @@ class KnowledgeAssistantService
 
     private function answer(string $question, array $articles): array
     {
+        if (! AiDataGuard::allows(AiDataGuard::ASSISTANT)) {
+            return $this->unsupported('المساعد الذكي غير متاح حالياً. يمكنك متابعة عملك بشكل طبيعي أو إرسال سؤالك لفريق بيكون.');
+        }
+
         try {
             $answer = $this->provider->answerFromKnowledge($question, array_map(fn ($a) => ['id' => $a['id'], 'title' => $a['title'], 'body' => $a['body']], $articles));
         } catch (AiUnavailableException|Throwable $e) {

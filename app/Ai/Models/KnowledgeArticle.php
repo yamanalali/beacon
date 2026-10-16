@@ -2,8 +2,8 @@
 
 namespace App\Ai\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use App\Ai\Models\Concerns\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**

@@ -64,6 +64,12 @@ php artisan db:seed --class=DemoSeeder
 
 This creates one active account per role (emails/roles are in `config/demo.php`) plus a demo enterprise with finance data. The seeder is idempotent and refuses to run outside `APP_ENV=local`. No passwords are stored in the repository: the password is whatever you set in `DEMO_PASSWORD`; the full local credentials list is kept on the developer machine in `Desktop\DEMO-ACCOUNTS.md`.
 
+## AI data sharing (section 54)
+
+AI features stay **disabled in production** until `allowed_data` in `config/operations.php` is filled with the approved fields for each processor (`ai_assistant`, `ocr`, `insights`) and the processor is approved (`BEACON_DPA_*_APPROVED`). Every outbound AI call goes through `DataControl::assertCanShare`; when sharing is not approved no provider call is made and the feature falls back to its manual / "AI unavailable" path.
+
+Which fields are approved per processor is a pending business decision (`TODO: BUSINESS DECISION REQUIRED`).
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

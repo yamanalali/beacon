@@ -37,6 +37,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                     id="password"
                     name="password"
                     type="password"
+                    autoComplete="new-password"
                     label="كلمة المرور"
                     value={form.data.password}
                     error={form.errors.password}
@@ -46,12 +47,20 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                     id="password_confirmation"
                     name="password_confirmation"
                     type="password"
+                    autoComplete="new-password"
                     label="تأكيد كلمة المرور"
                     value={form.data.password_confirmation}
                     error={form.errors.password_confirmation}
-                    onChange={(value) => form.setData("password_confirmation", value)}
+                    onChange={(value) =>
+                        form.setData("password_confirmation", value)
+                    }
                 />
-                <button type="submit" className="btn btn-primary w-100" style={{ minHeight: "48px" }} disabled={form.processing}>
+                <button
+                    type="submit"
+                    className="btn btn-primary w-100"
+                    style={{ minHeight: "48px" }}
+                    disabled={form.processing}
+                >
                     حفظ كلمة المرور
                 </button>
             </form>

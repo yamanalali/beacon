@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Ai;
 
+use App\Ai\Models\AiEscalation;
 use App\Enums\UserRole;
 use App\Models\Enterprise;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,7 +21,7 @@ class EscalationTest extends TestCase
 
         $id = $this->actingAs($sme)->postJson(route('ai.escalations.store'), ['question' => 'سؤال غير مغطى', 'enterprise' => $e->public_id])
             ->assertCreated()->assertJsonPath('status', 'open')->json('id');
-        $numericId = \App\Ai\Models\AiEscalation::query()->where('public_id', $id)->value('id');
+        $numericId = AiEscalation::query()->where('public_id', $id)->value('id');
         $this->getJson('/ai/escalations/'.$numericId)->assertNotFound();
         $this->assertDatabaseHas('ai_escalations', ['id' => $numericId, 'enterprise_id' => $e->id, 'question' => 'سؤال غير مغطى']);
         $this->assertDatabaseHas('audit_logs', ['action' => 'ai.escalation.created', 'target_id' => $numericId]);

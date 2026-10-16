@@ -4,6 +4,7 @@ namespace Tests\Feature\Ai;
 
 use App\Ai\Finance\AiReceiptExtractor;
 use App\Ai\Finance\AiTransactionCategorizer;
+use App\Contracts\ReceiptExtractor;
 use App\Enums\UserRole;
 use App\Models\Document;
 use App\Models\Enterprise;
@@ -77,7 +78,7 @@ class FinanceAiTest extends TestCase
 
     public function test_ai_bindings_only_when_driver_enabled(): void
     {
-        $this->assertSame('manual', app(\App\Contracts\ReceiptExtractor::class)->name());
+        $this->assertSame('manual', app(ReceiptExtractor::class)->name());
     }
 
     public function test_review_flags_duplicates_and_missing_info_without_modifying(): void

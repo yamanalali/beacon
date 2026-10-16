@@ -3,6 +3,7 @@
 namespace App\Ai\Finance;
 
 use App\Ai\Contracts\AiProvider;
+use App\Ai\Support\AiDataGuard;
 use App\Contracts\ReceiptExtractor;
 use App\Models\Document;
 use App\Services\Ai\ReceiptExtractionResult;
@@ -29,6 +30,10 @@ class AiReceiptExtractor implements ReceiptExtractor
     public function extract(Document $document): ReceiptExtractionResult
     {
         if (! in_array($document->mime_type, Document::PREVIEWABLE_MIME_TYPES, true)) {
+            return new ReceiptExtractionResult(failed: true);
+        }
+
+        if (! AiDataGuard::allows(AiDataGuard::RECEIPT)) {
             return new ReceiptExtractionResult(failed: true);
         }
 

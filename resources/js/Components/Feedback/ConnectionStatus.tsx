@@ -6,9 +6,16 @@ export function ConnectionStatus() {
     if (online) return null;
 
     return (
-        <div className="alert alert-warning d-flex align-items-center gap-2 mb-0 rounded-0 sticky-top" role="status" aria-live="polite">
+        <div
+            className="alert alert-warning d-flex align-items-center gap-2 mb-0 rounded-0 app-connection-status"
+            role="status"
+            aria-live="polite"
+        >
             <i className="bi bi-wifi-off" aria-hidden="true" />
-            <span>لا يوجد اتصال بالإنترنت. بعض الإجراءات تحتاج اتصالاً، مثل المساعد والترحيل النهائي والإحالة.</span>
+            <span>
+                لا يوجد اتصال بالإنترنت. بعض الإجراءات تحتاج اتصالاً، مثل
+                المساعد والترحيل النهائي والإحالة.
+            </span>
         </div>
     );
 }

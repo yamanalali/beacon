@@ -3,6 +3,7 @@
 namespace App\Ai\Finance;
 
 use App\Ai\Contracts\AiProvider;
+use App\Ai\Support\AiDataGuard;
 use App\Contracts\TransactionCategorizer;
 use App\Services\Ai\CategorySuggestion;
 use Throwable;
@@ -26,7 +27,7 @@ class AiTransactionCategorizer implements TransactionCategorizer
 
     public function suggest(string $type, ?string $description, ?string $counterparty, array $allowedCategories): ?CategorySuggestion
     {
-        if ($allowedCategories === []) {
+        if ($allowedCategories === [] || ! AiDataGuard::allows(AiDataGuard::CATEGORIZATION)) {
             return null;
         }
 

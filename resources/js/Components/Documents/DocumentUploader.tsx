@@ -19,7 +19,9 @@ export function DocumentUploader({ enterpriseId, transactionId }: { enterpriseId
                 });
             }}
         >
-            <div className="mb-3">
+            <div className="app-upload-zone mb-3">
+                <span className="app-upload-zone__icon"><i className="bi bi-cloud-arrow-up" aria-hidden="true" /></span>
+                <p className="fw-semibold mb-1">أضف وثيقة إلى ملف منشأتك</p>
                 <label htmlFor="document_file" className="form-label mb-1 fw-semibold">
                     الملف (صورة أو PDF، حتى 10 ميغابايت)
                 </label>
@@ -27,13 +29,14 @@ export function DocumentUploader({ enterpriseId, transactionId }: { enterpriseId
                     id="document_file"
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
-                    capture="environment"
-                    className={`form-control${form.errors.file ? " is-invalid" : ""}`}
+                    className={`form-control app-file-input${form.errors.file ? " is-invalid" : ""}`}
                     style={{ minHeight: "48px", fontSize: "16px" }}
+                    aria-invalid={form.errors.file ? true : undefined}
+                    aria-describedby={form.errors.file ? "document-file-error" : undefined}
                     onChange={(event) => form.setData("file", event.target.files?.[0] ?? null)}
                 />
                 {form.errors.file ? (
-                    <div className="invalid-feedback d-block" role="alert">
+                    <div id="document-file-error" className="invalid-feedback d-block" role="alert">
                         {form.errors.file}
                     </div>
                 ) : null}

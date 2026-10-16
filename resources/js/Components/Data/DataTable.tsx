@@ -326,7 +326,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 </div>
             ) : null}
 
-            <div className="app-dt-scroll d-none d-md-block" style={{ maxHeight }}>
+            <div className="app-dt-scroll d-none d-lg-block" style={{ maxHeight }}>
                 <table className="table app-dt-table align-middle mb-0" aria-busy={loading || undefined}>
                     {caption ? <caption className="visually-hidden">{caption}</caption> : null}
                     <thead>
@@ -382,14 +382,14 @@ export function DataTable<T>(props: DataTableProps<T>) {
                 </table>
             </div>
 
-            <ul className="list-unstyled d-md-none d-flex flex-column gap-2 mb-0 app-dt-cards" aria-label={caption} aria-busy={loading || undefined}>
+            <ul className="list-unstyled d-lg-none d-flex flex-column gap-2 mb-0 app-dt-cards" aria-label={caption} aria-busy={loading || undefined}>
                 {loading
                     ? Array.from({ length: 3 }, (_, i) => <li key={i} className="app-dt-card" aria-hidden="true"><span className="app-skeleton w-50" /><span className="app-skeleton" /></li>)
                     : rows.map((r) => {
                           const k = rowKey(r);
                           return (
                               <li key={k}>
-                                  <div {...interactive(r)} className={`app-dt-card${onRowClick ? " app-row-action" : ""}${selected.has(k) ? " is-selected" : ""}`}>
+                                  <div {...interactive(r)} className={`app-dt-card app-mobile-record${onRowClick ? " app-row-action" : ""}${selected.has(k) ? " is-selected" : ""}`}>
                                       <div className="d-flex align-items-start gap-2 mb-1">
                                           {selectable ? (
                                               <input type="checkbox" className="form-check-input mt-1" checked={selected.has(k)} onClick={(e) => e.stopPropagation()}
