@@ -76,3 +76,8 @@
 ## 2026-10-16 — Whisper prompt (مدير لارافيل)
 - `WHISPER_PROMPT` stays empty by default on every OS. Inventing words that were never said in a financial transaction is riskier than lower accuracy.
 - `WhisperMoneyCorrector` (post-transcription money-word fixes) is enough for now.
+
+## 2026-10-16 — Default date in the review screen (Yaman)
+- **Voice drafts:** if no date was spoken, the date field is prefilled with today's date from the browser (local date, not server/UTC), marked «مقترح» with the hint «ما انذكر تاريخ، انحط اليوم». The user can change it.
+- **Invoice extractions:** if no date was read, the date stays empty and required. No default, because a real invoice's date is usually not today.
+- Implemented in `withVoiceDefaultDate()` (`ReviewForm.tsx`), applied only in `VoiceRecorder`.
