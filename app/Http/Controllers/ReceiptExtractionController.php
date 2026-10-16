@@ -8,6 +8,7 @@ use App\Contracts\TransactionCategorizer;
 use App\Enums\ExtractionStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
+use App\Finance\TransactionTypeSuggester;
 use App\Http\Requests\Bookkeeping\StoreTransactionRequest;
 use App\Models\Document;
 use App\Models\FinancialTransaction;
@@ -36,7 +37,9 @@ class ReceiptExtractionController extends Controller
         $extraction->load(['enterprise', 'document', 'confirmedTransaction']);
         Gate::authorize('view', $extraction->enterprise);
 
-        $type = $request->string('type')->toString() ?: 'expense';
+        $suggestedType = TransactionType::tryFrom((string) $extraction->suggested_transaction_type)?->value;
+        // Category list follows the chosen type: explicit ?type= wins, else the suggestion.
+        $type = $request->string('type')->toString() ?: ($suggestedType ?? 'expense');
         $type = TransactionType::tryFrom($type)?->value ?? 'expense';
         $allowed = config('bookkeeping.categories.'.$type, []);
 
@@ -66,6 +69,8 @@ class ReceiptExtractionController extends Controller
                 'confirmed_transaction_public_id' => $extraction->confirmedTransaction?->public_id,
             ],
             'type' => $type,
+            'suggested_transaction_type' => $suggestedType,
+            'transaction_type_options' => TransactionTypeSuggester::options(),
             'category_suggestion' => $suggestion ? [
                 'category' => $suggestion->category,
                 'label' => $allowed[$suggestion->category],

@@ -47,6 +47,7 @@ class ReceiptTextParser
             confidence: round(0.15 * $found + ($found ? 0.05 : 0), 2),
             needsReview: true,
             failed: $found === 0,
+            rawText: $raw,
         );
     }
 
