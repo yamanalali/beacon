@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +16,18 @@ class AuthenticatedSessionController extends Controller
 {
     public function create(): Response
     {
-        return Inertia::render('Auth/Login');
+        // Demo credentials are shown ONLY in local development, never in production.
+        $demo = app()->isLocal() && filled(config('demo.password'))
+            ? [
+                'password' => (string) config('demo.password'),
+                'accounts' => collect(config('demo.accounts'))
+                    ->map(fn (array $a): array => ['email' => $a['email'], 'role' => UserRole::from($a['role'])->label()])
+                    ->values()
+                    ->all(),
+            ]
+            : null;
+
+        return Inertia::render('Auth/Login', ['demoAccounts' => $demo]);
     }
 
     public function store(LoginRequest $request): RedirectResponse
