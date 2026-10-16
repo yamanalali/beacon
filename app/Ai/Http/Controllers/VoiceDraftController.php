@@ -96,7 +96,11 @@ class VoiceDraftController extends Controller
                 'categories' => collect(config('bookkeeping.categories'))->map(fn ($items) => collect($items)->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all())->all(),
             ],
             'ai_available' => $text !== null,
-            'message' => $text !== null ? 'هذه مسودة مقترحة من تسجيلك الصوتي. راجعها قبل الحفظ.' : 'تحويل الصوت إلى نص غير متاح حالياً. يمكنك إدخال العملية يدوياً.',
+            'message' => match (true) {
+                $text !== null => 'هذه مسودة مقترحة من تسجيلك الصوتي. راجعها قبل الحفظ.',
+                ($stt->failureReason ?? null) === 'encoding' => 'تعذّرت قراءة النص العربي من التسجيل (مشكلة ترميز). أدخل العملية يدوياً، وأبلغ الدعم التقني.',
+                default => 'تحويل الصوت إلى نص غير متاح حالياً. يمكنك إدخال العملية يدوياً.',
+            },
             'confirm' => ['method' => 'post', 'url' => route('enterprises.transactions.store', $enterprise)],
         ]);
     }

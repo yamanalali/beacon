@@ -78,7 +78,7 @@ AI_VOICE_ENABLED=true
 AI_STT_DRIVER=whisper
 WHISPER_PATH=whisper-cli
 WHISPER_MODEL=/full/path/ggml-small.bin
-WHISPER_PROMPT=               # optional Arabic finance prompt (default set in config/ai.php; empty = none)
+WHISPER_PROMPT=               # optional, empty by default; on Windows only ASCII prompts are passed
 ```
 
 ### Windows install (whisper.cpp)
@@ -89,7 +89,7 @@ WHISPER_PROMPT=               # optional Arabic finance prompt (default set in c
 4. Test it with `C:\whisper\whisper-cli.exe -m C:\whisper\models\ggml-small.bin -f sample.wav -l ar -nt`.
 5. Run `php artisan config:clear`.
 
-Language is always Arabic (`-l ar`, no auto-detect). Spoken numbers like «خمسين ألف», «ميتين وخمسين» or «مليون ونص» are converted to digits. Currency and date are only filled when they are said («ليرة», «دولار», «اليوم», «مبارح», «أول مبارح»); otherwise they stay empty.
+Language is always Arabic (`-l ar`, no auto-detect). The transcript is read from whisper.cpp's UTF-8 output file (`-otxt -of`), not the console, so Arabic isn't turned into `????` by the Windows code page. If the text still comes back as `????`, the draft stays empty with an encoding-error message for manual entry. Spoken numbers like «خمسين ألف», «ميتين وخمسين» or «مليون ونص» are converted to digits. Currency and date are only filled when they are said («ليرة», «دولار», «اليوم», «مبارح», «أول مبارح»); otherwise they stay empty.
 
 **Better accuracy (optional):** `ggml-medium.bin` (~1.5 GB, from the same Hugging Face page) is noticeably better on Arabic and dialect than `small`, but slower and needs more RAM. Set `WHISPER_MODEL=C:\whisper\models\ggml-medium.bin` and raise `WHISPER_TIMEOUT` (e.g. 120) if needed.
 

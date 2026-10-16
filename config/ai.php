@@ -42,7 +42,7 @@ return [
         'whisper_model' => $env('WHISPER_MODEL', storage_path('app/whisper/ggml-small.bin')),
         // Language is fixed to Arabic ("-l ar", no auto-detect). Optional initial prompt
         // biasing Whisper toward finance vocabulary; empty = no --prompt.
-        'whisper_prompt' => env('WHISPER_PROMPT', 'تسجيل مصروف أو دخل: دفعت، قبضت، اشتريت، بعت، ليرة، دولار، ألف، مية، مبلغ، فاتورة، إيجار، رواتب.'),
+        'whisper_prompt' => env('WHISPER_PROMPT', ''), // optional; skipped on Windows if non-ASCII
         'timeout' => (int) $env('WHISPER_TIMEOUT', 60),
         'max_kb' => (int) $env('AI_VOICE_MAX_KB', 5120),
     ],
