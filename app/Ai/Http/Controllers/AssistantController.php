@@ -54,7 +54,7 @@ class AssistantController extends Controller
         ]);
 
         return response()->json([
-            'id' => $escalation->id,
+            'id' => $escalation->public_id,
             'status' => $escalation->status,
             'message' => 'تم إرسال سؤالك إلى فريق بيكون.',
         ], 201);
@@ -73,7 +73,7 @@ class AssistantController extends Controller
         };
 
         return response()->json($q->paginate(20)->through(fn (AiEscalation $e) => [
-            'id' => $e->id, 'question' => $e->question, 'status' => $e->status, 'created_at' => $e->created_at,
+            'id' => $e->public_id, 'question' => $e->question, 'status' => $e->status, 'created_at' => $e->created_at,
         ]));
     }
 
@@ -82,7 +82,7 @@ class AssistantController extends Controller
         Gate::authorize('view', $escalation);
 
         return response()->json([
-            'id' => $escalation->id, 'question' => $escalation->question,
+            'id' => $escalation->public_id, 'question' => $escalation->question,
             'status' => $escalation->status, 'context' => $escalation->context, 'created_at' => $escalation->created_at,
         ]);
     }

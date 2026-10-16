@@ -28,7 +28,7 @@ class KnowledgeArticleController extends Controller
         Gate::authorize('readPublished', KnowledgeArticle::class);
 
         return response()->json(KnowledgeArticle::query()->currentlyApproved()
-            ->orderBy('topic')->get(['id', 'title', 'body', 'topic', 'version', 'effective_from']));
+            ->orderBy('topic')->get(['public_id', 'title', 'body', 'topic', 'version', 'effective_from']));
     }
 
     public function store(Request $request): JsonResponse

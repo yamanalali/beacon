@@ -20,7 +20,10 @@ class KnowledgeBaseTest extends TestCase
         $admin = $this->userWithRole(UserRole::BeaconAdmin);
 
         $id = $this->actingAs($admin)->postJson(route('ai.knowledge.store'), $this->payload())
-            ->assertCreated()->assertJsonPath('status', 'draft')->json('id');
+            ->assertCreated()->assertJsonPath('status', 'draft')->assertJsonMissingPath('id')->json('public_id');
+        $this->assertMatchesRegularExpression('/^[0-9A-HJKMNP-TV-Z]{26}$/', $id);
+        $numericId = \App\Ai\Models\KnowledgeArticle::query()->where('public_id', $id)->value('id');
+        $this->postJson('/ai/admin/knowledge/'.$numericId.'/publish')->assertNotFound();
 
         $this->postJson(route('ai.knowledge.publish', $id))->assertOk()->assertJsonPath('status', 'published');
 
@@ -29,7 +32,7 @@ class KnowledgeBaseTest extends TestCase
 
         $this->postJson(route('ai.knowledge.archive', $id))->assertOk()->assertJsonPath('status', 'archived');
         $this->getJson(route('ai.knowledge.index'))->assertOk()->assertJsonPath('total', 1);
-        $this->assertDatabaseHas('audit_logs', ['action' => 'ai.knowledge.archived', 'target_id' => $id]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'ai.knowledge.archived', 'target_id' => $numericId]);
     }
 
     public function test_validation_rejects_unknown_topic(): void
@@ -51,9 +54,9 @@ class KnowledgeBaseTest extends TestCase
         $this->actingAs($this->userWithRole($role));
         $this->getJson(route('ai.knowledge.index'))->assertForbidden();
         $this->postJson(route('ai.knowledge.store'), $this->payload())->assertForbidden();
-        $this->putJson(route('ai.knowledge.update', $a->id), $this->payload())->assertForbidden();
-        $this->postJson(route('ai.knowledge.publish', $a->id))->assertForbidden();
-        $this->postJson(route('ai.knowledge.archive', $a->id))->assertForbidden();
+        $this->putJson(route('ai.knowledge.update', $a), $this->payload())->assertForbidden();
+        $this->postJson(route('ai.knowledge.publish', $a))->assertForbidden();
+        $this->postJson(route('ai.knowledge.archive', $a))->assertForbidden();
         $this->assertDatabaseCount('knowledge_articles', 1);
     }
 

@@ -39,7 +39,7 @@ class KnowledgeAssistantService
             'action' => 'ai.assistant.asked',
             'target_type' => $enterprise ? Enterprise::class : User::class,
             'target_id' => $enterprise?->id ?? $user->id,
-            'context' => ['supported' => $result['supported'], 'source_ids' => array_column($result['sources'], 'id')],
+            'context' => ['supported' => $result['supported'], 'source_public_ids' => array_column($result['sources'], 'id')],
         ]);
 
         return $result;
@@ -70,15 +70,15 @@ class KnowledgeAssistantService
             })
             ->orderByDesc('published_at')
             ->limit((int) config('ai.max_context_articles', 3))
-            ->get(['id', 'title', 'body'])
-            ->map(fn ($a) => ['id' => $a->id, 'title' => $a->title, 'body' => $a->body])
+            ->get(['id', 'public_id', 'title', 'body'])
+            ->map(fn ($a) => ['id' => $a->id, 'public_id' => $a->public_id, 'title' => $a->title, 'body' => $a->body])
             ->all();
     }
 
     private function answer(string $question, array $articles): array
     {
         try {
-            $answer = $this->provider->answerFromKnowledge($question, $articles);
+            $answer = $this->provider->answerFromKnowledge($question, array_map(fn ($a) => ['id' => $a['id'], 'title' => $a['title'], 'body' => $a['body']], $articles));
         } catch (AiUnavailableException|Throwable $e) {
             report($e);
 
@@ -90,11 +90,11 @@ class KnowledgeAssistantService
             return $this->unsupported('لا تتوفر لدينا إرشادات معتمدة تجيب عن هذا السؤال.');
         }
 
-        $allowed = array_column($articles, 'title', 'id');
+        $byId = array_column($articles, null, 'id');
         $sources = [];
         foreach ($answer->sourceIds as $id) {
-            if (isset($allowed[$id])) {
-                $sources[] = ['id' => $id, 'title' => $allowed[$id]];
+            if (isset($byId[$id])) {
+                $sources[] = ['id' => $byId[$id]['public_id'], 'title' => $byId[$id]['title']];
             }
         }
 

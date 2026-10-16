@@ -3,6 +3,7 @@
 namespace App\Ai\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use App\Ai\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -12,12 +13,16 @@ use Illuminate\Database\Eloquent\Model;
  */
 class KnowledgeArticle extends Model
 {
+    use HasPublicId;
+
     public const STATUSES = ['draft', 'published', 'archived'];
 
     /** Assistant topics from rules §34. */
     public const TOPICS = ['bookkeeping', 'platform_use', 'business_planning', 'compliance', 'financial_readiness'];
 
     protected $fillable = ['title', 'body', 'topic', 'effective_from', 'effective_until'];
+
+    protected $hidden = ['id', 'created_by', 'updated_by'];
 
     protected function casts(): array
     {
