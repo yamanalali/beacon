@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Ai\Support\PaginatedProps;
 use App\Actions\Audit\RecordAuditLog;
+use App\Actions\Bookkeeping\StartReceiptExtractionAction;
 use App\Actions\Documents\StoreDocumentAction;
 use App\Enums\UserRole;
 use App\Http\Requests\Documents\StoreDocumentRequest;
@@ -77,7 +78,24 @@ class DocumentController extends Controller
                 ->firstOrFail();
         }
 
-        $action->execute($request->user(), $enterprise, $request->file('file'), $request->input('title'), $transaction);
+        $document = $action->execute($request->user(), $enterprise, $request->file('file'), $request->input('title'), $transaction);
+
+        // Always expose the new document's public id so the UI never has to diff lists.
+        $request->session()->flash('created_document_id', $document->public_id);
+
+        if ($request->boolean('extract')) {
+            $extractor = app(StartReceiptExtractionAction::class);
+
+            if ($extractor->allows($request->user(), $document)) {
+                // Suggestion only: no transaction is created until the user confirms.
+                $extraction = $extractor->execute($request->user(), $document);
+
+                return redirect()->route('extractions.show', $extraction)->with('success', 'تم رفع المستند وقراءته. راجع الاقتراح قبل الحفظ.');
+            }
+
+            return back()->with('success', 'تم رفع المستند.')
+                ->with('info', 'تم حفظ المستند، لكن لا يمكنك قراءته كفاتورة.');
+        }
 
         return back()->with('success', 'تم رفع المستند.');
     }

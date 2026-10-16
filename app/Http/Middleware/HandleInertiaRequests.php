@@ -4,6 +4,9 @@ namespace App\Http\Middleware;
 
 use App\Navigation\NavigationBuilder;
 use BackedEnum;
+use App\Enums\UserRole;
+use App\Models\Enterprise;
+use App\Models\FinancialTransaction;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use UnitEnum;
@@ -46,10 +49,16 @@ class HandleInertiaRequests extends Middleware
             'dir' => $locale === 'ar' ? 'rtl' : 'ltr',
             'auth' => [
                 'user' => $this->sharedUser($request),
+                'can' => [
+                    'record_transaction' => fn () => $this->quickRecord($request) !== null,
+                ],
+                'quick_record' => fn () => $this->quickRecord($request),
                 'navigation' => fn () => app(NavigationBuilder::class)->build($request->user(), $request),
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
+                'info' => fn () => $request->session()->get('info'),
+                'created_document_id' => fn () => $request->session()->get('created_document_id'),
             ],
         ];
     }
@@ -57,6 +66,38 @@ class HandleInertiaRequests extends Middleware
     /**
      * @return array{name: string, role: string|null}|null
      */
+    /** @var array{enterprise_public_id: string, upload_url: string, voice_url: ?string, manual_url: string}|null|false */
+    private array|null|false $quickRecord = false;
+
+    /**
+     * Quick "record transaction" targets for the user's own enterprise, gated by the
+     * same transaction create policy as the transaction store route.
+     *
+     * @return array{enterprise_public_id: string, upload_url: string, voice_url: ?string, manual_url: string}|null
+     */
+    private function quickRecord(Request $request): ?array
+    {
+        if ($this->quickRecord !== false) {
+            return $this->quickRecord;
+        }
+
+        $user = $request->user();
+        $enterprise = $user && data_get($user, 'role') === UserRole::SmeUser
+            ? Enterprise::query()->whereHas('members', fn ($q) => $q->whereKey($user->id))->first()
+            : null;
+
+        if ($enterprise === null || ! $user->can('create', [FinancialTransaction::class, $enterprise])) {
+            return $this->quickRecord = null;
+        }
+
+        return $this->quickRecord = [
+            'enterprise_public_id' => $enterprise->public_id,
+            'upload_url' => route('enterprises.documents.store', ['enterprise' => $enterprise, 'extract' => 1]),
+            'voice_url' => config('ai.voice.enabled') ? route('ai.voice-drafts.store', $enterprise) : null,
+            'manual_url' => route('enterprises.transactions.create', $enterprise),
+        ];
+    }
+
     private function sharedUser(Request $request): ?array
     {
         $user = $request->user();

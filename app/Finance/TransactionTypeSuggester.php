@@ -24,6 +24,15 @@ class TransactionTypeSuggester
         '/استلمنا\s*من/u',
         '/دفعة\s*من\s*(ال)?(زبون|عميل|زبائن)/u',
         '/دفعة\s*(ال)?(زبون|عميل)/u',
+        // Levantine spoken income (voice transcripts).
+        // TODO: BUSINESS DECISION REQUIRED — confirm the spoken keyword list.
+        '/(?<!\p{L})قبضت/u',
+        '/(?<!\p{L})استلمت/u',
+        '/(?<!\p{L})دخل\x{0651}?ي(?!\p{L})/u',
+        '/(?<!\p{L})مبيع(ات)?(?!\p{L})/u',
+        '/(?<!\p{L})[إا]يراد/u',
+        // "بعت" = sold, but NOT "بعتلو/بعت لها/بعت على" (= I sent to someone).
+        '/(?<!\p{L})بعت(?!\s*(?:ل|على))/u',
         '/received\s+from/iu',
         '/payment\s+received/iu',
         '/receipt\s+voucher/iu',

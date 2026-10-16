@@ -21,6 +21,15 @@ class StartReceiptExtractionAction
         private readonly TransactionTypeSuggester $typeSuggester,
     ) {}
 
+    /** Same checks as documents.extractions.store: view the document AND create transactions in its enterprise. */
+    public function allows(User $actor, Document $document): bool
+    {
+        $document->loadMissing('enterprise');
+
+        return $actor->can('view', $document)
+            && $actor->can('create', [FinancialTransaction::class, $document->enterprise]);
+    }
+
     public function execute(User $actor, Document $document): ReceiptExtraction
     {
         abort_unless($actor->can('create', [FinancialTransaction::class, $document->enterprise]), 403);

@@ -24,8 +24,7 @@ class ReceiptExtractionController extends Controller
     public function store(Request $request, Document $document, StartReceiptExtractionAction $action): RedirectResponse
     {
         $document->load('enterprise');
-        Gate::authorize('view', $document);
-        Gate::authorize('create', [FinancialTransaction::class, $document->enterprise]);
+        abort_unless($action->allows($request->user(), $document), 403);
 
         $extraction = $action->execute($request->user(), $document);
 
