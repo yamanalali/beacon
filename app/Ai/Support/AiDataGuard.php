@@ -37,6 +37,9 @@ class AiDataGuard
             && array_diff($use[1], config("operations.data_processors.{$use[0]}.allowed_data", [])) === [];
     }
 
+    /** External speech-to-text for voice drafts: sends only the voice recording. */
+    public const SPEECH = ['speech_to_text', ['voice_recording']];
+
     /** @param  array{0:string,1:list<string>}  $use */
     public static function allows(array $use): bool
     {

@@ -49,4 +49,12 @@ interface AiProvider
      * @throws AiUnavailableException
      */
     public function explainFigures(array $figures): string;
+
+    /**
+     * Speech-to-text for a short voice note (voice draft transaction).
+     * External providers are only called after AiDataGuard::SPEECH approval.
+     *
+     * @throws AiUnavailableException
+     */
+    public function transcribe(string $audio, string $mimeType): string;
 }
