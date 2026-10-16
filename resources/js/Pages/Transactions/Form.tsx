@@ -4,9 +4,11 @@ import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { SelectInput } from "../../Components/Forms/SelectInput";
 import { TextInput } from "../../Components/Forms/TextInput";
+import { ItemsEditor, rowsFromItems, toItemsPayload, type ItemRow } from "../../Components/Transactions/ItemsEditor";
 import type {
     BookkeepingOptions,
     EnterpriseRef,
+    TransactionItemsProps,
     TransactionRow,
 } from "../../types/bookkeeping";
 
@@ -17,7 +19,7 @@ export default function Form({
 }: {
     enterprise: EnterpriseRef;
     options: BookkeepingOptions;
-    original: TransactionRow | null;
+    original: (TransactionRow & Partial<TransactionItemsProps>) | null;
 }) {
     const isCorrection = original !== null;
     const form = useForm({
@@ -35,6 +37,8 @@ export default function Form({
         counterparty: original?.counterparty ?? "",
         description: original?.description ?? "",
         correction_reason: "",
+        // A correction replaces the item set, so start from the original items.
+        items: rowsFromItems(original?.items) as ItemRow[],
     });
 
     const categories = options.categories[form.data.type] ?? [];
@@ -66,6 +70,7 @@ export default function Form({
                                 onSubmit={(event) => {
                                     event.preventDefault();
                                     if (isCorrection) {
+                                        form.transform((d) => ({ ...d, items: toItemsPayload(d.items) }));
                                         form.post(
                                             `/transactions/${original.public_id}/correct`,
                                         );
@@ -74,7 +79,7 @@ export default function Form({
                                             ({
                                                 correction_reason: _ignored,
                                                 ...rest
-                                            }) => rest,
+                                            }) => ({ ...rest, items: toItemsPayload(rest.items) }),
                                         );
                                         form.post(
                                             `/enterprises/${enterprise.public_id}/transactions`,
@@ -187,6 +192,14 @@ export default function Form({
                                         form.setData("counterparty", v)
                                     }
                                     error={form.errors.counterparty}
+                                />
+                                <ItemsEditor
+                                    rows={form.data.items}
+                                    onChange={(items) => form.setData("items", items)}
+                                    currency={form.data.currency}
+                                    amount={form.data.amount}
+                                    errors={form.errors as Record<string, string | undefined>}
+                                    disabled={form.processing}
                                 />
                                 <div className="mb-3">
                                     <label
