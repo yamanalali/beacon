@@ -4,14 +4,16 @@ namespace App\Http\Controllers\Readiness;
 
 use App\Actions\Audit\RecordAuditLog;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Readiness\CriterionRequest;
 use App\Models\ComplianceRequirement;
 use App\Models\ReadinessCriterion;
 use App\Models\ReadinessRuleSet;
 use App\Support\ReadinessAccess;
+use App\Support\ReadinessRuleSetValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,7 +31,7 @@ class ReadinessAdminController extends Controller
         $this->admin($request);
 
         return Inertia::render('Readiness/Admin', [
-            'ruleSets' => ReadinessRuleSet::query()->with('criteria.complianceRequirement:id,code')->orderByDesc('version_number')->get()
+            'ruleSets' => ReadinessRuleSet::query()->with('criteria.complianceRequirement:id,code', 'pillars', 'bands')->orderByDesc('version_number')->get()
                 ->map(fn (ReadinessRuleSet $s) => [
                     'id' => $s->id,
                     'version_number' => $s->version_number,
@@ -38,7 +40,9 @@ class ReadinessAdminController extends Controller
                     'status_label' => ReadinessRuleSet::STATUS_LABELS[$s->status],
                     'change_summary' => $s->change_summary,
                     'published_at' => $s->published_at?->toDateTimeString(),
-                    'criteria' => $s->criteria->map(fn (ReadinessCriterion $c) => self::criterionData($c))->all(),
+                    'criteria' => $s->criteria->sortBy([['sort_order', 'asc'], ['id', 'asc']])->values()->map(fn (ReadinessCriterion $c) => self::criterionData($c))->all(),
+                    'pillars' => $s->pillars->values()->all(),
+                    'bands' => $s->bands->values()->all(),
                 ]),
             'treatments' => ReadinessCriterion::MISSING_DATA_TREATMENTS,
             'complianceRequirements' => ComplianceRequirement::query()->orderBy('code')->get(['id', 'code']),
@@ -75,19 +79,13 @@ class ReadinessAdminController extends Controller
         return redirect()->route('admin.readiness.index');
     }
 
-    public function storeCriterion(Request $request, ReadinessRuleSet $ruleSet): RedirectResponse
+    /** v2: also accepts type + config (validated per type), readiness_pillar_id (same rule set only) and sort_order. */
+    public function storeCriterion(CriterionRequest $request, ReadinessRuleSet $ruleSet): RedirectResponse
     {
-        $actor = $this->admin($request);
+        $actor = $request->user();
         abort_if($ruleSet->status !== ReadinessRuleSet::STATUS_DRAFT, 422, 'لا يمكن تعديل نسخة قواعد منشورة.');
-        $data = $request->validate([
-            'code' => ['required', 'string', 'max:64', 'alpha_dash', Rule::unique('readiness_criteria')->where('readiness_rule_set_id', $ruleSet->id)],
-            'label_ar' => ['required', 'string', 'max:255'],
-            'description_ar' => ['nullable', 'string', 'max:5000'],
-            'weight' => ['required', 'numeric', 'min:0', 'max:1000'],
-            'is_mandatory' => ['required', 'boolean'],
-            'missing_data_treatment' => ['required', Rule::in(array_keys(ReadinessCriterion::MISSING_DATA_TREATMENTS))],
-            'compliance_requirement_id' => ['nullable', 'integer', 'exists:compliance_requirements,id'],
-        ]);
+        $data = $request->validated();
+        $data['sort_order'] ??= ((int) $ruleSet->criteria()->max('sort_order')) + 1;
 
         $criterion = $ruleSet->criteria()->create($data);
         $this->audit->record($actor, 'readiness.criterion_added', $criterion, ['rule_set_version' => $ruleSet->version_number] + $data);
@@ -110,6 +108,11 @@ class ReadinessAdminController extends Controller
         $actor = $this->admin($request);
         abort_if($ruleSet->status !== ReadinessRuleSet::STATUS_DRAFT, 422, 'النسخة منشورة مسبقاً.');
         abort_if($ruleSet->criteria()->count() === 0, 422, 'لا يمكن نشر قواعد بدون معايير.');
+        // Same checks as JSON import and preview: weights > 0, valid type config, bands 0..100 without gaps/overlap.
+        $errors = ReadinessRuleSetValidator::errors(ReadinessRuleSetValidator::definition($ruleSet));
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
 
         DB::transaction(function () use ($ruleSet, $actor) {
             ReadinessRuleSet::query()->where('status', ReadinessRuleSet::STATUS_PUBLISHED)->get()
@@ -140,6 +143,12 @@ class ReadinessAdminController extends Controller
             'missing_data_treatment' => $c->missing_data_treatment,
             'missing_data_treatment_label' => ReadinessCriterion::MISSING_DATA_TREATMENTS[$c->missing_data_treatment] ?? $c->missing_data_treatment,
             'compliance_requirement_code' => $c->complianceRequirement?->code,
+            'compliance_requirement_id' => $c->compliance_requirement_id,
+            'readiness_rule_set_id' => $c->readiness_rule_set_id,
+            'readiness_pillar_id' => $c->readiness_pillar_id,
+            'type' => $c->type ?: ReadinessCriterion::TYPE_BOOLEAN,
+            'config' => $c->config,
+            'sort_order' => (int) $c->sort_order,
         ];
     }
 }
