@@ -3,6 +3,7 @@
 namespace App\Services\Operations;
 
 use App\Models\BackupRun;
+use App\Models\User;
 use App\Support\DataControl;
 
 /**
@@ -35,9 +36,37 @@ class SecurityChecklist
             $this->item('backup_recent', 'آخر نسخة احتياطية ناجحة', $lastBackup !== null && $lastBackup->finished_at->gt(now()->subHours($staleHours)), $lastBackup ? 'آخر نسخة: '.$lastBackup->finished_at->toDateTimeString() : 'لا توجد نسخة ناجحة بعد.'),
             $this->item('restore_tested', 'اختبار الاستعادة', $lastRestore?->status === BackupRun::STATUS_SUCCEEDED, $lastRestore ? 'آخر اختبار: '.(BackupRun::STATUS_LABELS[$lastRestore->status] ?? '') : 'لم يُجرَ اختبار استعادة بعد. تمرين الاستعادة في بيئة منفصلة مطلوب قبل القبول النهائي.'),
             ['key' => 'backup_retention', 'label_ar' => 'مدة الاحتفاظ بالنسخ', 'status' => config('operations.backup.retention_days') === null ? 'pending_decision' : 'ok', 'detail_ar' => config('operations.backup.retention_days') === null ? 'بانتظار قرار بيكون.' : config('operations.backup.retention_days').' يوماً.'],
-            ['key' => 'admin_mfa', 'label_ar' => 'المصادقة الثنائية للمسؤولين', 'status' => 'pending_decision', 'detail_ar' => 'بانتظار سياسة معتمدة (نوع العامل، رموز الاسترداد).'],
+            $this->adminMfaItem(),
             ['key' => 'retention_procedures', 'label_ar' => 'إجراءات الاحتفاظ والتصدير والحذف', 'status' => 'pending_decision', 'detail_ar' => 'موثّقة في docs/operations/data-protection.md وبانتظار اعتماد المدد من بيكون.'],
             ['key' => 'third_party', 'label_ar' => 'مشاركة البيانات مع أطراف ثالثة', 'status' => 'ok', 'detail_ar' => 'المزوّدون المعتمدون: '.collect(DataControl::registry())->where('approved', true)->count().'. لا تُرسل البيانات إلا لمزوّد معتمد باتفاقية معالجة بيانات.'],
+        ];
+    }
+
+    /**
+     * Admin MFA (TOTP, config/mfa.php). Reports only whether it is switched on and how many
+     * admins have confirmed enrollment (a count; never secrets). The policy is still open, so the
+     * status stays pending_decision. TODO: BUSINESS DECISION REQUIRED - mandatory roles, factor
+     * types, grace period, lost-device recovery.
+     */
+    private function adminMfaItem(): array
+    {
+        $roles = (array) config('mfa.roles', []);
+        $admins = User::query()->whereIn('role', $roles);
+        $total = (clone $admins)->count();
+        $enrolled = (clone $admins)->whereNotNull('two_factor_secret')->whereNotNull('two_factor_confirmed_at')->count();
+
+        $state = config('mfa.enabled')
+            ? "مفعّلة (BEACON_ADMIN_MFA=true). المسجّلون: {$enrolled} من {$total} مسؤول."
+            : 'غير مفعّلة (BEACON_ADMIN_MFA=false)، وتسجيل الدخول يعمل بدونها.';
+
+        return [
+            'key' => 'admin_mfa',
+            'label_ar' => 'المصادقة الثنائية للمسؤولين',
+            'status' => 'pending_decision',
+            'detail_ar' => $state.' بانتظار قرار السياسة: الأدوار الإلزامية، نوع العامل، فترة السماح، واسترداد الجهاز المفقود.',
+            'mfa_enabled' => (bool) config('mfa.enabled'),
+            'mfa_enrolled_admins' => $enrolled,
+            'mfa_total_admins' => $total,
         ];
     }
 
