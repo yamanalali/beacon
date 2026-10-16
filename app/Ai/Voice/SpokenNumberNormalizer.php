@@ -43,8 +43,12 @@ class SpokenNumberNormalizer
             '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9', '٫' => '.', '٬' => ',']);
     }
 
+    /** True after normalize() when a full number was followed by «الاف» (e.g. «3000 الاف»): not multiplied, ambiguous. */
+    public bool $ambiguous = false;
+
     public function normalize(string $text): string
     {
+        $this->ambiguous = false;
         $tokens = preg_split('/(\s+)/u', self::digits($text), -1, PREG_SPLIT_DELIM_CAPTURE) ?: [];
         $out = [];
         $i = 0;
@@ -113,6 +117,15 @@ class SpokenNumberNormalizer
                     $current += $num;
                     break;
                 case 'scale':
+                    // QA fix: «3000 الاف» is 3000, not 3,000,000 — a number already >= 1000
+                    // before a thousand-word is taken as written (flagged as ambiguous).
+                    if ($num === 1000 && $current >= 1000) {
+                        $total += $current;
+                        $current = 0;
+                        $lastScale = 1000;
+                        $this->ambiguous = true;
+                        break;
+                    }
                     $mult = in_array($num, [2000, 2000000], true) ? 1 : ($current > 0 ? $current : 1);
                     $total += $mult * $num;
                     $current = 0;
