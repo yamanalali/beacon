@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReviewForm, confidencePercent, hasSuggestions, initialReviewData, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
+import { ReviewForm, confidencePercent, hasSuggestions, initialReviewData, isPrefilled, missingRequired, type ReviewFormData, type TransactionDraft } from "./ReviewForm";
 import type { BookkeepingOptions } from "../../types/bookkeeping";
 
 const options: BookkeepingOptions = {
@@ -103,5 +103,30 @@ describe("ReviewForm", () => {
         fireEvent.change(date, { target: { value: "2026-10-15" } });
         expect(confirm.disabled).toBe(false);
         expect(screen.queryByText(/أكمل الحقول المطلوبة/)).toBeNull();
+    });
+});
+
+describe("«مقترح» badge", () => {
+    it("isPrefilled needs a non-empty suggestion equal to the current value", () => {
+        expect(isPrefilled("100", "100")).toBe(true);
+        expect(isPrefilled("100", "90")).toBe(false);
+        expect(isPrefilled(null, "")).toBe(false);
+        expect(isPrefilled(undefined, "")).toBe(false);
+        expect(isPrefilled("", "")).toBe(false);
+        expect(isPrefilled("  ", "  ")).toBe(false);
+    });
+
+    it("shows a badge for every field with a non-empty prefilled value", () => {
+        const full: TransactionDraft = { ...read, suggested_transaction_type: "expense" };
+        render(<Harness draft={full} />);
+        // type, amount, currency, date, counterparty, category
+        expect(screen.getAllByText("مقترح").length).toBe(6);
+    });
+
+    it("shows no badge for empty or null suggestions", () => {
+        const blank: TransactionDraft = { suggested_date: "", suggested_amount: "", suggested_currency: null, suggested_counterparty: "   ", suggested_transaction_type: null };
+        const set = vi.fn();
+        render(<ReviewForm draft={blank} data={initialReviewData(blank, "expense", options, null)} setData={set} options={options} suggestion={{ category: "", label: "", needs_review: false }} onSubmit={() => {}} />);
+        expect(screen.queryByText("مقترح")).toBeNull();
     });
 });

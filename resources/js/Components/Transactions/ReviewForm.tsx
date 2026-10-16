@@ -75,6 +75,11 @@ export function initialReviewData(draft: TransactionDraft, type: string, options
     };
 }
 
+/** Badge only when a non-empty suggestion was prefilled and the field still holds it. */
+export function isPrefilled(suggested: string | null | undefined, current: string): boolean {
+    return typeof suggested === "string" && suggested.trim() !== "" && current === suggested;
+}
+
 function Suggested({ show }: { show: boolean }) {
     return show ? (
         <span className="app-status app-status--warning ms-2" style={{ fontSize: "12px" }}>
@@ -142,26 +147,26 @@ export function ReviewForm({
                         </label>
                     ))}
                 </div>
-                <Suggested show={!!draft.suggested_transaction_type && data.type === draft.suggested_transaction_type} />
+                <Suggested show={isPrefilled(draft.suggested_transaction_type, data.type)} />
                 {errors.type ? <div className="invalid-feedback d-block" role="alert">{errors.type}</div> : null}
             </fieldset>
 
             <div className="row g-2">
                 <div className="col-7">
                     <TextInput id="amount" name="amount" label="المبلغ" value={data.amount} onChange={(v) => setData({ amount: v })} error={errors.amount} inputMode="decimal" />
-                    <Suggested show={!!draft.suggested_amount && data.amount === draft.suggested_amount} />
+                    <Suggested show={isPrefilled(draft.suggested_amount, data.amount)} />
                 </div>
                 <div className="col-5">
                     <SelectInput id="currency" label="العملة" required placeholder="اختر" value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />
-                    <Suggested show={!!draft.suggested_currency && data.currency === draft.suggested_currency} />
+                    <Suggested show={isPrefilled(draft.suggested_currency, data.currency)} />
                 </div>
             </div>
             <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" required placeholder="اختر" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
-            <Suggested show={!!draft.suggested_date && data.transaction_date === draft.suggested_date} />
+            <Suggested show={isPrefilled(draft.suggested_date, data.transaction_date)} />
             <TextInput id="counterparty" name="counterparty" label="المورد أو الزبون" value={data.counterparty} onChange={(v) => setData({ counterparty: v })} error={errors.counterparty} />
-            <Suggested show={!!draft.suggested_counterparty && data.counterparty === draft.suggested_counterparty} />
+            <Suggested show={isPrefilled(draft.suggested_counterparty, data.counterparty)} />
             <SelectInput id="category" label="التصنيف" value={data.category} options={categories} placeholder="اختر التصنيف" onChange={(v) => setData({ category: v })} error={errors.category} />
-            {suggestion && data.category && data.category === suggestion.category ? (
+            {suggestion && isPrefilled(suggestion.category, data.category) ? (
                 <p className="small text-body-secondary mt-n2">
                     <Suggested show />
                     <span className="ms-1">{suggestion.label}{suggestion.needs_review ? " (يحتاج مراجعة)" : ""}</span>
