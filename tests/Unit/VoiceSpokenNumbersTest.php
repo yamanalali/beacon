@@ -99,6 +99,15 @@ class VoiceSpokenNumbersTest extends TestCase
                 return $this->windows;
             }
 
+            protected function modelExists(string $path): bool
+
+            {
+
+                return true;
+
+            }
+
+
             protected function makeProcess(array $command): Process
             {
                 $this->cmd = $command;
