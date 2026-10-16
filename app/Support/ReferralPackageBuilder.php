@@ -14,7 +14,7 @@ class ReferralPackageBuilder
     /** @return array<string, mixed> */
     public function build(Referral $referral): array
     {
-        $referral->loadMissing('enterprise', 'assessment');
+        $referral->loadMissing('enterprise', 'assessment.currentSnapshot');
         $items = $referral->disclosed_items ?? [];
         $package = [];
 
@@ -33,8 +33,10 @@ class ReferralPackageBuilder
         if (in_array('readiness_assessment', $items, true) && $referral->assessment !== null) {
             $a = $referral->assessment;
             $package['readiness_assessment'] = [
-                'score' => $a->score,
-                'mandatory_conditions_met' => $a->mandatory_conditions_met,
+                // Frozen current snapshot (row value only for legacy rows without one).
+                'score' => $a->frozenScore(),
+                'mandatory_conditions_met' => $a->frozenMandatoryConditionsMet(),
+                'band' => $a->frozenBand(),
                 'finalized_at' => $a->finalized_at?->toDateTimeString(),
                 'rule_set_version' => $a->ruleSet?->version_number,
                 'disclaimer' => 'نتيجة الجاهزية أداة استشارية وليست موافقة على التمويل.',
