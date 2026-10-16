@@ -1,4 +1,4 @@
-import type { NavigationItem } from "../types/shared";
+import type { AuthCan, NavigationItem } from "../types/shared";
 
 /**
  * Presentation-only model for `auth.navigation`. The server decides WHICH links a user sees
@@ -112,8 +112,19 @@ export function splitMobile(items: NavigationItem[] | null | undefined, max = 3)
 export const FALLBACK_NAVIGATION: NavigationItem[] = [
     { key: "account", label: "حسابي", href: "/account", icon: "user", group: "account", active: false },
 ];
-export function navigationOrFallback(items: NavigationItem[] | null | undefined, url: string): NavigationItem[] {
-    if (Array.isArray(items)) return items;
+export function navigationOrFallback(
+    items: NavigationItem[] | null | undefined,
+    url: string,
+    can?: Partial<AuthCan> | Record<string, boolean> | null,
+): NavigationItem[] {
+    if (Array.isArray(items)) return filterByCan(items, can);
     const path = url.split("?")[0] ?? "";
     return FALLBACK_NAVIGATION.map((i) => ({ ...i, active: path === i.href || path.startsWith(`${i.href}/`) }));
+}
+
+/** Keep only items whose `auth.can[key]` flag is true. Without a `can` map, the server list is kept as-is. */
+export function filterByCan(items: NavigationItem[], can?: Partial<AuthCan> | Record<string, boolean> | null): NavigationItem[] {
+    if (!can) return items;
+    const flags = can as Record<string, boolean | undefined>;
+    return items.filter((item) => flags[item.key] === true);
 }
