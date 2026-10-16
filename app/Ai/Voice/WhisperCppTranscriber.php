@@ -38,7 +38,8 @@ class WhisperCppTranscriber implements SpeechToText
         }
         $timeout = (int) config('ai.voice.timeout', 120);
         // Whisper runs inside the request; PHP's default 30s limit would cut it first.
-        if (function_exists('set_time_limit')) {
+        // Queue/CLI workers have no request limit, so leave them alone.
+        if (PHP_SAPI !== 'cli' && function_exists('set_time_limit')) {
             @set_time_limit($timeout + 15);
         }
         $base = tempnam(sys_get_temp_dir(), 'stt_');

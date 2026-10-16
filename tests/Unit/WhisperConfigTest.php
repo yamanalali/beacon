@@ -115,4 +115,14 @@ class WhisperConfigTest extends TestCase
         $this->assertNull($w->transcribe('/tmp/a.wav', 'audio/wav'));
         $this->assertSame('failed', $w->failureReason);
     }
+
+    public function test_missing_model_file_logs_the_path(): void
+    {
+        \Illuminate\Support\Facades\Log::spy();
+        config(['ai.voice.whisper_model' => '/nonexistent/ggml-x.bin']);
+        (new WhisperCppTranscriber)->transcribe('/tmp/a.wav', 'audio/wav');
+        \Illuminate\Support\Facades\Log::shouldHaveReceived('warning')
+            ->withArgs(fn ($msg, $ctx = []) => str_contains($msg, 'model file not found') && ($ctx['model'] ?? null) === '/nonexistent/ggml-x.bin')
+            ->once();
+    }
 }
