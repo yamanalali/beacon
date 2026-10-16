@@ -6,9 +6,11 @@ use App\Ai\Voice\ProviderTranscriber;
 use App\Ai\Voice\SpeechToText;
 use App\Ai\Voice\VoiceDraftParser;
 use App\Ai\Voice\WhisperCppTranscriber;
+use App\Contracts\TransactionCategorizer;
 use App\Enums\UserRole;
 use App\Models\Enterprise;
 use App\Models\User;
+use App\Services\Ai\CategorySuggestion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Symfony\Component\Process\Process;
@@ -169,10 +171,50 @@ class VoiceDraftTest extends TestCase
         $this->assertInstanceOf(WhisperCppTranscriber::class, $this->app->make(SpeechToText::class));
     }
 
-    public function test_parser_income_and_yesterday(): void
+    public function test_parser_fields_and_yesterday_without_type(): void
     {
         $p = (new VoiceDraftParser)->parse('قبضت مبارح ٢٠٠ دولار من سامر');
-        $this->assertSame(['income', '200', 'USD', now()->subDay()->toDateString(), 'سامر'], [$p['type'], $p['amount'], $p['currency'], $p['date'], $p['counterparty']]);
+        $this->assertSame(['200', 'USD', now()->subDay()->toDateString(), 'سامر'], [$p['amount'], $p['currency'], $p['date'], $p['counterparty']]);
+        $this->assertArrayNotHasKey('type', $p);
         $this->assertLessThanOrEqual(0.5, $p['confidence']);
+    }
+
+    public function test_type_comes_from_shared_suggester_and_categories_follow(): void
+    {
+        $this->stubStt('تم استلام دفعة من زبون 200 دولار');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_transaction_type', 'income')->assertJsonPath('type', 'income');
+
+        // Old heuristic word "قبضت" alone is no longer income: shared suggester defaults to expense.
+        $this->stubStt('قبضت 200 دولار');
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_transaction_type', 'expense')->assertJsonPath('type', 'expense');
+
+        // Categorizer receives the suggested type's list.
+        $seen = null;
+        $this->app->instance(TransactionCategorizer::class, new class($seen) implements TransactionCategorizer
+        {
+            public function __construct(public mixed &$seen) {}
+
+            public function name(): string
+            {
+                return 'spy';
+            }
+
+            public function suggest(string $type, ?string $description, ?string $counterparty, array $allowedCategories): ?CategorySuggestion
+            {
+                $this->seen = [$type, $allowedCategories];
+
+                return null;
+            }
+        });
+        $this->stubStt('إيصال استلام 50');
+        $this->send()->assertOk();
+        $this->assertSame(['income', config('bookkeeping.categories.income')], $seen);
+    }
+
+    public function test_unavailable_transcript_has_null_suggested_type(): void
+    {
+        $this->stubStt(null);
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_transaction_type', null)->assertJsonPath('type', 'expense');
     }
 }
