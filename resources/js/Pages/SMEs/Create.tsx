@@ -25,7 +25,7 @@ export default function Create() {
     }
 
     return (
-        <AppLayout title="منشأة جديدة" showBack>
+        <AppLayout title="منشأة جديدة">
             <div className="app-page">
                 <PageHeader title="تسجيل منشأة" description="الخطوة 1 من 1" />
                 <form onSubmit={submit} style={{ maxWidth: '40rem' }}>
