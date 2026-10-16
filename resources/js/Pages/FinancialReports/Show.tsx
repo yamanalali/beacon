@@ -7,10 +7,20 @@ import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { SelectInput, type SelectOption } from "../../Components/Forms/SelectInput";
 import { TextInput } from "../../Components/Forms/TextInput";
 import type { EnterpriseRef } from "../../types/bookkeeping";
+import { Money } from "../../Components/Common/Money";
 
 type Section = { title: string; columns: string[]; rows: string[][] };
 type Report = { key: string; title: string; period_label: string; sections: Section[]; notes: string[] };
 type Filters = { report: string; from: string; to: string; basis: string };
+
+/** Server cells are raw strings; decimal amounts ("1000000.00", "-250.50") get the shared money format. */
+export function isAmountCell(cell: string): boolean {
+    return /^-?\d+\.\d+$/.test(cell.trim());
+}
+/** Index of the currency column when the section has one (amounts then show that row's symbol). */
+export function currencyColumn(columns: string[]): number {
+    return columns.findIndex((c) => /العملة|currency/i.test(c));
+}
 
 export default function Show({
     enterprise,
@@ -106,15 +116,18 @@ export default function Show({
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {section.rows.map((row, i) => (
-                                            <tr key={i}>
-                                                {row.map((cell, j) => (
-                                                    <td key={j} dir={/^-?\d+(\.\d+)?$/.test(cell) ? "ltr" : undefined}>
-                                                        {cell}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        ))}
+                                        {section.rows.map((row, i) => {
+                                            const cur = currencyColumn(section.columns);
+                                            return (
+                                                <tr key={i}>
+                                                    {row.map((cell, j) => (
+                                                        <td key={j} className={isAmountCell(cell) ? "text-nowrap" : undefined}>
+                                                            {isAmountCell(cell) ? <Money amount={cell} currency={cur >= 0 && cur !== j ? row[cur] : null} /> : cell}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
