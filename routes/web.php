@@ -16,6 +16,7 @@ foreach ([
     __DIR__.'/transactions.php',
     __DIR__.'/documents.php',
     __DIR__.'/finance.php',
+    __DIR__.'/readiness.php',
 ] as $routeFile) {
     if (file_exists($routeFile)) {
         require $routeFile;
