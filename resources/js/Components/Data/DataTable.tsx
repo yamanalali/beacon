@@ -49,7 +49,7 @@ export function DataTable<T>({ columns, rows, rowKey, caption, emptyTitle = "Ù„Ø
 
     return (
         <>
-            <div className="table-responsive d-none d-md-block">
+            <div className="table-responsive d-none d-lg-block">
                 <table className="table table-hover align-middle mb-0">
                     {caption ? <caption className="visually-hidden">{caption}</caption> : null}
                     <thead className="table-light">
@@ -68,10 +68,10 @@ export function DataTable<T>({ columns, rows, rowKey, caption, emptyTitle = "Ù„Ø
                     </tbody>
                 </table>
             </div>
-            <ul className="list-unstyled d-md-none d-flex flex-column gap-2 mb-0" aria-label={caption}>
+            <ul className="list-unstyled d-lg-none d-flex flex-column gap-2 mb-0" aria-label={caption}>
                 {rows.map((r) => (
                     <li key={rowKey(r)}>
-                        <div {...interactive(r)} className={`border rounded-3 bg-white p-3${onRowClick ? " app-row-action" : ""}`}>
+                        <div {...interactive(r)} className={`app-mobile-record${onRowClick ? " app-row-action" : ""}`}>
                         <div className="fw-semibold mb-1">{primary.cell(r)}</div>
                         <dl className="row g-1 mb-0 small">
                             {rest.map((c) => (

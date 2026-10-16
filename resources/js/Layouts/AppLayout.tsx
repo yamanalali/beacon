@@ -7,7 +7,13 @@ import { MobileAppHeader } from "./MobileAppHeader";
 import { MobileBottomNavigation } from "./MobileBottomNavigation";
 import { ConnectionStatus } from "../Components/Feedback/ConnectionStatus";
 
-export default function AppLayout({ title, children }: { title: string; children: React.ReactNode }) {
+export default function AppLayout({
+    title,
+    children,
+}: {
+    title: string;
+    children: React.ReactNode;
+}) {
     const { locale, dir, flash } = usePage().props;
 
     useEffect(() => {
@@ -17,20 +23,30 @@ export default function AppLayout({ title, children }: { title: string; children
 
     return (
         <div className="app-shell d-flex flex-column flex-lg-row min-vh-100">
-            <Head title="بيكون" />
+            <Head title={`${title} | بيكون`} />
             <a className="app-skip" href="#main-content">
                 تخطى إلى المحتوى
             </a>
             <DesktopSidebar />
             <div className="app-frame d-flex flex-column flex-grow-1">
-                <ConnectionStatus />
                 <MobileAppHeader title={title} />
                 <DesktopTopbar title={title} />
-                <main id="main-content" className="app-content flex-grow-1">
+                <ConnectionStatus />
+                <main
+                    id="main-content"
+                    className="app-content flex-grow-1"
+                    tabIndex={-1}
+                >
                     {flash?.success ? (
                         <div className="app-page pb-0">
-                            <div className="alert alert-success mb-0" role="status">
-                                <i className="bi bi-check-circle me-2" aria-hidden="true" />
+                            <div
+                                className="alert alert-success mb-0"
+                                role="status"
+                            >
+                                <i
+                                    className="bi bi-check-circle me-2"
+                                    aria-hidden="true"
+                                />
                                 {flash.success}
                             </div>
                         </div>

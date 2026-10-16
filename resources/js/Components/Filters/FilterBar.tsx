@@ -28,8 +28,8 @@ export function FilterBar({ initial, url, children, only }: {
     };
 
     return (
-        <div className="border rounded-3 bg-white p-3 mb-3">
-            <button type="button" className="btn btn-link p-0 d-lg-none fw-semibold text-decoration-none" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <div className="app-filter-bar">
+            <button type="button" className="btn app-filter-bar__toggle p-0 d-lg-none" aria-expanded={open} onClick={() => setOpen(!open)}>
                 <i className="bi bi-funnel me-1" aria-hidden="true" />
                 التصفية {active > 0 ? <span className="badge text-bg-primary ms-1">{active}</span> : null}
             </button>

@@ -2,13 +2,40 @@ import { Link, usePage } from "@inertiajs/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { SoonButton } from "./SoonButton";
-import { accountItem, adminItem, homeItem, isAccountPath, isHomePath, mobileSoonItems, moreSoonItems } from "./navigation";
+import {
+    accountItem,
+    homeItem,
+    isAccountPath,
+    isHomePath,
+    isNavItemActive,
+    workspaceGroups,
+} from "./navigation";
 
 export function MobileBottomNavigation() {
     const { url, props } = usePage();
-    const isAdmin = props.auth.user?.role === "beacon_admin";
+    const enterprise = props.enterprise as { public_id: string } | undefined;
+    const groups = workspaceGroups(
+        props.auth.user?.role,
+        enterprise?.public_id,
+    );
+    const allItems = groups.flatMap((group) => group.items);
+    const primaryItems =
+        props.auth.user?.role === "technical_admin"
+            ? allItems.slice(0, 3)
+            : props.auth.user?.role === "mfi_user"
+              ? allItems
+              : allItems.filter((item) =>
+                    ["transactions", "reports", "enterprises"].includes(
+                        item.key,
+                    ),
+                );
+    const moreItems = allItems.filter(
+        (item) => !primaryItems.some((primary) => primary.key === item.key),
+    );
     const homeActive = isHomePath(url);
     const accountActive = isAccountPath(url);
+    const moreActive =
+        accountActive || moreItems.some((item) => isNavItemActive(item, url));
     const [open, setOpen] = useState(false);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -40,7 +67,9 @@ export function MobileBottomNavigation() {
                 return;
             }
 
-            const focusable = dialogRef.current.querySelectorAll<HTMLElement>("button");
+            const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+                'a[href], button:not([disabled]), [tabindex="0"]',
+            );
             const first = focusable[0];
             const last = focusable[focusable.length - 1];
 
@@ -74,6 +103,10 @@ export function MobileBottomNavigation() {
         };
     }, [close, open]);
 
+    useEffect(() => {
+        setOpen(false);
+    }, [url]);
+
     return (
         <nav className="app-bottom-nav d-lg-none" aria-label="التنقل السفلي">
             <ul className="app-bottom-nav__list">
@@ -83,20 +116,29 @@ export function MobileBottomNavigation() {
                         className={homeActive ? "app-tab is-active" : "app-tab"}
                         aria-current={homeActive ? "page" : undefined}
                     >
-                        <i className={`bi ${homeItem.icon}`} aria-hidden="true" />
+                        <i
+                            className={`bi ${homeItem.icon}`}
+                            aria-hidden="true"
+                        />
                         <span className="app-tab__label">{homeItem.label}</span>
                     </Link>
                 </li>
-                {mobileSoonItems.map((item) => (
+                {primaryItems.map((item) => (
                     <li key={item.key} className="app-bottom-nav__item">
-                        <SoonButton item={item} className="app-tab" soonClassName="app-tab__soon" />
+                        <SoonButton
+                            item={item}
+                            className="app-tab"
+                            soonClassName="app-tab__soon"
+                        />
                     </li>
                 ))}
                 <li className="app-bottom-nav__item">
                     <button
                         ref={moreButtonRef}
                         type="button"
-                        className={open || accountActive ? "app-tab is-active" : "app-tab"}
+                        className={
+                            open || moreActive ? "app-tab is-active" : "app-tab"
+                        }
                         aria-expanded={open}
                         aria-controls={open ? dialogId : undefined}
                         onClick={() => setOpen(true)}
@@ -134,28 +176,38 @@ export function MobileBottomNavigation() {
                                       aria-label="إغلاق"
                                       onClick={close}
                                   >
-                                      <i className="bi bi-x-lg" aria-hidden="true" />
+                                      <i
+                                          className="bi bi-x-lg"
+                                          aria-hidden="true"
+                                      />
                                   </button>
                               </div>
                               <ul className="app-sheet__list">
-                                  {moreSoonItems.map((item) => (
+                                  {moreItems.map((item) => (
                                       <li key={item.key}>
-                                          <SoonButton item={item} className="app-side-link" />
+                                          <SoonButton
+                                              item={item}
+                                              className="app-side-link"
+                                          />
                                       </li>
                                   ))}
-                                  {isAdmin ? (
-                                      <li>
-                                          <SoonButton item={adminItem} className="app-side-link" />
-                                      </li>
-                                  ) : null}
                                   <li>
                                       <Link
                                           href="/account"
-                                          className={accountActive ? "app-side-link is-active" : "app-side-link"}
-                                          aria-current={accountActive ? "page" : undefined}
+                                          className={
+                                              accountActive
+                                                  ? "app-side-link is-active"
+                                                  : "app-side-link"
+                                          }
+                                          aria-current={
+                                              accountActive ? "page" : undefined
+                                          }
                                           onClick={close}
                                       >
-                                          <i className={`bi ${accountItem.icon}`} aria-hidden="true" />
+                                          <i
+                                              className={`bi ${accountItem.icon}`}
+                                              aria-hidden="true"
+                                          />
                                           <span>{accountItem.label}</span>
                                       </Link>
                                   </li>
