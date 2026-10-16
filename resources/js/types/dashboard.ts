@@ -52,6 +52,7 @@ export type DashboardAlert = {
     severity: "danger" | "warning" | "info";
     count: number;
     title: string;
+    href: string | null;
 };
 
 export type SmeDashboardProps = {
