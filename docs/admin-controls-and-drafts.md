@@ -31,3 +31,11 @@ Each draft has a stable submission UUID. Retrying the same payload returns the e
 The existing versioned scoring workflow remains in place. The editor adds a three-step guide, descriptions for assessors, a default relative weight of 1 for new questions, generated internal codes, and advanced settings for codes and missing-data treatment. Existing criterion weights and rules are preserved.
 
 Each question shows its percentage within its own pillar. Weights remain relative: a weight of 2 has twice the influence of 1; totals do not need to equal 100. The question library loads the latest 200 saved questions. Copying creates a new question with a fresh code and no pillar/compliance link; review and select its target pillar before saving. Original and published questions remain unchanged. Use the existing calculation preview and validation before publishing a rules version.
+
+## Faster manual entry
+
+The manual transaction form shows the essential fields first: transaction type, amount/currency, date/category, and payment status. Invoice items, counterparty, and notes sit under **Add details (optional)**. Existing copied/corrected details and validation errors open this section automatically. Partial payment asks for the current payment only; a live exact-decimal summary shows the total, paid, and remaining balance. New entries requiring approval use **Submit for approval**.
+
+Counterparty suggestions come from up to 100 distinct names on posted transactions within the same enterprise. Users can still type a new name. **Record a similar transaction** on a posted transaction opens a new form with its invoice details and today's browser-local date; it does not create any record until submission, copy payments or documents, or bypass permissions. Payment starts as unpaid for review. Disabled source currencies require an explicit available currency selection and amount review; no conversion is performed.
+
+Main amounts, partial payments, and invoice numeric fields accept Arabic/Persian digits and valid thousands grouping, such as `١٬٢٣٤٫٥٠` or `1,234.50`. Ambiguous commas such as `1,5` are rejected rather than interpreted as either 1.5 or 15. Existing server limits and validation still apply.

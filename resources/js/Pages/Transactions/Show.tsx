@@ -37,6 +37,7 @@ export default function Show({
     transaction,
     settlements,
     documents,
+    can_create = false,
     can_correct,
     can_approve = false,
     can_settle,
@@ -46,6 +47,7 @@ export default function Show({
     transaction: Detail;
     settlements: Settlement[];
     documents: DocumentRow[];
+    can_create?: boolean;
     can_correct: boolean;
     can_approve?: boolean;
     can_settle: boolean;
@@ -63,6 +65,7 @@ export default function Show({
                     <Link href={`/enterprises/${enterprise.public_id}/transactions`} className="btn btn-outline-secondary" style={{ minHeight: "48px" }}>
                         كل المعاملات
                     </Link>
+                    {can_create && transaction.status === "posted" ? <Link href={`/enterprises/${enterprise.public_id}/transactions/create?copy_from=${transaction.public_id}`} className="btn btn-outline-primary" style={{ minHeight: "48px" }}>تسجيل عملية مشابهة</Link> : null}
                     {can_correct ? (
                         <Link href={`/transactions/${transaction.public_id}/correct`} className="btn btn-outline-primary" style={{ minHeight: "48px" }}>
                             <i className="bi bi-pencil me-2" aria-hidden="true" />

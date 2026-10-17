@@ -15,6 +15,7 @@ export function TextInput(props: {
     type?: HTMLInputTypeAttribute;
     help?: string;
     autoComplete?: string;
+    list?: string;
     inputMode?: InputHTMLAttributes<HTMLInputElement>["inputMode"];
     required?: boolean;
     placeholder?: string;
@@ -30,6 +31,7 @@ export function TextInput(props: {
         help,
         autoComplete,
         inputMode,
+        list,
         required,
         placeholder,
     } = props;
@@ -65,6 +67,7 @@ export function TextInput(props: {
                     aria-required={required || undefined}
                     placeholder={placeholder}
                     inputMode={mode}
+                    list={list}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={describedBy}
                     onChange={(event: ChangeEvent<HTMLInputElement>) =>

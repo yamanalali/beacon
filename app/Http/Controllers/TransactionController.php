@@ -93,14 +93,21 @@ class TransactionController extends Controller
         ]);
     }
 
-    public function create(Enterprise $enterprise): Response
+    public function create(Request $request, Enterprise $enterprise): Response
     {
         Gate::authorize('create', [FinancialTransaction::class, $enterprise]);
+
+        $input = $request->validate(['copy_from' => ['nullable', 'string', 'max:26']]);
+        $template = empty($input['copy_from']) ? null : FinancialTransaction::query()->posted()
+            ->where('enterprise_id', $enterprise->id)->where('public_id', $input['copy_from'])->with(['items', 'settlements'])->firstOrFail();
 
         return Inertia::render('Transactions/Form', [
             'enterprise' => $this->enterpriseProps($enterprise),
             'options' => $this->options(),
             'original' => null,
+            'template' => $template ? $this->row($template) + self::itemsProps($template) : null,
+            'counterparties' => $this->counterparties($enterprise),
+            'requires_approval' => $request->user()->permission('require_approval', false),
         ]);
     }
 
@@ -147,6 +154,7 @@ class TransactionController extends Controller
                     'creator_name' => $s->creator?->name,
                 ]),
             'documents' => $transaction->documents->whereNull('archived_at')->values()->map(fn (Document $d): array => DocumentController::row($d)),
+            'can_create' => $user->can('create', [FinancialTransaction::class, $transaction->enterprise]),
             'can_approve' => $user->can('approve', $transaction),
             'can_correct' => $user->can('correct', $transaction),
             'can_settle' => $user->can('settle', $transaction) && $transaction->outstandingMinor() > 0,
@@ -162,6 +170,7 @@ class TransactionController extends Controller
         return Inertia::render('Transactions/Form', [
             'enterprise' => $this->enterpriseProps($transaction->enterprise),
             'options' => $this->options($transaction->currency),
+            'counterparties' => $this->counterparties($transaction->enterprise),
             'original' => $this->row($transaction->load(['settlements', 'items'])) + self::itemsProps($transaction),
         ]);
     }
@@ -187,8 +196,15 @@ class TransactionController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @return list<string>
      */
+    private function counterparties(Enterprise $enterprise): array
+    {
+        return FinancialTransaction::query()->posted()->where('enterprise_id', $enterprise->id)
+            ->whereNotNull('counterparty')->where('counterparty', '!=', '')
+            ->distinct()->orderBy('counterparty')->limit(100)->pluck('counterparty')->all();
+    }
+
     private function row(FinancialTransaction $t): array
     {
         $categories = config('bookkeeping.categories.'.$t->type->value, []);
