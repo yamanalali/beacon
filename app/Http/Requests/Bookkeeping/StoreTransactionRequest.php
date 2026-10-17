@@ -8,11 +8,38 @@ use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
 use App\Support\Currencies;
+use App\Support\TransactionAmountInput;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreTransactionRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $values = [];
+        foreach (['amount', 'paid_amount'] as $field) {
+            if ($this->exists($field)) {
+                $values[$field] = TransactionAmountInput::normalize($this->input($field));
+            }
+        }
+        $items = $this->input('items');
+        if (is_array($items)) {
+            foreach ($items as &$item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+                foreach (['quantity', 'unit_price', 'total'] as $field) {
+                    if (array_key_exists($field, $item)) {
+                        $item[$field] = TransactionAmountInput::normalize($item[$field]);
+                    }
+                }
+            }
+            unset($item);
+            $values['items'] = $items;
+        }
+        $this->merge($values);
+    }
+
     public function authorize(): bool
     {
         // Authorize before validation so unauthorized users get 403, not field errors.
@@ -73,14 +100,14 @@ class StoreTransactionRequest extends FormRequest
             'transaction_date.required' => 'تاريخ العملية مطلوب.',
             'transaction_date.before_or_equal' => 'لا يمكن أن يكون التاريخ في المستقبل.',
             'amount.required' => 'المبلغ مطلوب.',
-            'amount.regex' => 'اكتب المبلغ بالأرقام فقط، مع خانتين عشريتين كحد أقصى.',
+            'amount.regex' => 'اكتب مبلغاً مثل 1500.50 أو ١٥٠٠٫٥٠، بخانتين عشريتين كحد أقصى.',
             'currency.required' => 'اختر العملة.',
             'currency.in' => 'العملة غير مدعومة.',
             'category.required' => 'اختر التصنيف.',
             'category.in' => 'التصنيف غير مناسب لنوع العملية.',
             'payment_status.required' => 'اختر حالة الدفع.',
             'paid_amount.required_if' => 'اكتب المبلغ المدفوع.',
-            'paid_amount.regex' => 'اكتب المبلغ المدفوع بالأرقام فقط.',
+            'paid_amount.regex' => 'اكتب المبلغ المدفوع مثل 500 أو ٥٠٠، بخانتين عشريتين كحد أقصى.',
             'items.array' => 'صيغة البنود غير صحيحة.',
             'items.max' => 'عدد البنود كبير جداً.',
             'items.*.description.required' => 'اكتب وصف البند.',
