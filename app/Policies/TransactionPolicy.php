@@ -8,17 +8,7 @@ use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\User;
 
-/**
- * Bookkeeping access.
- *
- * Viewing follows enterprise access (SME members, assigned advisors, Beacon
- * admins). Recording is limited to active SME members of the enterprise.
- *
- * TODO: BUSINESS DECISION REQUIRED
- * Confirm whether Beacon advisors/admins may record or correct transactions
- * on behalf of an SME (e.g. during advisor sessions). Until confirmed they
- * have read-only access.
- */
+/** Transaction permissions supplement enterprise assignments and role boundaries. */
 class TransactionPolicy
 {
     public function viewAny(User $user, Enterprise $enterprise): bool
@@ -33,15 +23,21 @@ class TransactionPolicy
 
     public function create(User $user, Enterprise $enterprise): bool
     {
-        return $user->isActive()
-            && $user->role === UserRole::SmeUser
-            && $enterprise->members()->whereKey($user->id)->exists();
+        return $user->can('view', $enterprise)
+            && $user->permission('record', $user->role === UserRole::SmeUser);
     }
 
     public function correct(User $user, FinancialTransaction $transaction): bool
     {
         return $transaction->status === TransactionStatus::Posted
+            && ! $user->permission('require_approval', false)
             && $this->create($user, $transaction->enterprise);
+    }
+
+    public function approve(User $user, FinancialTransaction $transaction): bool
+    {
+        return $transaction->status === TransactionStatus::PendingApproval && $user->id !== $transaction->created_by
+            && $user->can('view', $transaction->enterprise) && $user->permission('approve', $user->role === UserRole::BeaconAdmin);
     }
 
     public function settle(User $user, FinancialTransaction $transaction): bool

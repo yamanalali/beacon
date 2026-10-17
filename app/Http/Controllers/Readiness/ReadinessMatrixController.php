@@ -35,6 +35,13 @@ class ReadinessMatrixController extends Controller
 
     public function __construct(private RecordAuditLog $audit, private ReadinessScorer $scorer) {}
 
+    public function criteriaLibrary(Request $request): JsonResponse
+    {
+        $this->admin($request);
+
+        return response()->json(['criteria' => ReadinessCriterion::query()->with('ruleSet:id,name_ar,version_number')->latest('id')->limit(200)->get()]);
+    }
+
     // ---- Pillars -------------------------------------------------------------------------------------------------
 
     public function storePillar(PillarRequest $request, ReadinessRuleSet $ruleSet): RedirectResponse
@@ -148,6 +155,7 @@ class ReadinessMatrixController extends Controller
 
     public function export(Request $request, ReadinessRuleSet $ruleSet): JsonResponse
     {
+        abort_unless($request->user()->permission('export', true), 403);
         $this->admin($request);
 
         return response()->json(ReadinessRuleSetValidator::definition($ruleSet), 200, [

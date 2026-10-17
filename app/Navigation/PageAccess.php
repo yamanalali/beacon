@@ -16,12 +16,19 @@ use Illuminate\Support\Facades\Gate;
 class PageAccess
 {
     public const DASHBOARD_SME = 'page.dashboard.sme';
+
     public const DASHBOARD_BEACON = 'page.dashboard.beacon';
+
     public const OPERATIONS_TECHNICAL = 'page.operations.technical';
+
     public const OPERATIONS_DATA_CONTROL = 'page.operations.data-control';
+
     public const MFI_REFERRAL_INBOX = 'page.mfi.referral-inbox';
+
     public const TRANSACTIONS_ENTRY = 'page.transactions.entry';
+
     public const DOCUMENTS_ENTRY = 'page.documents.entry';
+
     public const REPORTS_ENTRY = 'page.reports.entry';
 
     public static function register(): void
@@ -29,7 +36,7 @@ class PageAccess
         Gate::define(self::DASHBOARD_SME, fn (User $user): bool => self::is($user, UserRole::SmeUser));
 
         // TODO: BUSINESS DECISION REQUIRED - which Beacon roles see the programme dashboard (see routes/frontend.php).
-        Gate::define(self::DASHBOARD_BEACON, fn (User $user): bool => self::is($user, UserRole::BeaconAdmin, UserRole::BeaconAdvisor));
+        Gate::define(self::DASHBOARD_BEACON, fn (User $user): bool => self::is($user, UserRole::BeaconAdmin, UserRole::BeaconAdvisor) && $user->permission('view', true));
 
         // TODO: BUSINESS DECISION REQUIRED - whether BEACON_ADMIN should also see backup status (see OperationsController).
         Gate::define(self::OPERATIONS_TECHNICAL, fn (User $user): bool => self::is($user, UserRole::TechnicalAdmin));
@@ -58,7 +65,7 @@ class PageAccess
     /** The active SME user's own enterprise (same lookup the entry controllers used). */
     public static function ownEnterprise(User $user): ?Enterprise
     {
-        if (! self::is($user, UserRole::SmeUser)) {
+        if (! self::is($user, UserRole::SmeUser) || ! $user->permission('view', true)) {
             return null;
         }
 

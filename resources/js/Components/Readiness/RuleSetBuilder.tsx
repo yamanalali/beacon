@@ -55,7 +55,7 @@ function CriteriaList({ criteria, readOnly, onEdit, onMove, onDelete }: { criter
                         <span className="fw-semibold flex-grow-1">{c.label_ar || c.code || "معيار بلا اسم"}</span>
                         <StatusBadge label={typeLabel(c.type)} tone="neutral" />
                         {c.is_mandatory ? <StatusBadge label="إلزامي" tone="danger" /> : null}
-                        <span className="small text-muted">الوزن <bdi dir="ltr">{String(c.weight)}</bdi></span>
+                        <span className="small text-muted">الوزن <bdi dir="ltr">{String(c.weight)}</bdi> · <bdi dir="ltr">{((num(c.weight) / (criteria.reduce((sum, row) => sum + num(row.weight), 0) || 1)) * 100).toFixed(1)}%</bdi> من المحور</span>
                         {!readOnly ? <MoveButtons index={i} count={criteria.length} onMove={onMove} label={c.label_ar || c.code} /> : null}
                         <button type="button" className="app-icon-button" aria-label={`${readOnly ? "عرض" : "تعديل"} ${c.label_ar || c.code}`} onClick={() => onEdit(c)}><i className={`bi ${readOnly ? "bi-eye" : "bi-pencil"}`} aria-hidden="true" /></button>
                         {!readOnly ? <button type="button" className="app-icon-button" aria-label={`حذف ${c.label_ar || c.code}`} onClick={() => onDelete(c)}><i className="bi bi-trash" aria-hidden="true" /></button> : null}
@@ -74,6 +74,19 @@ export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetche
     const [busy, setBusy] = useState(false);
     const [tab, setTab] = useState<"matrix" | "bands" | "preview">("matrix");
     const [notice, setNotice] = useState<Notice>(null);
+    const [library, setLibrary] = useState<(Criterion & { rule_set?: { name_ar: string; version_number: number } })[] | null>(null);
+    const [librarySearch, setLibrarySearch] = useState("");
+    const [libraryError, setLibraryError] = useState("");
+    const loadLibrary = async () => {
+        setLibraryError("");
+        try {
+            const response = await fetch("/admin/readiness/criteria-library", { headers: { Accept: "application/json" }, credentials: "same-origin" });
+            if (!response.ok) throw new Error();
+            const data = await response.json();
+            if (!Array.isArray(data.criteria)) throw new Error();
+            setLibrary(data.criteria);
+        } catch { setLibraryError("تعذر تحميل مكتبة الأسئلة. حاول مرة أخرى."); }
+    };
     const fileRef = useRef<HTMLInputElement>(null);
     useEffect(() => setRs(ruleSet), [ruleSet]);
 
@@ -135,10 +148,10 @@ export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetche
         setDrawerErrors(Object.keys(r.errors).length ? r.errors : { _: r.message });
     };
     const newCriterion = (pid: number | null): Criterion => ({
-        id: nextId(), readiness_rule_set_id: rs.id, readiness_pillar_id: pid, code: "", label_ar: "", description_ar: null,
+        id: nextId(), readiness_rule_set_id: rs.id, readiness_pillar_id: pid, code: `criterion_${crypto.randomUUID().replaceAll("-", "").slice(0, 16)}`, label_ar: "", description_ar: null,
         // Criterion weight has no default (server requires > 0).
         // TODO: BUSINESS DECISION REQUIRED - default missing-data treatment for new criteria (placeholder: needs_review, the most conservative).
-        weight: "", is_mandatory: false, missing_data_treatment: "needs_review", compliance_requirement_id: null, sort_order: 0, ...defaultConfig("boolean"),
+        weight: "1", is_mandatory: false, missing_data_treatment: "needs_review", compliance_requirement_id: null, sort_order: 0, ...defaultConfig("boolean"),
     }) as Criterion;
     const openEditor = (c: Criterion | null) => { setDrawerErrors({}); setEditing(c); };
 
@@ -232,6 +245,7 @@ export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetche
 
             {tab === "matrix" ? (
                 <SectionCard title="المحاور والمعايير">
+                    <p className="alert alert-info">1. حدد المحاور وأهميتها. 2. أضف الأسئلة وحدد نقاط الإجابات. 3. جرّب المعاينة وراجع الشرائح قبل النشر.</p>
                     <p className="form-text mt-0">المحور بلا وزن يأخذ حصة متساوية (متوسط الأوزان المحددة، أو 1 إن لم يُحدد أي وزن). الأوزان الفعلية: <bdi dir="ltr">{effective.map((w) => Math.round(w * 100) / 100).join(" / ") || "-"}</bdi></p>
                     <div className="d-flex flex-column gap-3">
                         {pillars.length === 0 && rs.criteria.length === 0 ? <p className="text-muted mb-0">لا توجد محاور بعد.</p> : null}
@@ -260,6 +274,16 @@ export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetche
                 </SectionCard>
             ) : null}
 
+            {!readOnly ? <SectionCard title="إعادة استخدام سؤال">
+                <p className="form-text">انسخ سؤالاً من آخر 200 معيار محفوظ. راجع الوزن والمحور والإجابات قبل الحفظ؛ يبقى السؤال الأصلي محفوظاً.</p>
+                <button type="button" className="btn btn-outline-primary" onClick={() => void loadLibrary()}>تحميل مكتبة الأسئلة</button>
+                {libraryError ? <p role="alert">{libraryError}</p> : null}
+                {library ? <><input className="form-control my-2" aria-label="بحث في الأسئلة" placeholder="ابحث باسم السؤال" value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} />
+                    <div style={{ maxHeight: 320, overflowY: "auto" }}>
+                        {library.filter((c) => c.label_ar.includes(librarySearch)).map((c) => <div key={c.id} className="d-flex gap-2 justify-content-between border-bottom py-2"><span>{c.label_ar} <small className="text-muted">{c.rule_set?.name_ar} v{c.rule_set?.version_number}</small></span><button type="button" className="btn btn-sm btn-outline-primary" onClick={() => { const fresh = newCriterion(null); openEditor({ ...structuredClone(c), id: fresh.id, code: fresh.code, readiness_rule_set_id: rs.id, readiness_pillar_id: null, compliance_requirement_id: null, sort_order: 0 }); }}>استخدام السؤال</button></div>)}
+                        {library.length === 0 ? <p>لا توجد أسئلة محفوظة بعد.</p> : null}
+                    </div></> : null}
+            </SectionCard> : null}
             <CriterionDrawer criterion={editing} pillars={pillars} readOnly={readOnly} errors={drawerErrors} saving={busy} onClose={() => openEditor(null)} onSave={(c) => void saveCriterion(c)} />
         </div>
     );

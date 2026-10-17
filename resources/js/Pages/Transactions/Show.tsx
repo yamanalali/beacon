@@ -38,6 +38,7 @@ export default function Show({
     settlements,
     documents,
     can_correct,
+    can_approve = false,
     can_settle,
     can_upload,
 }: {
@@ -46,10 +47,12 @@ export default function Show({
     settlements: Settlement[];
     documents: DocumentRow[];
     can_correct: boolean;
+    can_approve?: boolean;
     can_settle: boolean;
     can_upload: boolean;
 }) {
     const form = useForm({ settlement_date: new Date().toISOString().slice(0, 10), amount: transaction.outstanding, note: "" });
+    const approval = useForm({});
     const settleLabel = transaction.is_inflow ? "تسجيل دفعة مستلمة" : "تسجيل دفعة مدفوعة";
 
     return (
@@ -68,6 +71,7 @@ export default function Show({
                     ) : null}
                 </div>
 
+                {transaction.status === "pending_approval" ? <div className="alert alert-warning mb-0" role="status">هذه العملية بانتظار الموافقة ولا تدخل التقارير المالية.{can_approve ? <button type="button" className="btn btn-primary d-block mt-2" disabled={approval.processing} onClick={() => approval.post(`/transactions/${transaction.public_id}/approve`)}>اعتماد العملية</button> : null}</div> : null}
                 {transaction.is_superseded ? (
                     <div className="alert alert-warning mb-0" role="status">
                         تم تصحيح هذا السجل ولم يعد يُحتسب.{" "}

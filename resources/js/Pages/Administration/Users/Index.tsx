@@ -55,6 +55,7 @@ export default function Index({ users, search, currentUserId, mfaNote, roles }: 
     }
 
     const columns: Column<UserRow>[] = [
+        { key: "access", header: "الصلاحيات", cell: user => <Link href={`/users/${user.id}/access`} className="btn btn-sm btn-outline-primary">الصلاحيات والمسؤوليات</Link> },
         { key: "name", header: "الاسم", cell: (user) => user.name, primary: true },
         { key: "email", header: "البريد الإلكتروني", cell: (user) => <bdi dir="ltr">{user.email}</bdi> },
         {
@@ -126,6 +127,7 @@ export default function Index({ users, search, currentUserId, mfaNote, roles }: 
                             بحث
                         </button>
                     </form>
+                    <Link href="/admin/invitations" className="btn btn-outline-primary">دعوة مستخدم</Link>
                     <Link href="/users/create" className="btn btn-primary" style={{ minHeight: "48px" }}>
                         إضافة حساب
                     </Link>

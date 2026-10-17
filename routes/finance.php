@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\FinancialReportController;
 use App\Http\Controllers\ReceiptExtractionController;
+use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth')->group(function () {
+    Route::post('/transactions/{transaction:public_id}/approve', [TransactionController::class, 'approve'])->name('transactions.approve');
     Route::get('/reports', [FinancialReportController::class, 'entry'])->name('reports.entry');
     Route::get('/enterprises/{enterprise:public_id}/reports', [FinancialReportController::class, 'show'])
         ->name('enterprises.reports.show');

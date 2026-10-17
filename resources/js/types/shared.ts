@@ -1,6 +1,7 @@
 import type { PageProps } from "@inertiajs/core";
 
 export type AuthUser = {
+    draft_scope?: string;
     name: string;
     role: string | null;
 };
@@ -97,6 +98,7 @@ export type BeaconSharedProps = PageProps & {
     };
     flash?: {
         success?: string | null;
+        invitation_link?: string | null;
         warning?: string | null;
         info?: string | null;
         created_document_id?: string | null;

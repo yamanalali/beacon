@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\SuggestedDateWarning;
-use App\Ai\Ocr\ReceiptLineItemParser;
-use App\Ai\Support\PaginatedProps;
 use App\Actions\Bookkeeping\ConfirmReceiptExtractionAction;
 use App\Actions\Bookkeeping\StartReceiptExtractionAction;
+use App\Ai\Ocr\ReceiptLineItemParser;
+use App\Ai\Support\PaginatedProps;
 use App\Contracts\TransactionCategorizer;
 use App\Enums\ExtractionStatus;
 use App\Enums\PaymentStatus;
@@ -18,6 +17,8 @@ use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
 use App\Services\Ai\CategorySuggestion;
+use App\Support\Currencies;
+use App\Support\SuggestedDateWarning;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -133,8 +134,8 @@ class ReceiptExtractionController extends Controller
             'options' => [
                 'types' => collect(TransactionType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()])->all(),
                 'payment_statuses' => collect(PaymentStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->all(),
-                'currencies' => collect(config('bookkeeping.currencies'))->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all(),
-                'default_currency' => config('bookkeeping.default_currency'),
+                'currencies' => collect(app(Currencies::class)->enabled())->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all(),
+                'default_currency' => app(Currencies::class)->default(),
                 'categories' => collect(config('bookkeeping.categories'))->map(fn ($items) => collect($items)->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all())->all(),
             ],
             'can_review' => $extraction->status === ExtractionStatus::PendingReview

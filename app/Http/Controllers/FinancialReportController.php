@@ -3,13 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Audit\RecordAuditLog;
-use App\Enums\UserRole;
 use App\Models\Enterprise;
+use App\Navigation\PageAccess;
 use App\Services\FinancialReports\FinancialReportService;
 use App\Services\FinancialReports\ReportExporter;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
-use App\Navigation\PageAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -39,6 +38,7 @@ class FinancialReportController extends Controller
             'reports' => collect(FinancialReportService::REPORTS)->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values(),
             'bases' => collect(FinancialReportService::BASES)->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values(),
             'print' => $request->boolean('print'),
+            'can_export' => $request->user()->can('reports.export', $enterprise),
         ]);
     }
 

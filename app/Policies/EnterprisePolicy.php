@@ -10,12 +10,20 @@ class EnterprisePolicy
 {
     public function viewAny(User $user): bool
     {
+        if (! $user->permission('view', true)) {
+            return false;
+        }
+
         return $this->isActive($user, UserRole::BeaconAdmin)
             || $this->isActive($user, UserRole::BeaconAdvisor);
     }
 
     public function view(User $user, Enterprise $enterprise): bool
     {
+        if (! $user->permission('view', true)) {
+            return false;
+        }
+
         if ($user->role === UserRole::MfiUser || $user->role === UserRole::TechnicalAdmin) {
             return false;
         }
@@ -37,6 +45,10 @@ class EnterprisePolicy
 
     public function create(User $user): bool
     {
+        if (! $user->permission('view', true)) {
+            return false;
+        }
+
         return $this->isActive($user, UserRole::BeaconAdmin)
             || $this->isActive($user, UserRole::BeaconAdvisor);
     }

@@ -7,6 +7,7 @@ use App\Enums\TransactionType;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
+use App\Support\Currencies;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -42,10 +43,11 @@ class StoreTransactionRequest extends FormRequest
         $categories = array_keys(config('bookkeeping.categories.'.$type, []));
 
         return [
+            'client_draft_id' => ['nullable', 'uuid'],
             'type' => ['required', Rule::enum(TransactionType::class)],
             'transaction_date' => ['required', 'date', 'before_or_equal:today'],
             'amount' => ['required', 'regex:/^\d{1,16}(\.\d{1,2})?$/'],
-            'currency' => ['required', Rule::in(array_keys(config('bookkeeping.currencies')))],
+            'currency' => ['required', Rule::in(array_keys(app(Currencies::class)->available($this->route('transaction')?->currency)))],
             'category' => ['required', Rule::in($categories)],
             'payment_status' => ['required', Rule::enum(PaymentStatus::class)],
             'paid_amount' => ['nullable', 'required_if:payment_status,partially_paid', 'regex:/^\d{1,16}(\.\d{1,2})?$/'],
