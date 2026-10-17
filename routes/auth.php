@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Administration\InvitationController;
 use App\Http\Controllers\Auth\AccountController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -9,6 +10,8 @@ use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
+    Route::get('/invitations/{token}', [InvitationController::class, 'accept'])->where('token', '[A-Za-z0-9]{64}')->name('invitations.accept');
+    Route::post('/invitations/{token}', [InvitationController::class, 'register'])->where('token', '[A-Za-z0-9]{64}')->middleware('throttle:5,1')->name('invitations.register');
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:5,1');
 

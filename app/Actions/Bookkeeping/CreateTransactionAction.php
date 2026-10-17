@@ -6,12 +6,14 @@ use App\Actions\Audit\RecordAuditLog;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Models\Currency;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\TransactionItem;
 use App\Models\TransactionSettlement;
 use App\Models\User;
 use App\Support\Money;
+use App\Support\SubmissionHash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -49,6 +51,23 @@ class CreateTransactionAction
         }
 
         return DB::transaction(function () use ($actor, $enterprise, $data, $corrects, $reason, $amountMinor, $paymentStatus, $paidMinor): FinancialTransaction {
+            $draftId = $corrects === null ? ($data['client_draft_id'] ?? null) : null;
+            $draftHash = $draftId ? SubmissionHash::make($data) : null;
+            if ($draftId) {
+                User::query()->lockForUpdate()->findOrFail($actor->id);
+                $existing = FinancialTransaction::query()->where('created_by', $actor->id)->where('client_draft_id', $draftId)->first();
+                if ($existing) {
+                    if ($existing->enterprise_id !== $enterprise->id || ! hash_equals((string) $existing->client_draft_hash, $draftHash)) {
+                        throw ValidationException::withMessages(['client_draft_id' => 'سبق إرسال هذه المسودة بقيم مختلفة. راجع العملية المسجلة قبل إنشاء مسودة جديدة.']);
+                    }
+
+                    return $existing;
+                }
+            }
+            $currency = Currency::query()->lockForUpdate()->find($data['currency']);
+            if ((! $currency || ! $currency->enabled) && ($corrects === null || $corrects->currency !== $data['currency'])) {
+                throw ValidationException::withMessages(['currency' => 'هذه العملة موقوفة للعمليات الجديدة.']);
+            }
             $transaction = new FinancialTransaction;
             $transaction->enterprise_id = $enterprise->id;
             $transaction->type = TransactionType::from($data['type']);
@@ -59,7 +78,9 @@ class CreateTransactionAction
             $transaction->payment_status = $paymentStatus;
             $transaction->counterparty = $data['counterparty'] ?? null;
             $transaction->description = $data['description'] ?? null;
-            $transaction->status = TransactionStatus::Posted;
+            $transaction->status = $corrects === null && $actor->permission('require_approval', false) ? TransactionStatus::PendingApproval : TransactionStatus::Posted;
+            $transaction->client_draft_id = $draftId;
+            $transaction->client_draft_hash = $draftHash;
             $transaction->corrects_transaction_id = $corrects?->id;
             $transaction->correction_reason = $reason;
             $transaction->created_by = $actor->id;

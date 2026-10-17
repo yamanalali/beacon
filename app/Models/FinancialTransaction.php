@@ -29,6 +29,7 @@ class FinancialTransaction extends Model
             'payment_status' => PaymentStatus::class,
             'status' => TransactionStatus::class,
             'transaction_date' => 'date',
+            'approved_at' => 'datetime',
             'amount' => 'decimal:2',
         ];
     }

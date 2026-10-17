@@ -12,6 +12,7 @@ use App\Models\ReadinessAssessment;
 use App\Models\ReceiptExtraction;
 use App\Models\Referral;
 use App\Models\User;
+use App\Support\Currencies;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 
@@ -37,7 +38,7 @@ class SmeDashboardData
             ->orderBy('id')
             ->first();
 
-        if ($enterprise === null) {
+        if ($enterprise === null || ! $user->can('view', $enterprise)) {
             return $this->empty();
         }
 
@@ -187,7 +188,7 @@ class SmeDashboardData
 
     private function currency(): string
     {
-        return (string) config('bookkeeping.default_currency', 'SYP');
+        return app(Currencies::class)->default();
     }
 
     /** @return array{from: string, to: string, income: string, expense: string, net: string, count: int} */

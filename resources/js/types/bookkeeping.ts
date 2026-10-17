@@ -15,7 +15,7 @@ export type TransactionRow = {
     outstanding: string;
     counterparty: string | null;
     description: string | null;
-    status: "posted" | "superseded";
+    status: "posted" | "superseded" | "pending_approval";
     status_label: string;
     is_superseded: boolean;
 };
@@ -63,6 +63,7 @@ export type BookkeepingOptions = {
 export type EnterpriseRef = { public_id: string; business_name: string };
 
 export type DocumentRow = {
+    can_download?: boolean;
     public_id: string;
     title: string;
     mime_type: string;

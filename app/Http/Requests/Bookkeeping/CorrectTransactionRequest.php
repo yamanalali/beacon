@@ -16,6 +16,7 @@ class CorrectTransactionRequest extends StoreTransactionRequest
             // Settlement history determines payment status during correction.
             'payment_status' => ['sometimes', Rule::enum(PaymentStatus::class)],
             'paid_amount' => ['prohibited'],
+            'client_draft_id' => ['prohibited'],
             'correction_reason' => ['required', 'string', 'min:3', 'max:1000'],
         ]);
     }

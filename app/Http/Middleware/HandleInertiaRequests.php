@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware;
 
-use App\Navigation\NavigationBuilder;
-use BackedEnum;
 use App\Enums\UserRole;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
+use App\Navigation\NavigationBuilder;
+use BackedEnum;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use UnitEnum;
@@ -61,6 +61,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
+                'invitation_link' => fn () => $request->session()->get('invitation_link'),
                 'created_document_id' => fn () => $request->session()->get('created_document_id'),
             ],
         ];
@@ -131,6 +132,7 @@ class HandleInertiaRequests extends Middleware
         }
 
         return [
+            'draft_scope' => hash_hmac('sha256', 'offline-user:'.$user->id, (string) config('app.key')),
             'name' => (string) data_get($user, 'name', ''),
             'role' => $this->sharedRole(data_get($user, 'role')),
         ];

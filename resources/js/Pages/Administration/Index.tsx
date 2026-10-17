@@ -36,6 +36,8 @@ const areas = [
 ];
 
 const settings = [
+    { href: "/admin/currencies", label: "العملات والعملة الافتراضية", icon: "bi-currency-exchange" },
+    { href: "/admin/invitations", label: "دعوات المستخدمين", icon: "bi-person-plus" },
     {
         href: "/admin/compliance",
         label: "متطلبات الامتثال وإصداراتها",

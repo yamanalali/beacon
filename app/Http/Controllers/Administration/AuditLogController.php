@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Administration;
 
-use App\Ai\Support\PaginatedProps;
 use App\Actions\Audit\RecordAuditLog;
+use App\Ai\Support\PaginatedProps;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
@@ -51,6 +51,7 @@ class AuditLogController extends Controller
 
     public function export(Request $request, ReportExporter $exporter, RecordAuditLog $audit): StreamedResponse
     {
+        abort_unless($request->user()->permission('export', true), 403);
         Gate::authorize('viewAny', AuditLog::class);
         $filters = $this->filters($request);
 

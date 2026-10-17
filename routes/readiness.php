@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{ruleSet}/publish', [ReadinessAdminController::class, 'publish'])->name('publish');
 
         // Scoring matrix v2: pillars, typed criteria, score bands (draft only), duplicate, export/import, preview.
+        Route::get('/criteria-library', [ReadinessMatrixController::class, 'criteriaLibrary'])->name('criteria.library');
         Route::post('/import', [ReadinessMatrixController::class, 'import'])->name('import');
         Route::put('/criteria/{criterion}', [ReadinessMatrixController::class, 'updateCriterion'])->name('criteria.update');
         Route::post('/{ruleSet}/criteria/reorder', [ReadinessMatrixController::class, 'reorderCriteria'])->name('criteria.reorder');

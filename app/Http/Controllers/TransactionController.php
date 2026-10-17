@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Ai\Support\PaginatedProps;
+use App\Actions\Bookkeeping\ApproveTransactionAction;
 use App\Actions\Bookkeeping\CorrectTransactionAction;
 use App\Actions\Bookkeeping\CreateTransactionAction;
 use App\Actions\Bookkeeping\RecordSettlementAction;
+use App\Ai\Support\PaginatedProps;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
-use App\Enums\UserRole;
 use App\Http\Requests\Bookkeeping\CorrectTransactionRequest;
 use App\Http\Requests\Bookkeeping\StoreSettlementRequest;
 use App\Http\Requests\Bookkeeping\StoreTransactionRequest;
@@ -18,9 +18,10 @@ use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\TransactionItem;
 use App\Models\TransactionSettlement;
+use App\Navigation\PageAccess;
+use App\Support\Currencies;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
-use App\Navigation\PageAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -58,7 +59,7 @@ class TransactionController extends Controller
 
         $transactions = FinancialTransaction::query()
             ->where('enterprise_id', $enterprise->id)
-            ->when(! ($filters['show_corrected'] ?? false), fn ($q) => $q->posted())
+            ->when(! ($filters['show_corrected'] ?? false), fn ($q) => $q->whereIn('status', [TransactionStatus::Posted, TransactionStatus::PendingApproval]))
             ->when($filters['type'] ?? null, fn ($q, $type) => $q->where('type', $type))
             ->when($filters['payment_status'] ?? null, fn ($q, $status) => $q->where('payment_status', $status))
             ->when($filters['from'] ?? null, fn ($q, $from) => $q->whereDate('transaction_date', '>=', $from))
@@ -103,6 +104,13 @@ class TransactionController extends Controller
         ]);
     }
 
+    public function approve(Request $request, FinancialTransaction $transaction, ApproveTransactionAction $action): RedirectResponse
+    {
+        $action->execute($request->user(), $transaction);
+
+        return back()->with('success', 'تم اعتماد العملية وإضافتها للتقارير.');
+    }
+
     public function store(StoreTransactionRequest $request, Enterprise $enterprise, CreateTransactionAction $action): RedirectResponse
     {
         Gate::authorize('create', [FinancialTransaction::class, $enterprise]);
@@ -139,6 +147,7 @@ class TransactionController extends Controller
                     'creator_name' => $s->creator?->name,
                 ]),
             'documents' => $transaction->documents->whereNull('archived_at')->values()->map(fn (Document $d): array => DocumentController::row($d)),
+            'can_approve' => $user->can('approve', $transaction),
             'can_correct' => $user->can('correct', $transaction),
             'can_settle' => $user->can('settle', $transaction) && $transaction->outstandingMinor() > 0,
             'can_upload' => $user->can('upload', [Document::class, $transaction->enterprise]),
@@ -152,7 +161,7 @@ class TransactionController extends Controller
 
         return Inertia::render('Transactions/Form', [
             'enterprise' => $this->enterpriseProps($transaction->enterprise),
-            'options' => $this->options(),
+            'options' => $this->options($transaction->currency),
             'original' => $this->row($transaction->load(['settlements', 'items'])) + self::itemsProps($transaction),
         ]);
     }
@@ -244,7 +253,7 @@ class TransactionController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function options(): array
+    private function options(?string $historicalCurrency = null): array
     {
         $pairs = fn (array $items): array => collect($items)
             ->map(fn (string $label, string $value): array => ['value' => $value, 'label' => $label])
@@ -254,8 +263,8 @@ class TransactionController extends Controller
         return [
             'types' => collect(TransactionType::cases())->map(fn (TransactionType $t) => ['value' => $t->value, 'label' => $t->label()])->all(),
             'payment_statuses' => collect(PaymentStatus::cases())->map(fn (PaymentStatus $s) => ['value' => $s->value, 'label' => $s->label()])->all(),
-            'currencies' => $pairs(config('bookkeeping.currencies')),
-            'default_currency' => config('bookkeeping.default_currency'),
+            'currencies' => $pairs(app(Currencies::class)->available($historicalCurrency)),
+            'default_currency' => app(Currencies::class)->default(),
             'categories' => collect(config('bookkeeping.categories'))->map($pairs)->all(),
         ];
     }

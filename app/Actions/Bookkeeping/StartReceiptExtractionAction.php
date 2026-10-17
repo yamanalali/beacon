@@ -12,6 +12,7 @@ use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
 use App\Models\User;
 use App\Services\Ai\ReceiptExtractionResult;
+use App\Support\Currencies;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -84,7 +85,7 @@ class StartReceiptExtractionAction
             $result = ReceiptExtractionResult::empty();
         }
 
-        $currencies = array_keys(config('bookkeeping.currencies'));
+        $currencies = array_keys(app(Currencies::class)->enabled());
 
         return DB::transaction(function () use ($actor, $document, $result, $currencies): ReceiptExtraction {
             $locked = Document::query()->lockForUpdate()->findOrFail($document->id);

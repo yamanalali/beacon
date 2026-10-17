@@ -39,9 +39,9 @@ export function DocumentList({ documents, canExtract = false }: { documents: Doc
                             تسجيل كعملية
                         </button>
                     ) : null}
-                    <a className="btn btn-outline-secondary" style={{ minHeight: "44px" }} href={`/documents/${doc.public_id}/download`}>
+                    {doc.can_download !== false ? <a className="btn btn-outline-secondary" style={{ minHeight: "44px" }} href={`/documents/${doc.public_id}/download`}>
                         تنزيل
-                    </a>
+                    </a> : null}
                 </li>
             ))}
         </ul>

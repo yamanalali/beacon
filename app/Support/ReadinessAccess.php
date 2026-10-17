@@ -44,7 +44,7 @@ class ReadinessAccess
      */
     public static function mfiCanViewReferral(?User $user, Referral $referral): bool
     {
-        return self::hasRole($user, UserRole::MfiUser)
+        return $user?->permission('view', true) && self::hasRole($user, UserRole::MfiUser)
             && $user->mfi_institution_id !== null
             && (int) $user->mfi_institution_id === (int) $referral->mfi_institution_id
             && $referral->status !== Referral::STATUS_DRAFT

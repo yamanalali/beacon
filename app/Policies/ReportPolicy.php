@@ -22,6 +22,6 @@ class ReportPolicy
 
     public function export(User $user, Enterprise $enterprise): bool
     {
-        return $this->view($user, $enterprise);
+        return $user->permission('export', true) && $this->view($user, $enterprise);
     }
 }

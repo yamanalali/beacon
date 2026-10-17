@@ -29,6 +29,7 @@ export default function Show({
     reports,
     bases,
     print,
+    can_export = true,
 }: {
     enterprise: EnterpriseRef;
     report: Report;
@@ -36,16 +37,17 @@ export default function Show({
     reports: SelectOption[];
     bases: SelectOption[];
     print: boolean;
+    can_export?: boolean;
 }) {
     const [values, setValues] = useState<Filters>(filters);
     const base = `/enterprises/${enterprise.public_id}/reports`;
     const query = new URLSearchParams(filters).toString();
 
     useEffect(() => {
-        if (print) {
+        if (print && can_export) {
             window.print();
         }
-    }, [print]);
+    }, [print, can_export]);
 
     return (
         <AppLayout title="التقارير">
@@ -84,6 +86,7 @@ export default function Show({
                 </div>
 
                 <div className="d-flex flex-wrap gap-2 d-print-none">
+                    {can_export ? <>
                     <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/xlsx?${query}`}>
                         <i className="bi bi-file-earmark-excel me-2" aria-hidden="true" />
                         تنزيل Excel
@@ -96,6 +99,7 @@ export default function Show({
                         <i className="bi bi-printer me-2" aria-hidden="true" />
                         طباعة / حفظ PDF
                     </button>
+                    </> : null}
                     <Link href={`/enterprises/${enterprise.public_id}/transactions`} className="btn btn-link" style={{ minHeight: "48px" }}>
                         المعاملات
                     </Link>

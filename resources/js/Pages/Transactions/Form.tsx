@@ -1,4 +1,6 @@
-import { Link, useForm } from "@inertiajs/react";
+import { useState } from "react";
+import { readDrafts, saveDraft, removeDraft } from "../../lib/offlineDrafts";
+import { Link, useForm, usePage } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
@@ -41,6 +43,27 @@ export default function Form({
         items: rowsFromItems(original?.items) as ItemRow[],
     });
 
+    const { auth } = usePage().props;
+    const scope = auth.user?.draft_scope ?? "";
+    const [draftId, setDraftId] = useState<string>(() => crypto.randomUUID());
+    const loadDrafts = () => readDrafts<typeof form.data>(scope, enterprise.public_id).filter((draft) =>
+        /^[0-9a-f-]{36}$/i.test(draft.id) && Object.entries(form.data).every(([key, value]) => {
+            const stored = draft.data[key as keyof typeof form.data];
+            if (typeof value === "string") return typeof stored === "string";
+            return Array.isArray(stored) && stored.length <= 200 && stored.every((row) => row && ["key", "description", "quantity", "unit_price", "total"].every((field) => typeof row[field as keyof ItemRow] === "string") && typeof row.total_manual === "boolean");
+        }),
+    );
+    const [drafts, setDrafts] = useState(loadDrafts);
+    const [draftNotice, setDraftNotice] = useState("");
+    const persist = () => {
+        if (!scope) { setDraftNotice("تعذر تحديد الحساب لحفظ المسودة."); return false; }
+        try {
+            saveDraft(scope, enterprise.public_id, { id: draftId, updatedAt: new Date().toISOString(), data: form.data });
+            setDrafts(loadDrafts());
+            setDraftNotice("تم حفظ المسودة على هذا الجهاز. راجعها وأرسلها عند الاتصال.");
+            return true;
+        } catch { setDraftNotice("تعذر الحفظ على هذا الجهاز. تحقق من مساحة التخزين وإعدادات المتصفح."); return false; }
+    };
     const categories = options.categories[form.data.type] ?? [];
     const cancelHref = isCorrection
         ? `/transactions/${original.public_id}`
@@ -57,6 +80,18 @@ export default function Form({
                             : enterprise.business_name
                     }
                 />
+                {!isCorrection ? <section className="alert alert-info" aria-label="المسودات المحلية">
+                    <strong>مسودات هذا الجهاز</strong>
+                    <p className="small">يمكنك حفظ النموذج المفتوح عند ضعف الاتصال. لا تُرسل المسودات تلقائياً. تتضمن بيانات مالية؛ استخدم جهازاً موثوقاً واحذفها بعد الانتهاء.</p>
+                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={persist}>حفظ مسودة على الجهاز</button>
+                    {draftNotice ? <p role="status">{draftNotice}</p> : null}
+                    {drafts.map((draft) => <div key={draft.id} className="d-flex gap-2 mt-2 align-items-center">
+                        <span>{draft.data.counterparty || draft.data.amount || "مسودة"} · {new Date(draft.updatedAt).toLocaleString()}</span>
+                        <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => { form.setData({ ...form.data, ...draft.data }); setDraftId(draft.id); setDraftNotice("راجع البيانات قبل الإرسال. إذا سبق إرسالها، أعد الإرسال دون تعديل أو تحقق من سجل العمليات أولاً."); }}>استعادة</button>
+                        <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => { try { removeDraft(scope, enterprise.public_id, draft.id); setDrafts(loadDrafts()); } catch { setDraftNotice("تعذر حذف المسودة."); } }}>حذف</button>
+                    </div>)}
+                    {(form.errors as Record<string, string>).client_draft_id ? <p role="alert">{(form.errors as Record<string, string>).client_draft_id}</p> : null}
+                </section> : null}
                 <div className="row">
                     <div className="col-12 col-lg-8">
                         <SectionCard
@@ -75,14 +110,17 @@ export default function Form({
                                             `/transactions/${original.public_id}/correct`,
                                         );
                                     } else {
+                                        persist();
+                                        if (!navigator.onLine) return;
                                         form.transform(
                                             ({
                                                 correction_reason: _ignored,
                                                 ...rest
-                                            }) => ({ ...rest, items: toItemsPayload(rest.items) }),
+                                            }) => ({ ...rest, client_draft_id: draftId, items: toItemsPayload(rest.items) }),
                                         );
                                         form.post(
                                             `/enterprises/${enterprise.public_id}/transactions`,
+                                            { onSuccess: () => { try { removeDraft(scope, enterprise.public_id, draftId); } catch { /* Keep the submitted draft if storage is unavailable. */ } } },
                                         );
                                     }
                                 }}

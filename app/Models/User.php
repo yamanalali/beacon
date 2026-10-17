@@ -51,7 +51,20 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => UserRole::class,
             'is_active' => 'boolean',
+            'access_permissions' => 'array',
         ];
+    }
+
+    public function permission(string $key, bool $default): bool
+    {
+        return $this->access_permissions[$key] ?? $default;
+    }
+
+    public function effectivePermissions(): array
+    {
+        return ['view' => $this->permission('view', true), 'record' => $this->permission('record', $this->role === UserRole::SmeUser),
+            'approve' => $this->permission('approve', $this->role === UserRole::BeaconAdmin), 'export' => $this->permission('export', true),
+            'require_approval' => $this->permission('require_approval', false)];
     }
 
     public function isActive(): bool

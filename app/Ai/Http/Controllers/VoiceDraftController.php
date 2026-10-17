@@ -4,7 +4,6 @@ namespace App\Ai\Http\Controllers;
 
 use App\Ai\Voice\SpeechToText;
 use App\Ai\Voice\VoiceDraftParser;
-use App\Support\SuggestedDateWarning;
 use App\Contracts\TransactionCategorizer;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
@@ -14,6 +13,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
+use App\Support\Currencies;
+use App\Support\SuggestedDateWarning;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -82,11 +83,11 @@ class VoiceDraftController extends Controller
         if ($suggestion !== null && ! array_key_exists($suggestion->category, $allowed)) {
             $suggestion = null;
         }
-        $currencies = array_keys(config('bookkeeping.currencies'));
+        $currencies = array_keys(app(Currencies::class)->enabled());
         // Manager decision (voice only, not OCR): no spoken currency => suggest the
         // business base currency (bookkeeping.default_currency, same as the forms), else SYP.
         $spoken = in_array($p['currency'], $currencies, true) ? $p['currency'] : null;
-        $base = config('bookkeeping.default_currency') ?: 'SYP';
+        $base = app(Currencies::class)->default() ?: 'SYP';
         $currency = $spoken ?? ($text !== null && in_array($base, $currencies, true) ? $base : null);
         $currencySource = $spoken !== null ? 'spoken' : ($currency !== null ? 'default' : null);
         $typeOptions = collect(TransactionType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()])->all();
@@ -132,8 +133,8 @@ class VoiceDraftController extends Controller
             'options' => [
                 'types' => $typeOptions,
                 'payment_statuses' => collect(PaymentStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->all(),
-                'currencies' => collect(config('bookkeeping.currencies'))->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all(),
-                'default_currency' => config('bookkeeping.default_currency'),
+                'currencies' => collect(app(Currencies::class)->enabled())->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all(),
+                'default_currency' => app(Currencies::class)->default(),
                 'categories' => collect(config('bookkeeping.categories'))->map(fn ($items) => collect($items)->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all())->all(),
             ],
             'ai_available' => $text !== null,

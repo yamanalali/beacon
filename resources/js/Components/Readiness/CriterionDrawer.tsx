@@ -91,6 +91,8 @@ export function CriterionDrawer({ criterion, pillars, onSave, onClose, readOnly,
     const configErrors = Object.entries(errors).filter(([k]) => k === "_" || k === "config" || k.startsWith("config.")).map(([, v]) => v);
     const [c, setC] = useState<Criterion | null>(criterion);
     const titleId = useId();
+    const [advanced, setAdvanced] = useState(false);
+    useEffect(() => { if (errors.code || errors.missing_data_treatment) setAdvanced(true); }, [errors]);
     useEffect(() => setC(criterion), [criterion]);
     useEffect(() => {
         if (!criterion) return;
@@ -112,8 +114,10 @@ export function CriterionDrawer({ criterion, pillars, onSave, onClose, readOnly,
                 </div>
                 <div className="offcanvas-body">
                     <form className="d-flex flex-column gap-3" onSubmit={(e) => { e.preventDefault(); onSave(c); }}>
-                        <div><label className="form-label" htmlFor="cr-code">الرمز</label><input id="cr-code" dir="ltr" className="form-control" value={c.code} disabled={readOnly} onChange={(e) => setC({ ...c, code: e.target.value })} /><FieldError msg={errors.code} /></div>
+
                         <div><label className="form-label" htmlFor="cr-label">الاسم</label><input id="cr-label" className="form-control" value={c.label_ar} disabled={readOnly} onChange={(e) => setC({ ...c, label_ar: e.target.value })} /><FieldError msg={errors.label_ar} /></div>
+                        <div><label className="form-label" htmlFor="cr-description">شرح السؤال (اختياري)</label><textarea id="cr-description" className="form-control" value={c.description_ar ?? ""} disabled={readOnly} onChange={(e) => setC({ ...c, description_ar: e.target.value })} /><FieldError msg={errors.description_ar} /></div>
+                        <p className="form-text">الوزن يحدد أهمية السؤال مقارنة ببقية أسئلة المحور؛ لا يلزم أن يكون المجموع 100. وزن 2 يعني ضعف تأثير وزن 1.</p>
                         <div className="row g-2">
                             <div className="col-6">
                                 <label className="form-label" htmlFor="cr-pillar">المحور</label>
@@ -133,12 +137,15 @@ export function CriterionDrawer({ criterion, pillars, onSave, onClose, readOnly,
                         </div>
                         <ConfigFields c={c} set={setC} readOnly={readOnly} />
                         {configErrors.length ? <div className="alert alert-danger py-2 small mb-0" role="alert">{configErrors.map((m, i) => <div key={i}>{m}</div>)}</div> : null}
+                        <details open={advanced} onToggle={(e) => setAdvanced(e.currentTarget.open)}><summary>إعدادات متقدمة</summary>
+                        <div><label className="form-label" htmlFor="cr-code">الرمز</label><input id="cr-code" dir="ltr" className="form-control" value={c.code} disabled={readOnly} onChange={(e) => setC({ ...c, code: e.target.value })} /><FieldError msg={errors.code} /></div>
                         <div>
                             <label className="form-label" htmlFor="cr-missing">عند غياب البيانات</label>
                             <select id="cr-missing" className="form-select" value={c.missing_data_treatment} disabled={readOnly} onChange={(e) => setC({ ...c, missing_data_treatment: e.target.value as MissingDataTreatment })}>
                                 {Object.entries(TREATMENT_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                             </select>
                         </div>
+                        </details>
                         <div className="form-check">
                             <input id="cr-mandatory" type="checkbox" className="form-check-input" checked={c.is_mandatory} disabled={readOnly} onChange={(e) => setC({ ...c, is_mandatory: e.target.checked })} />
                             <label className="form-check-label" htmlFor="cr-mandatory">شرط إلزامي (يمنع النتيجة إن لم يُستوفَ)</label>

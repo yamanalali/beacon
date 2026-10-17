@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Ai\Support\PaginatedProps;
 use App\Actions\Audit\RecordAuditLog;
 use App\Actions\Bookkeeping\StartReceiptExtractionAction;
+use App\Actions\Documents\ArchiveDocumentAction;
 use App\Actions\Documents\StoreDocumentAction;
-use App\Enums\UserRole;
+use App\Actions\Documents\UpdateDocumentMetadataAction;
+use App\Ai\Support\PaginatedProps;
 use App\Http\Requests\Documents\StoreDocumentRequest;
+use App\Models\AuditLog;
 use App\Models\Document;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
-use Illuminate\Http\RedirectResponse;
 use App\Navigation\PageAccess;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -107,6 +109,7 @@ class DocumentController extends Controller
 
     public function download(Request $request, Document $document, RecordAuditLog $audit): StreamedResponse
     {
+        abort_unless($request->user()->permission('export', true), 403);
         $document->load('enterprise');
         Gate::authorize('view', $document);
 
@@ -124,14 +127,14 @@ class DocumentController extends Controller
         $document->load(['enterprise', 'transaction:id,public_id', 'uploader:id,name']);
         Gate::authorize('view', $document);
 
-        $history = \App\Models\AuditLog::query()
+        $history = AuditLog::query()
             ->where('target_type', $document->getMorphClass())
             ->where('target_id', (string) $document->id)
             ->with('actor:id,name')
             ->orderByDesc('id')
             ->limit(50)
             ->get()
-            ->map(fn (\App\Models\AuditLog $log): array => [
+            ->map(fn (AuditLog $log): array => [
                 'id' => $log->id,
                 'action' => $log->action,
                 'created_at' => $log->created_at?->toDateTimeString(),
@@ -162,7 +165,7 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function update(Request $request, Document $document, \App\Actions\Documents\UpdateDocumentMetadataAction $action): RedirectResponse
+    public function update(Request $request, Document $document, UpdateDocumentMetadataAction $action): RedirectResponse
     {
         $document->load('enterprise');
         Gate::authorize('update', $document);
@@ -181,7 +184,7 @@ class DocumentController extends Controller
         return back()->with('success', 'تم حفظ بيانات المستند.');
     }
 
-    public function archive(Request $request, Document $document, \App\Actions\Documents\ArchiveDocumentAction $action): RedirectResponse
+    public function archive(Request $request, Document $document, ArchiveDocumentAction $action): RedirectResponse
     {
         $document->load('enterprise');
         Gate::authorize('archive', $document);
@@ -202,6 +205,7 @@ class DocumentController extends Controller
     {
         return [
             'public_id' => $document->public_id,
+            'can_download' => request()->user()?->permission('export', true) ?? false,
             'title' => $document->title,
             'mime_type' => $document->mime_type,
             'is_image' => str_starts_with($document->mime_type, 'image/'),

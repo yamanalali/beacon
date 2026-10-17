@@ -1,3 +1,4 @@
+import { clearDeviceDrafts } from "../lib/offlineDrafts";
 import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useRef } from "react";
 import { roleLabels } from "./navigation";
@@ -69,6 +70,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
                     جلسات الدخول
                 </Link>
                 <Link
+                    onBefore={() => clearDeviceDrafts()}
                     href="/logout"
                     method="post"
                     as="button"

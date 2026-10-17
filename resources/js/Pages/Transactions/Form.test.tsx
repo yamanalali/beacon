@@ -5,6 +5,7 @@ import type { BookkeepingOptions, TransactionItemsProps, TransactionRow } from "
 
 const { post } = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock("@inertiajs/react", () => ({
+    usePage: () => ({ props: { auth: { user: { draft_scope: "account-a" } } } }),
     Link: ({ href, children }: { href: string; children: ReactNode }) => <a href={href}>{children}</a>,
     useForm: (data: Record<string, unknown>) => {
         let payload = data;
@@ -13,7 +14,7 @@ vi.mock("@inertiajs/react", () => ({
 }));
 vi.mock("../../Layouts/AppLayout", () => ({ default: ({ children }: { children: ReactNode }) => <main>{children}</main> }));
 import Form from "./Form";
-afterEach(() => { cleanup(); post.mockReset(); });
+afterEach(() => { cleanup(); post.mockReset(); localStorage.clear(); vi.restoreAllMocks(); });
 
 it("submits invoice items during correction without resubmitting cash payments", () => {
     const original = {
@@ -29,4 +30,31 @@ it("submits invoice items during correction without resubmitting cash payments",
         payment_status: "partially_paid", items: [expect.objectContaining({ description: "Original item" })],
     }));
     expect(post.mock.calls[0][1]).not.toHaveProperty("paid_amount");
+});
+
+it("saves a device draft while offline without posting and restores it for review", () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const options: BookkeepingOptions = { types: [{ value: "sale", label: "بيع" }], payment_statuses: [], currencies: [{ value: "USD", label: "USD" }], default_currency: "USD", categories: { sale: [] } };
+    render(<Form enterprise={{ public_id: "E1", business_name: "Store" }} options={options} original={null} />);
+    fireEvent.submit(screen.getByRole('button', { name: 'حفظ العملية' }).closest('form')!);
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('status').map((node) => node.textContent).join(' ')).toContain('تم حفظ المسودة');
+    expect(screen.getByRole('button', { name: 'استعادة' })).toBeTruthy();
+    const stored = JSON.parse(localStorage.getItem('beacon:drafts:account-a:E1')!);
+    expect(stored).toHaveLength(1);
+    expect(stored[0].id).toMatch(/^[0-9a-f-]{36}$/);
+    fireEvent.click(screen.getByRole('button', { name: 'استعادة' }));
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('status').map((node) => node.textContent).join(' ')).toContain('راجع البيانات');
+});
+
+it("retries an online submission using the same draft id", () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const options: BookkeepingOptions = { types: [], payment_statuses: [], currencies: [], default_currency: "SYP", categories: {} };
+    render(<Form enterprise={{ public_id: "E1", business_name: "Store" }} options={options} original={null} />);
+    const form = screen.getByRole('button', { name: 'حفظ العملية' }).closest('form')!;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls[0][1].client_draft_id).toBe(post.mock.calls[1][1].client_draft_id);
 });

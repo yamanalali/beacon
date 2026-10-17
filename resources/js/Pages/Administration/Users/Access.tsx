@@ -1,0 +1,14 @@
+import { Link, router, useForm } from "@inertiajs/react";
+import AppLayout from "../../../Layouts/AppLayout";
+import { PageHeader } from "../../../Components/Common/PageHeader";
+import { SectionCard } from "../../../Components/Common/SectionCard";
+type Permissions = { view: boolean; record: boolean; approve: boolean; export: boolean; require_approval: boolean };
+export default function Access({ target, canEdit }: { target: { id: number; name: string; role: string; permissions: Permissions; custom: boolean }; canEdit: boolean }) {
+    const form = useForm({ permissions: target.permissions });
+    const fields: [keyof Permissions,string,string][] = [["view","عرض بيانات المنشآت","ضمن المنشآت المرتبطة بالحساب ودوره فقط."],["record","تسجيل معاملات مالية","لا يمنح الوصول إلى منشآت غير مسندة."],["approve","اعتماد المعاملات","يسمح باعتماد معاملات الآخرين المنتظرة فقط."],["export","تصدير وتنزيل المعلومات","إتاحة تصدير التقارير والقواعد وسجل التدقيق وتنزيل المستندات ضمن صلاحيات الدور."],["require_approval","معاملاته الجديدة تحتاج موافقة","لا تدخل التقارير قبل اعتمادها من مستخدم آخر. تُجرى التصحيحات والدفعات اللاحقة بواسطة مشرف مخول."]];
+    return <AppLayout title="صلاحيات المستخدم"><div className="app-page d-flex flex-column gap-3"><PageHeader title={`صلاحيات ${target.name}`} description={`${target.role} · ${target.custom ? "صلاحيات مخصصة" : "إعدادات الدور الافتراضية"}`} /><Link href="/users" className="btn btn-light align-self-start">المستخدمون</Link><div className="alert alert-info">هذه الصلاحيات تُضاف إلى حدود الدور وتعيينات المنشآت؛ لا تتجاوز عزل بيانات المنشآت أو حدود مستخدمي التمويل والإدارة التقنية. يمكن تعيين المنشآت من صفحة المنشآت.</div>
+        <SectionCard title="الصلاحيات والمسؤوليات"><form onSubmit={e => { e.preventDefault(); form.put(`/users/${target.id}/access`, { preserveScroll: true }); }}><div className="d-flex flex-column gap-3">{fields.map(([key,label,help]) => <label key={key} className="app-mobile-record d-flex gap-3"><input type="checkbox" className="form-check-input flex-shrink-0" checked={form.data.permissions[key]} disabled={!canEdit || form.processing} onChange={e => form.setData("permissions", { ...form.data.permissions, [key]: e.target.checked })} /><span><strong className="d-block">{label}</strong><span className="small text-body-secondary">{help}</span></span></label>)}</div>
+        {Object.values(form.errors).map((error,i) => <p className="text-danger" role="alert" key={i}>{error}</p>)}
+        {canEdit ? <div className="d-flex flex-wrap gap-2 mt-3"><button className="btn btn-primary" disabled={form.processing}>حفظ الصلاحيات</button><button type="button" className="btn btn-outline-secondary" disabled={form.processing} onClick={() => router.put(`/users/${target.id}/access`, { permissions: null })}>استعادة صلاحيات الدور</button></div> : <p className="text-body-secondary mt-3 mb-0">لا يمكنك تعديل صلاحيات حسابك من هذه الصفحة.</p>}
+        </form></SectionCard></div></AppLayout>;
+}

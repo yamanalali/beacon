@@ -141,3 +141,33 @@ describe("RuleSetBuilder wired to the admin API", () => {
         expect(screen.getByText(/مجمّدة ولا يمكن تعديلها/)).toBeTruthy();
     });
 });
+
+it("copies a reusable question with a fresh code and id, preserving its scoring configuration", async () => {
+    const source = draft.criteria[1];
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ criteria: [source] }), { status: 200 }));
+    const actions = mockActions();
+    render(<RuleSetBuilder ruleSet={draft} actions={actions} previewFetcher={null} />);
+    fireEvent.click(screen.getByRole('button', { name: 'تحميل مكتبة الأسئلة' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'استخدام السؤال' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'حفظ المعيار' })); });
+    const copied = (actions.saveCriterion as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(copied.id).toBeLessThan(0);
+    expect(copied.code).not.toBe(source.code);
+    expect(copied.config).toEqual(source.config);
+    expect(copied.weight).toBe(source.weight);
+    expect(copied.readiness_pillar_id).toBeNull();
+    expect(source.code).toBe('a2');
+    fetchMock.mockRestore();
+});
+
+it("shows normalized question weights and saves a new criterion with usable defaults", async () => {
+    const actions = mockActions();
+    render(<RuleSetBuilder ruleSet={draft} actions={actions} previewFetcher={null} />);
+    expect(screen.getAllByTestId('criterion-row')[0].textContent).toContain('50.0%');
+    fireEvent.click(screen.getByRole('button', { name: 'إضافة معيار بلا محور' }));
+    const drawer = screen.getByTestId('criterion-drawer');
+    fireEvent.change(within(drawer).getByLabelText('الاسم'), { target: { value: 'New question' } });
+    fireEvent.change(within(drawer).getByLabelText('شرح السؤال (اختياري)'), { target: { value: 'Help for assessors' } });
+    await act(async () => { fireEvent.click(within(drawer).getByRole('button', { name: 'حفظ المعيار' })); });
+    expect(actions.saveCriterion).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ weight: '1', code: expect.stringMatching(/^criterion_/), description_ar: 'Help for assessors', missing_data_treatment: 'needs_review' }));
+});
