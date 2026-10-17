@@ -4,6 +4,8 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
+import { PackageView } from "../../Components/Referrals/PackageView";
+import type { ReferralPackage } from "../../types/referrals";
 
 type Props = {
     referral: {
@@ -17,7 +19,7 @@ type Props = {
         decision_note: string | null;
         outcome_note: string | null;
     };
-    package: Record<string, unknown>;
+    package: ReferralPackage;
     consent: {
         active: { version: string; granted_at: string } | null;
         history: { status: string; version: string; granted_at: string | null; withdrawn_at: string | null }[];
@@ -45,8 +47,8 @@ export default function Show({ referral, package: pkg, consent, history, can, st
                 <SectionCard title="المعلومات التي ستُشارك">
                     <p className="mb-1">المؤسسة المستلمة: <strong>{referral.institution}</strong></p>
                     <ul>{referral.disclosed_items.map((i) => <li key={i.key}>{i.label}</li>)}</ul>
-                    {Object.keys(pkg).length ? <pre className="bg-light p-2 small" dir="auto">{JSON.stringify(pkg, null, 2)}</pre> : null}
                 </SectionCard>
+                <PackageView pkg={pkg} />
 
                 <SectionCard title="الموافقة">
                     {consent.active ? <p>تمت الموافقة (نسخة {consent.active.version}) بتاريخ {consent.active.granted_at}</p> : <p>لا توجد موافقة فعّالة.</p>}
@@ -72,9 +74,13 @@ export default function Show({ referral, package: pkg, consent, history, can, st
                 {can.share ? <button type="button" className="btn btn-primary mt-3" style={{ minHeight: "48px" }} onClick={() => router.post(`${url}/share`)}>مشاركة الإحالة مع المؤسسة</button> : null}
                 {errors?.consent ? <p className="text-danger">{errors.consent}</p> : null}
 
-                {referral.info_request_note ? <p className="mt-3">معلومات مطلوبة: {referral.info_request_note}</p> : null}
-                {referral.decision_note ? <p>القرار: {referral.decision_note}</p> : null}
-                {referral.outcome_note ? <p>نتيجة التمويل: {referral.outcome_note}</p> : null}
+                {referral.info_request_note || referral.decision_note || referral.outcome_note ? (
+                    <SectionCard title="الملاحظات">
+                        {referral.info_request_note ? <div className="app-record-line"><span>معلومات مطلوبة</span><span>{referral.info_request_note}</span></div> : null}
+                        {referral.decision_note ? <div className="app-record-line"><span>القرار</span><span>{referral.decision_note}</span></div> : null}
+                        {referral.outcome_note ? <div className="app-record-line"><span>نتيجة التمويل</span><span>{referral.outcome_note}</span></div> : null}
+                    </SectionCard>
+                ) : null}
 
                 {can.mfi_transitions.length || can.record_outcome ? (
                     <SectionCard title="تحديث الإحالة">
@@ -90,7 +96,7 @@ export default function Show({ referral, package: pkg, consent, history, can, st
 
                 {history.length ? (
                     <SectionCard title="سجل الحالات">
-                        <ul className="mb-0">{history.map((h, i) => <li key={i}>{h.at} - {h.to}{h.actor ? ` - ${h.actor}` : ""}{h.note ? `: ${h.note}` : ""}</li>)}</ul>
+                        <ul className="mb-0">{history.map((h, i) => <li key={i}>{h.at} - {statusLabels[h.to] ?? h.to}{h.actor ? ` - ${h.actor}` : ""}{h.note ? `: ${h.note}` : ""}</li>)}</ul>
                     </SectionCard>
                 ) : null}
             </div>

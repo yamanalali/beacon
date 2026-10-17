@@ -4,7 +4,7 @@ import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { DocumentList } from "../../Components/Documents/DocumentList";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
-import { ReviewForm, initialReviewData, type CategorySuggestion, type ReviewFormData, type TransactionDraft } from "../../Components/Transactions/ReviewForm";
+import { ReviewForm, initialReviewData, reviewPayload, type CategorySuggestion, type ReviewFormData, type TransactionDraft } from "../../Components/Transactions/ReviewForm";
 import type { BookkeepingOptions, DocumentRow, EnterpriseRef } from "../../types/bookkeeping";
 
 type Extraction = TransactionDraft & {
@@ -37,7 +37,7 @@ export default function Show({
     suggested_transaction_type?: string | null;
 }) {
     const draft: TransactionDraft = { ...extraction, suggested_transaction_type };
-    const form = useForm<ReviewFormData>(initialReviewData(draft, type, options, category_suggestion));
+    const form = useForm<ReviewFormData>(initialReviewData(draft, type, options, category_suggestion, transaction_type_options));
     const doc = extraction.document;
     const pending = extraction.status === "pending_review";
 
@@ -70,7 +70,10 @@ export default function Show({
                                     typeOptions={transaction_type_options}
                                     errors={form.errors}
                                     processing={form.processing}
-                                    onSubmit={() => form.post(`/extractions/${extraction.public_id}/confirm`)}
+                                    onSubmit={() => {
+                                        form.transform(reviewPayload);
+                                        form.post(`/extractions/${extraction.public_id}/confirm`);
+                                    }}
                                     onReject={() => {
                                         if (window.confirm("هل تريد تجاهل هذا الاقتراح؟ سيبقى المستند محفوظاً.")) {
                                             router.post(`/extractions/${extraction.public_id}/reject`);

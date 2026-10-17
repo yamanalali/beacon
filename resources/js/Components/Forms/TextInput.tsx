@@ -16,6 +16,8 @@ export function TextInput(props: {
     help?: string;
     autoComplete?: string;
     inputMode?: InputHTMLAttributes<HTMLInputElement>["inputMode"];
+    required?: boolean;
+    placeholder?: string;
 }) {
     const {
         id,
@@ -28,6 +30,8 @@ export function TextInput(props: {
         help,
         autoComplete,
         inputMode,
+        required,
+        placeholder,
     } = props;
     const [visible, setVisible] = useState(false);
     const isPassword = type === "password";
@@ -47,6 +51,7 @@ export function TextInput(props: {
         <div className="mb-3 w-100">
             <label htmlFor={id} className="form-label">
                 {label}
+                {required ? <span className="text-danger ms-1" aria-hidden="true">*</span> : null}
             </label>
             <div className={isPassword ? "app-password-field" : undefined}>
                 <input
@@ -56,6 +61,9 @@ export function TextInput(props: {
                     value={value}
                     className={`form-control w-100${error ? " is-invalid" : ""}`}
                     autoComplete={autoComplete}
+                    required={required}
+                    aria-required={required || undefined}
+                    placeholder={placeholder}
                     inputMode={mode}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={describedBy}

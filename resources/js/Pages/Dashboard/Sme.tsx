@@ -1,11 +1,15 @@
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { QuickLinks } from "../../Components/Common/QuickLinks";
+import { visibleLinks } from "../../Layouts/navigationModel";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { QuickRecordButton } from "../../Components/QuickRecord/QuickRecord";
 import { StatCard } from "../../Components/Common/StatCard";
+import { CurrencyCards } from "../../Components/Dashboard/CurrencyCards";
+import { Money } from "../../Components/Common/Money";
+import { changeLabel, currencyName, currencySymbol, formatMoneyIsolated } from "../../lib/money";
 import { StatusBadge, type StatusTone } from "../../Components/Feedback/StatusBadge";
 import type { DashboardAlert, SmeComplianceItem, SmeDashboardProps, SmeRecentTransaction } from "../../types/dashboard";
 
@@ -41,9 +45,7 @@ export function AlertItem({ alert }: { alert: DashboardAlert }) {
     );
 }
 
-function money(amount: string, currency: string) {
-    return `${amount} ${currency}`;
-}
+const money = formatMoneyIsolated;
 
 function TransactionRow({ t }: { t: SmeRecentTransaction }) {
     return (
@@ -56,10 +58,9 @@ function TransactionRow({ t }: { t: SmeRecentTransaction }) {
                         <bdi dir="ltr">{t.transaction_date}</bdi>
                     </small>
                 </span>
-                <bdi dir="ltr" className={t.direction === "income" ? "text-success fw-semibold" : "fw-semibold"}>
-                    {t.direction === "income" ? "+" : "−"}
-                    {money(t.amount, t.currency)}
-                </bdi>
+                <span className={t.direction === "income" ? "text-success fw-semibold" : "fw-semibold"}>
+                    <Money amount={t.amount} currency={t.currency} signed={t.direction === "income" ? "in" : "out"} />
+                </span>
             </Link>
         </li>
     );
@@ -91,6 +92,7 @@ export default function Sme({
     compliance = { overdue: [], upcoming: [] },
     alerts = [],
 }: Props) {
+    const can = usePage().props.auth?.can;
     return (
         <AppLayout title="الرئيسية">
             <div className="app-page">
@@ -120,14 +122,16 @@ export default function Sme({
                                 </div>
                             </SectionCard>
                         ) : null}
-                        {kpis ? (
+                        {kpis && (kpis.by_currency?.current_month?.length ?? 0) > 0 ? (
+                            <CurrencyCards kpis={kpis} />
+                        ) : kpis ? (
                             <section aria-label="مؤشرات هذا الشهر">
                                 <div className="row g-3">
                                     <div className="col-6 col-lg-3">
-                                        <StatCard label="دخل هذا الشهر" value={money(kpis.current_month.income, kpis.currency)} hint={`الشهر السابق: ${money(kpis.previous_month.income, kpis.currency)}`} icon="bi-arrow-down-left" />
+                                        <StatCard label="دخل هذا الشهر" value={money(kpis.current_month.income, kpis.currency)} hint={changeLabel(kpis.current_month.income, kpis.previous_month.income)} icon="bi-arrow-down-left" />
                                     </div>
                                     <div className="col-6 col-lg-3">
-                                        <StatCard label="مصروف هذا الشهر" value={money(kpis.current_month.expense, kpis.currency)} hint={`الشهر السابق: ${money(kpis.previous_month.expense, kpis.currency)}`} icon="bi-arrow-up-right" tone="amber" />
+                                        <StatCard label="مصروف هذا الشهر" value={money(kpis.current_month.expense, kpis.currency)} hint={changeLabel(kpis.current_month.expense, kpis.previous_month.expense)} icon="bi-arrow-up-right" tone="amber" />
                                     </div>
                                     <div className="col-6 col-lg-3">
                                         <StatCard label="الصافي" value={money(kpis.current_month.net, kpis.currency)} hint={`${kpis.current_month.count} معاملة هذا الشهر`} icon="bi-graph-up" tone="blue" />
@@ -137,9 +141,17 @@ export default function Sme({
                                     </div>
                                 </div>
                                 {kpis.other_currencies.length > 0 ? (
-                                    <p className="small text-body-secondary mt-2 mb-0">
-                                        الإجماليات بعملة <bdi dir="ltr">{kpis.currency}</bdi> فقط. عملات أخرى مسجلة:{" "}
-                                        <bdi dir="ltr">{kpis.other_currencies.join("، ")}</bdi>
+                                    <p className="small text-body-secondary mt-2 mb-0" data-testid="currency-note">
+                                        <i className="bi bi-info-circle me-1" aria-hidden="true" />
+                                        هذه الأرقام تشمل فقط المعاملات المسجّلة بـ{currencyName(kpis.currency)} (<bdi>{currencySymbol(kpis.currency)}</bdi>). لديك معاملات أخرى
+                                        بعملات مختلفة لم تُحتسب هنا:{" "}
+                                        {kpis.other_currencies.map((c, i) => (
+                                            <span key={c}>
+                                                {i > 0 ? "، " : ""}
+                                                {currencyName(c)} (<bdi>{currencySymbol(c)}</bdi>)
+                                            </span>
+                                        ))}
+                                        .
                                     </p>
                                 ) : null}
                             </section>
@@ -185,11 +197,11 @@ export default function Sme({
                     </>
                 )}
                 <QuickLinks
-                    items={[
+                    items={visibleLinks(can, [
                         { href: "/transactions", label: "المعاملات", description: "المبيعات والمشتريات والدفعات", icon: "bi-wallet2" },
                         { href: "/reports", label: "التقارير", description: "فهم وضع منشأتك المالي", icon: "bi-bar-chart-line" },
                         { href: "/documents", label: "المستندات", description: "كل وثائقك في مكان واحد", icon: "bi-folder2-open" },
-                    ]}
+                    ])}
                 />
             </div>
         </AppLayout>

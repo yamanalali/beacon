@@ -7,7 +7,10 @@ use App\Models\BackupRun;
 use App\Models\User;
 use App\Services\Operations\BackupService;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /** Uses DatabaseMigrations: SQLite cannot VACUUM INTO inside the RefreshDatabase transaction. */
@@ -15,11 +18,24 @@ class BackupTest extends TestCase
 {
     use DatabaseMigrations;
 
+    private string $diskRoot;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->withoutVite();
-        Storage::fake('local');
+        // Not Storage::fake('local'): its root (storage/framework/testing/disks/local) is shared by every
+        // test process on the checkout and wiped by each fake() call, so a concurrent run deleted or added
+        // files mid-test (documents 0/2, backup file null). A private temp root per test isolates it.
+        $this->diskRoot = sys_get_temp_dir().'/beacon-backup-test-'.getmypid().'-'.Str::random(12);
+        File::ensureDirectoryExists($this->diskRoot);
+        Storage::set('local', Storage::build(['driver' => 'local', 'root' => $this->diskRoot, 'throw' => false]));
+    }
+
+    protected function tearDown(): void
+    {
+        File::deleteDirectory($this->diskRoot);
+        parent::tearDown();
     }
 
     private function user(UserRole $role): User
@@ -107,7 +123,7 @@ class BackupTest extends TestCase
         $this->assertSame($usersBefore, User::query()->count());
         $this->assertNotNull(User::query()->find($liveUser->id));
         $this->assertSame($database, config('database.connections.sqlite.database'));
-        $this->assertSame('sqlite', \Illuminate\Support\Facades\DB::getDefaultConnection());
+        $this->assertSame('sqlite', DB::getDefaultConnection());
     }
 
     public function test_restore_test_endpoint_is_technical_admin_only(): void

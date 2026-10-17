@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class RecordAdvisoryActivity
 {
-    use RecordsAdvisoryAudit;
+    use ScopesResponsibleUser, RecordsAdvisoryAudit;
 
     public function __construct(private CreateFollowUpAction $createFollowUpAction) {}
 
@@ -25,6 +25,8 @@ class RecordAdvisoryActivity
     public function execute(User $actor, Enterprise $enterprise, array $attributes): AdvisoryActivity
     {
         abort_unless($this->canRecord($actor, $enterprise), 403);
+
+        $this->assertResponsibleUserBelongs($enterprise, $attributes['responsible_user_id'] ?? null);
 
         $followUpDescription = $this->blankToNull($attributes['follow_up_description'] ?? null);
 

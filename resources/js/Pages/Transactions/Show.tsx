@@ -9,7 +9,9 @@ import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { PaymentStatusBadge } from "../../Components/Financial/PaymentStatusBadge";
 import { TextInput } from "../../Components/Forms/TextInput";
-import type { DocumentRow, EnterpriseRef, TransactionRow } from "../../types/bookkeeping";
+import type { DocumentRow, EnterpriseRef, TransactionItemsProps, TransactionRow } from "../../types/bookkeeping";
+import { ItemsTable } from "../../Components/Transactions/ItemsEditor";
+import { Money } from "../../Components/Common/Money";
 
 type Detail = TransactionRow & {
     creator_name: string | null;
@@ -17,7 +19,7 @@ type Detail = TransactionRow & {
     created_at: string | null;
     corrects_public_id: string | null;
     corrected_by_public_id: string | null;
-};
+} & Partial<TransactionItemsProps>;
 
 type Settlement = { id: number; settlement_date: string | null; amount: string; note: string | null; creator_name: string | null };
 
@@ -74,11 +76,11 @@ export default function Show({
                 ) : null}
 
                 <div className="row g-3">
-                    <div className="col-12 col-lg-6">
+                    <div className="col-12 col-lg-6 d-flex flex-column gap-3">
                         <SectionCard title="البيانات">
                             <Line label="التاريخ" value={transaction.transaction_date} />
-                            <Line label="المبلغ" value={<span dir="ltr">{transaction.amount} {transaction.currency}</span>} />
-                            <Line label="المتبقي" value={<span dir="ltr">{transaction.outstanding} {transaction.currency}</span>} />
+                            <Line label="المبلغ" value={<Money amount={transaction.amount} currency={transaction.currency} />} />
+                            <Line label="المتبقي" value={<Money amount={transaction.outstanding} currency={transaction.currency} />} />
                             <Line label="حالة الدفع" value={<PaymentStatusBadge status={transaction.payment_status} label={transaction.payment_status_label} />} />
                             <Line label="الحالة" value={<StatusBadge label={transaction.status_label} tone={transaction.is_superseded ? "neutral" : "success"} />} />
                             <Line label="الزبون أو المورد" value={transaction.counterparty} />
@@ -90,6 +92,15 @@ export default function Show({
                                     <Line label="السجل الأصلي" value={<Link href={`/transactions/${transaction.corrects_public_id}`}>عرض</Link>} />
                                 </>
                             ) : null}
+                        </SectionCard>
+                        <SectionCard title="البنود">
+                            <ItemsTable
+                                items={transaction.items ?? []}
+                                itemsTotal={transaction.items_total ?? null}
+                                mismatch={transaction.items_mismatch === true}
+                                amount={transaction.amount}
+                                currency={transaction.currency}
+                            />
                         </SectionCard>
                     </div>
                     <div className="col-12 col-lg-6 d-flex flex-column gap-3">
@@ -104,9 +115,7 @@ export default function Show({
                                                 {s.settlement_date}
                                                 {s.note ? ` · ${s.note}` : ""}
                                             </span>
-                                            <span dir="ltr" className="fw-semibold">
-                                                {s.amount} {transaction.currency}
-                                            </span>
+                                            <Money amount={s.amount} currency={transaction.currency} className="fw-semibold" />
                                         </li>
                                     ))}
                                 </ul>

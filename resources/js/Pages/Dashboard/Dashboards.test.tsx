@@ -18,7 +18,7 @@ afterEach(cleanup);
 
 const period = (income: string) => ({ from: "2026-10-01", to: "2026-10-31", income, expense: "200.00", net: "800.00", count: 3 });
 const kpis: SmeDashboardKpis = {
-    currency: "SYP", current_month: period("1000.00"), previous_month: period("500.00"), other_currencies: ["USD"],
+    currency: "SYP", current_month: period("1000.00"), previous_month: period("500.00"), other_currencies: ["USD"], by_currency: { current_month: [], previous_month: [] }, unposted_count: 0,
     transaction_count: 9, pending_extractions_count: 2, readiness_score: "72", overdue_compliance_count: 1, upcoming_compliance_count: 0, open_escalations_count: 0,
 };
 
@@ -46,8 +46,12 @@ describe("SME dashboard", () => {
         const alerts = screen.getByTestId("alerts");
         expect(within(alerts).getByText("فواتير بانتظار المراجعة").closest("a")?.getAttribute("href")).toBe("/enterprises/E1/extractions/pending");
         expect(within(alerts).getByText("استفسارات مفتوحة").closest("a")).toBeNull();
-        expect(screen.getByText("1000.00 SYP")).toBeTruthy();
-        expect(screen.getByText("USD")).toBeTruthy();
+        expect(screen.getByText("\u20661,000 ل.س\u2069")).toBeTruthy();
+        // previous 500 → current 1000 = +100%
+        expect(screen.getByText("↑ \u2066100%\u2069 عن الشهر السابق")).toBeTruthy();
+        expect(screen.getByTestId("currency-note").textContent).toContain("الدولار الأمريكي");
+        expect(screen.getByTestId("currency-note").textContent).toContain("الليرة السورية");
+        expect(screen.getByText("مبيعات").closest("a")?.querySelector("[data-money]")?.textContent).toBe("+50 ل.س");
         expect(screen.getByText("مبيعات").closest("a")?.getAttribute("href")).toBe("/transactions/T1");
         expect(screen.getByText("متأخر")).toBeTruthy();
     });
@@ -95,5 +99,13 @@ describe("Beacon dashboard", () => {
     it("renders without programme", () => {
         render(<Beacon />);
         expect(screen.queryByLabelText("مؤشرات البرنامج")).toBeNull();
+    });
+});
+
+describe("SME previous month", () => {
+    it("shows 'no data' when the previous month is zero", () => {
+        const zero = { ...kpis, previous_month: { ...kpis.previous_month, income: "0.00", expense: "0.00" } };
+        render(<Sme enterprise={{ public_id: "E1", business_name: "x" }} kpis={zero} />);
+        expect(screen.getAllByText("لا توجد بيانات للشهر السابق").length).toBe(2);
     });
 });

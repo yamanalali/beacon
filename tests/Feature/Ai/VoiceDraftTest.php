@@ -8,11 +8,13 @@ use App\Ai\Voice\VoiceDraftParser;
 use App\Ai\Voice\WhisperCppTranscriber;
 use App\Contracts\TransactionCategorizer;
 use App\Enums\UserRole;
+use App\Models\AuditLog;
 use App\Models\Enterprise;
 use App\Models\User;
 use App\Services\Ai\CategorySuggestion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -73,12 +75,38 @@ class VoiceDraftTest extends TestCase
         return $this->actingAs($u ?? $this->sme)->post(route('ai.voice-drafts.store', $this->enterprise), ['audio' => $this->audio()], ['Accept' => 'application/json']);
     }
 
+    /** Evaluate config/ai.php with explicit env values, independent of the local .env. */
+    private function aiConfigWith(array $vars): array
+    {
+        $saved = [];
+        foreach ($vars as $k => $v) {
+            $saved[$k] = [$_ENV[$k] ?? null, $_SERVER[$k] ?? null, getenv($k)];
+            if ($v === null) {
+                unset($_ENV[$k], $_SERVER[$k]);
+                putenv($k);
+            } else {
+                $_ENV[$k] = $_SERVER[$k] = $v;
+                putenv("$k=$v");
+            }
+        }
+        try {
+            return require base_path('config/ai.php');
+        } finally {
+            foreach ($saved as $k => [$e, $s, $g]) {
+                $e === null ? Arr::forget($_ENV, $k) : $_ENV[$k] = $e;
+                $s === null ? Arr::forget($_SERVER, $k) : $_SERVER[$k] = $s;
+                $g === false ? putenv($k) : putenv("$k=$g");
+            }
+        }
+    }
+
     public function test_disabled_by_default_returns_404(): void
     {
         config(['ai.voice.enabled' => false]);
         $this->stubStt('دفعت 100');
         $this->send()->assertNotFound();
-        $this->assertFalse((bool) (require base_path('config/ai.php'))['voice']['enabled']);
+        // Default pinned with AI_VOICE_ENABLED unset, independent of the local .env (as in #60).
+        $this->assertFalse((bool) $this->aiConfigWith(['AI_VOICE_ENABLED' => null])['voice']['enabled']);
     }
 
     public function test_roles_follow_transaction_create_policy(): void
@@ -123,6 +151,121 @@ class VoiceDraftTest extends TestCase
         $this->assertArrayNotHasKey('id', $res->json('enterprise'));
     }
 
+    public function test_yaman_rent_sentence_draft(): void
+    {
+        $this->stubStt('دفعت اجار محل 50 الف ليرة سوريا لمدة ثلاثة اشهر');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_amount', '50000')
+            ->assertJsonPath('draft.suggested_currency', 'SYP')
+            ->assertJsonPath('draft.suggested_note', 'لمدة ثلاثة اشهر')
+            ->assertJsonPath('draft.suggested_transaction_type', 'expense')
+            ->assertJsonPath('category_suggestion.category', 'rent');
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_yaman_monthly_rent_sentence_gives_one_item_and_ambiguity_warning(): void
+    {
+        $this->stubStt('دفعت ايجار محل 3000 الاف لمدة 3 اشهر كل شهر الف');
+        $r = $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_amount', '3000')
+            ->assertJsonPath('draft.suggested_transaction_type', 'expense')
+            ->assertJsonPath('category_suggestion.category', 'rent')
+            ->assertJsonPath('draft.items_mismatch', false)
+            ->assertJsonPath('draft.suggested_items', [['description' => 'إيجار محل (شهري)', 'quantity' => 3, 'unit_price' => 1000, 'total' => 3000]]);
+        $this->assertStringContainsString('لمدة 3 اشهر', $r->json('draft.suggested_note'));
+        $this->assertNotNull($r->json('draft.suggested_amount_warning'));
+        $this->assertDatabaseCount('financial_transactions', 0);
+        $this->assertDatabaseCount('transaction_items', 0);
+    }
+
+    public function test_multiple_goods_sentence_gives_separate_items(): void
+    {
+        $this->stubStt('اشتريت 2 كرسي بـ500 وطاولة بـ1000');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_amount', '2000')
+            ->assertJsonPath('draft.items_mismatch', false)
+            ->assertJsonPath('draft.suggested_amount_warning', null)
+            ->assertJsonPath('draft.suggested_items', [
+                ['description' => 'كرسي', 'quantity' => 2, 'unit_price' => 500, 'total' => 1000],
+                ['description' => 'طاولة', 'quantity' => 1, 'unit_price' => 1000, 'total' => 1000],
+            ]);
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_clear_sentence_has_no_items_and_no_warning(): void
+    {
+        $this->stubStt('دفعت اجار محل 50 الف ليرة سوريا لمدة ثلاثة اشهر');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_items', [])
+            ->assertJsonPath('draft.items_mismatch', false)
+            ->assertJsonPath('draft.suggested_amount_warning', null);
+    }
+
+    public function test_yaman_real_windows_transcript_draft(): void
+    {
+        $this->stubStt('دفعت خمسين ألف ليرائي جر محل اليوم عن ثلاث شهور');
+        $this->send()->assertOk()
+            ->assertJsonPath('draft.suggested_amount', '50000')
+            ->assertJsonPath('draft.suggested_currency', 'SYP')
+            ->assertJsonPath('draft.suggested_counterparty', null)
+            ->assertJsonPath('draft.suggested_note', 'عن ثلاث شهور')
+            ->assertJsonPath('draft.suggested_transaction_type', 'expense')
+            ->assertJsonPath('category_suggestion.category', 'rent');
+        $this->assertDatabaseCount('financial_transactions', 0);
+    }
+
+    public function test_no_spoken_currency_suggests_business_base_currency(): void
+    {
+        config(['bookkeeping.default_currency' => 'USD']);
+        $this->stubStt('دفعت مية اجار');
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_currency', 'USD')->assertJsonPath('draft.suggested_currency_source', 'default');
+    }
+
+    public function test_no_spoken_currency_and_no_base_currency_falls_back_to_syp(): void
+    {
+        config(['bookkeeping.default_currency' => null]);
+        $this->stubStt('دفعت مية اجار');
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_currency', 'SYP')->assertJsonPath('draft.suggested_currency_source', 'default');
+    }
+
+    public function test_spoken_currency_wins_over_base(): void
+    {
+        config(['bookkeeping.default_currency' => 'USD']);
+        $this->stubStt('دفعت مية ليرا اجار');
+        $this->send()->assertOk()->assertJsonPath('draft.suggested_currency', 'SYP')->assertJsonPath('draft.suggested_currency_source', 'spoken');
+    }
+
+    public function test_voice_fuzzy_variants_end_to_end(): void
+    {
+        foreach (['دفعت مية ليرا جر محل', 'دفعت مية ليرائي جر محل', 'دفعت مية ليره ئي جر', 'دفعت مية لير جر محل'] as $t) {
+            $this->stubStt($t);
+            $this->send()->assertOk()
+                ->assertJsonPath('draft.suggested_currency', 'SYP')
+                ->assertJsonPath('draft.suggested_currency_source', 'spoken')
+                ->assertJsonPath('draft.suggested_transaction_type', 'expense')
+                ->assertJsonPath('category_suggestion.category', 'rent');
+        }
+    }
+
+    public function test_encoding_failure_returns_clear_message(): void
+    {
+        $w = new class extends WhisperCppTranscriber
+        {
+            protected function modelExists(string $path): bool
+            {
+                return true;
+            }
+
+            protected function makeProcess(array $command): Process
+            {
+                return new Process(['php', '-r', 'echo "?????? ?????? ??????";']);
+            }
+        };
+        $this->app->instance(SpeechToText::class, $w);
+        $this->send()->assertOk()->assertJsonPath('ai_available', false)->assertJsonPath('draft.raw_text', null)
+            ->assertJsonPath('draft.needs_review', true)->assertJsonPath('message', fn ($m) => str_contains($m, 'ترميز'));
+    }
+
     public function test_unavailable_stt_deletes_audio_and_returns_empty_draft(): void
     {
         $stub = $this->stubStt(null);
@@ -153,6 +296,15 @@ class VoiceDraftTest extends TestCase
         $w = new class extends WhisperCppTranscriber
         {
             public array $cmd = [];
+
+            protected function modelExists(string $path): bool
+
+            {
+
+                return true;
+
+            }
+
 
             protected function makeProcess(array $command): Process
             {
@@ -216,5 +368,112 @@ class VoiceDraftTest extends TestCase
     {
         $this->stubStt(null);
         $this->send()->assertOk()->assertJsonPath('draft.suggested_transaction_type', null)->assertJsonPath('type', 'expense');
+    }
+
+    public function test_voice_rent_sentence_suggests_rent_category(): void
+    {
+        $this->stubStt('دفعت خمسين الف ليرة اجار محل اليوم');
+        $this->send()->assertOk()->assertJsonPath('category_suggestion.category', 'rent')->assertJsonPath('type', 'expense');
+    }
+
+    public function test_voice_rent_variants_map_to_rent(): void
+    {
+        foreach (['دفعت أجار المحل', 'دفعت إيجار المحل', 'دفعت ايجار المحل'] as $t) {
+            $this->stubStt($t);
+            $this->send()->assertOk()->assertJsonPath('category_suggestion.category', 'rent');
+        }
+    }
+
+    public function test_voice_food_sentence_suggests_meals(): void
+    {
+        $this->stubStt('دفعت عشرين الف ليرة بيتزا وعصير بالمطعم');
+        $this->send()->assertOk()->assertJsonPath('category_suggestion.category', 'meals');
+    }
+
+    public function test_voice_unknown_sentence_has_no_category(): void
+    {
+        $this->stubStt('دفعت خمسين الف ليرة');
+        $this->send()->assertOk()->assertJsonPath('category_suggestion', null);
+    }
+
+    public function test_voice_category_never_outside_config(): void
+    {
+        config(['bookkeeping.categories.expense' => ['other' => 'أخرى']]);
+        $this->stubStt('دفعت خمسين الف ليرة اجار محل اليوم');
+        $this->send()->assertOk()->assertJsonPath('category_suggestion', null);
+    }
+
+    // ---- transcript input (browser speech, no whisper) ----
+
+    private function neverStt(): void
+    {
+        $this->app->instance(SpeechToText::class, new class implements SpeechToText
+        {
+            public function name(): string
+            {
+                return 'whisper';
+            }
+
+            public function transcribe(string $path, string $mimeType): ?string
+            {
+                throw new \RuntimeException('whisper must not be called for transcripts');
+            }
+        });
+    }
+
+    private function sendText(array $data, ?User $u = null, ?Enterprise $e = null)
+    {
+        return $this->actingAs($u ?? $this->sme)->post(route('ai.voice-drafts.store', $e ?? $this->enterprise), $data, ['Accept' => 'application/json']);
+    }
+
+    public function test_transcript_goes_to_parser_without_whisper(): void
+    {
+        $this->neverStt();
+        $r = $this->sendText(['transcript' => '  دفعت ايجار محل 3000 الاف لمدة 3 اشهر كل شهر الف  ', 'source' => 'browser_speech'])->assertOk();
+        $d = $r->json('draft');
+        $this->assertSame('3000', $d['suggested_amount']);
+        $this->assertCount(1, $d['suggested_items']);
+        $this->assertEquals(3, $d['suggested_items'][0]['quantity']);
+        $this->assertEquals(1000, $d['suggested_items'][0]['unit_price']);
+        $this->assertArrayHasKey('items_mismatch', $d);
+        $this->assertArrayHasKey('suggested_amount_warning', $d);
+        $this->assertSame('browser_speech', $d['input_source']);
+        $this->assertSame('voice', $d['source']);
+        $this->assertSame('دفعت ايجار محل 3000 الاف لمدة 3 اشهر كل شهر الف', $d['raw_text']);
+        $log = AuditLog::query()->where('action', 'ai.voice_draft.created')->latest('id')->first();
+        $this->assertSame('browser_speech', $log->context['input_source']);
+    }
+
+    public function test_transcript_validation(): void
+    {
+        $this->neverStt();
+        $this->sendText(['transcript' => 'دفعت الف', 'source' => 'browser_speech', 'audio' => $this->audio()])->assertStatus(422);
+        $this->sendText([])->assertStatus(422)->assertJsonValidationErrors(['audio', 'transcript']);
+        $this->sendText(['transcript' => str_repeat('ا', 1001), 'source' => 'browser_speech'])->assertStatus(422)->assertJsonValidationErrors('transcript');
+        $this->sendText(['transcript' => '   ', 'source' => 'browser_speech'])->assertStatus(422);
+        $this->sendText(['transcript' => 'دفعت الف'])->assertStatus(422)->assertJsonValidationErrors('source');
+        $this->sendText(['transcript' => 'دفعت الف', 'source' => 'whisper'])->assertStatus(422)->assertJsonValidationErrors('source');
+        $this->sendText(['transcript' => str_repeat('ا', 1000), 'source' => 'browser_speech'])->assertOk();
+    }
+
+    public function test_transcript_access_flag_and_rate_limit(): void
+    {
+        $this->neverStt();
+        $ok = ['transcript' => 'دفعت الف', 'source' => 'browser_speech'];
+        $other = Enterprise::query()->create(['business_name' => 'أخرى', 'location' => 'damascus']);
+        $this->sendText($ok, null, $other)->assertForbidden();
+        $this->sendText($ok, $this->userWithRole(UserRole::SmeUser))->assertForbidden();
+        config(['ai.voice.enabled' => false]);
+        $this->sendText($ok)->assertNotFound();
+    }
+
+    public function test_transcript_shares_voice_rate_limit(): void
+    {
+        $this->neverStt();
+        $ok = ['transcript' => 'دفعت الف', 'source' => 'browser_speech'];
+        for ($i = 0; $i < 10; $i++) {
+            $this->sendText($ok)->assertOk();
+        }
+        $this->sendText($ok)->assertStatus(429);
     }
 }

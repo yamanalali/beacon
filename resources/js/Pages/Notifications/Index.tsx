@@ -1,146 +1,101 @@
 import { Link, router } from "@inertiajs/react";
+import { useState } from "react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
-import { Pagination } from "../../Components/Data/Pagination";
-import type { Paginator } from "../../Components/Data/DataTable";
-import { useJsonAction } from "../../hooks/useJsonAction";
-import { displayDate } from "../Ai/shared";
+import { FilterChips, Pager, shortDate, withQuery, type PaginatedProps } from "../../Components/Ai/aiShared";
+import { postJson } from "../../Components/Ai/http";
 
-type Notification = {
+export type NotificationRow = {
     id: string;
-    data: {
-        title?: string;
-        message?: string;
-        type?: string;
-        enterprise_public_id?: string;
-    };
+    data: { type?: string; title?: string; message?: string; enterprise_public_id?: string | null; due_date?: string | null; [k: string]: unknown };
     read_at: string | null;
     created_at: string | null;
 };
-export default function Index({
-    notifications,
-    unread_count,
-    filters,
-}: {
-    notifications: Paginator<Notification>;
-    unread_count: number;
-    filters: { filter: string | null };
-}) {
-    const { request, busy, error } = useJsonAction();
-    const links =
-        "meta" in notifications
-            ? (notifications.meta.links ?? [])
-            : notifications.links;
+
+type Props = { notifications: PaginatedProps<NotificationRow>; unread_count: number; filters: { filter?: string | null }; fetchImpl?: typeof fetch };
+
+const ICONS: Record<string, string> = { compliance_deadline: "bi-calendar-event" };
+
+function targetHref(n: NotificationRow): string | null {
+    if (n.data.type === "compliance_deadline" && n.data.enterprise_public_id) return `/enterprises/${n.data.enterprise_public_id}/compliance`;
+    return null;
+}
+
+export default function Index({ notifications, unread_count, filters, fetchImpl }: Props) {
+    const [readIds, setReadIds] = useState<Set<string>>(new Set());
+    const [error, setError] = useState<string | null>(null);
+    const unread = Math.max(0, unread_count - readIds.size);
+
+    async function markRead(n: NotificationRow) {
+        setError(null);
+        const r = await postJson(`/notifications/${n.id}/read`, null, fetchImpl);
+        if (r.ok) {
+            setReadIds((s) => new Set(s).add(n.id));
+            router.reload({ only: ["unread_count"] });
+        } else setError(r.message);
+    }
+
     return (
         <AppLayout title="الإشعارات">
-            <div className="app-page">
-                <PageHeader
-                    title="الإشعارات"
-                    description={
-                        unread_count
-                            ? `لديك ${unread_count} إشعار غير مقروء.`
-                            : "تابع التذكيرات والتحديثات الخاصة بك."
-                    }
+            <div className="app-page d-flex flex-column gap-3">
+                <PageHeader title="الإشعارات" description={unread > 0 ? `لديك ${unread} إشعار غير مقروء.` : "لا توجد إشعارات غير مقروءة."} />
+                <FilterChips
+                    label="تصفية الإشعارات"
+                    current={filters.filter ?? null}
+                    options={[
+                        { value: null, label: "الكل" },
+                        { value: "unread", label: "غير المقروءة" },
+                    ]}
+                    hrefFor={(v) => withQuery("/notifications/page", { filter: v })}
                 />
-                <nav className="d-flex gap-2 mb-3" aria-label="تصفية الإشعارات">
-                    <Link
-                        href="/notifications/page"
-                        className={`btn ${filters.filter !== "unread" ? "btn-primary" : "btn-light"}`}
-                        aria-current={
-                            filters.filter !== "unread" ? "page" : undefined
-                        }
-                    >
-                        الكل
-                    </Link>
-                    <Link
-                        href="/notifications/page?filter=unread"
-                        className={`btn ${filters.filter === "unread" ? "btn-primary" : "btn-light"}`}
-                        aria-current={
-                            filters.filter === "unread" ? "page" : undefined
-                        }
-                    >
-                        غير المقروءة ({unread_count})
-                    </Link>
-                </nav>
                 {error ? (
-                    <div className="alert alert-danger" role="alert">
+                    <div className="alert alert-danger mb-0" role="alert">
                         {error}
                     </div>
                 ) : null}
                 <SectionCard>
-                    {notifications.data.length ? (
-                        <ul className="list-unstyled mb-0 d-flex flex-column gap-3">
-                            {notifications.data.map((n) => (
-                                <li
-                                    key={n.id}
-                                    className={`border rounded-3 p-3 ${!n.read_at ? "border-primary-subtle bg-primary-subtle" : ""}`}
-                                >
-                                    <div className="d-flex flex-wrap justify-content-between gap-2">
-                                        <h2 className="h6 mb-0">
-                                            {n.data.title ?? "إشعار جديد"}
-                                            {!n.read_at ? (
-                                                <span className="badge text-bg-primary ms-2">
-                                                    جديد
-                                                </span>
-                                            ) : null}
-                                        </h2>
-                                        <span className="small text-body-secondary">
-                                            {displayDate(n.created_at)}
-                                        </span>
-                                    </div>
-                                    <p className="mt-2 text-break">
-                                        {n.data.message ?? ""}
-                                    </p>
-                                    <div className="d-flex flex-wrap gap-2">
-                                        {n.data.type ===
-                                            "compliance_deadline" &&
-                                        n.data.enterprise_public_id ? (
-                                            <Link
-                                                href={`/enterprises/${encodeURIComponent(n.data.enterprise_public_id)}/compliance`}
-                                                className="btn btn-sm btn-outline-primary"
-                                            >
-                                                متابعة الامتثال
-                                            </Link>
-                                        ) : null}
-                                        {!n.read_at ? (
-                                            <button
-                                                type="button"
-                                                className="btn btn-sm btn-light"
-                                                disabled={busy}
-                                                onClick={async () => {
-                                                    if (
-                                                        await request(
-                                                            "post",
-                                                            `/notifications/${n.id}/read`,
-                                                        )
-                                                    )
-                                                        router.reload({
-                                                            only: [
-                                                                "notifications",
-                                                                "unread_count",
-                                                            ],
-                                                        });
-                                                }}
-                                            >
-                                                تحديد كمقروء
-                                            </button>
-                                        ) : null}
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+                    {notifications.data.length === 0 ? (
+                        <EmptyState icon="bi-bell" title={filters.filter === "unread" ? "لا توجد إشعارات غير مقروءة" : "لا توجد إشعارات بعد"} />
                     ) : (
-                        <EmptyState
-                            title={
-                                filters.filter === "unread"
-                                    ? "كل إشعاراتك مقروءة"
-                                    : "لا توجد إشعارات بعد"
-                            }
-                        />
+                        <ul className="list-group list-group-flush">
+                            {notifications.data.map((n) => {
+                                const isRead = Boolean(n.read_at) || readIds.has(n.id);
+                                const href = targetHref(n);
+                                return (
+                                    <li key={n.id} className="list-group-item px-0 d-flex gap-3 align-items-start" data-unread={isRead ? undefined : "true"}>
+                                        <span className="app-quick-link__icon flex-shrink-0" aria-hidden="true">
+                                            <i className={`bi ${ICONS[n.data.type ?? ""] ?? "bi-bell"}`} />
+                                        </span>
+                                        <div className="flex-grow-1 min-w-0">
+                                            <div className="d-flex flex-wrap justify-content-between gap-2">
+                                                <strong className={isRead ? "fw-normal" : undefined}>
+                                                    {isRead ? null : <span className="visually-hidden">غير مقروء: </span>}
+                                                    {n.data.title ?? "إشعار"}
+                                                </strong>
+                                                <bdi dir="ltr" className="small text-body-secondary">{shortDate(n.created_at)}</bdi>
+                                            </div>
+                                            {n.data.message ? <p className="mb-2 small">{n.data.message}</p> : null}
+                                            <div className="d-flex flex-wrap gap-2">
+                                                {href ? (
+                                                    <Link href={href} className="btn btn-sm btn-outline-secondary">
+                                                        فتح
+                                                    </Link>
+                                                ) : null}
+                                                {!isRead ? (
+                                                    <button type="button" className="btn btn-sm btn-link px-0" onClick={() => markRead(n)}>
+                                                        تعليم كمقروء
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     )}
-                    <Pagination links={links} />
+                    <Pager meta={notifications.meta} links={notifications.links} />
                 </SectionCard>
             </div>
         </AppLayout>

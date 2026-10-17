@@ -4,6 +4,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
+import { AssessmentResult } from "../../Components/Readiness/AssessmentResult";
 
 type Result = {
     id: number;
@@ -18,7 +19,14 @@ type Result = {
     target_date: string | null;
 };
 
+import type { ReadinessScoreSnapshot, ReadinessScoreSnapshotWithResult, ReadinessSnapshotResult } from "../../types/readiness-snapshot";
+
 type Props = {
+    snapshot?: ReadinessScoreSnapshotWithResult | null;
+    /** Frozen (finalized) or live (draft) result in one shape. */
+    result?: ReadinessSnapshotResult | null;
+    snapshotHistory?: ReadinessScoreSnapshot[];
+    canRecalculate?: boolean;
     enterprise: { public_id: string; business_name: string };
     assessment: { public_id: string; status: string; rule_set: { version_number: number; name_ar: string }; finalized_at: string | null };
     evaluation: { score: number | null; mandatory_conditions_met: boolean | null; earned_weight: number; counted_weight: number; unmet_mandatory: string[]; needs_review: string[]; missing: string[] };
@@ -84,12 +92,17 @@ function ResultRow({ result, assessmentId, outcomes, people, canEdit }: { result
     );
 }
 
-export default function Assessment({ enterprise, assessment, evaluation, results, outcomes, people, canEdit, disclaimer }: Props) {
+export default function Assessment({ enterprise, assessment, evaluation, results, outcomes, people, canEdit, disclaimer, result = null, snapshot = null, snapshotHistory = [], canRecalculate = false }: Props) {
     return (
         <AppLayout title="تقييم الجاهزية">
             <div className="app-page">
                 <PageHeader title="تقييم الجاهزية" description={`${enterprise.business_name} - ${assessment.rule_set.name_ar} (نسخة ${assessment.rule_set.version_number})`} />
                 <div className="alert alert-info">{disclaimer}</div>
+                {result || snapshot ? (
+                    <SectionCard title="نتيجة الجاهزية">
+                        <AssessmentResult result={result} snapshot={snapshot} snapshotHistory={snapshotHistory} canRecalculate={canRecalculate} assessmentId={assessment.public_id} />
+                    </SectionCard>
+                ) : null}
                 <SectionCard title="أساس التقييم">
                     <p className="mb-1">النتيجة: {evaluation.score !== null ? `${evaluation.score} من 100` : "غير محسوبة"}</p>
                     <p className="mb-1">الأوزان المستوفاة {evaluation.earned_weight} من أصل {evaluation.counted_weight} محسوبة.</p>

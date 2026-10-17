@@ -13,6 +13,7 @@ use App\Models\ReceiptExtraction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -30,10 +31,18 @@ class TesseractOcrTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Static `--list-langs` cache must not leak in from other OCR tests (order-dependent flake).
+        TesseractReceiptExtractor::flushLanguageCache();
         Storage::fake('local');
         $this->enterprise = Enterprise::query()->create(['business_name' => 'منشأة', 'location' => 'damascus']);
         $this->sme = $this->userWithRole(UserRole::SmeUser);
         $this->enterprise->members()->attach($this->sme->id);
+    }
+
+    protected function tearDown(): void
+    {
+        TesseractReceiptExtractor::flushLanguageCache();
+        parent::tearDown();
     }
 
     private function upload(string $name = 'r.jpg'): Document
@@ -60,6 +69,12 @@ class TesseractOcrTest extends TestCase
                 $this->commands[] = $command;
 
                 return new Process(['php', '-r', 'fwrite(STDOUT, base64_decode($argv[1])); exit((int) $argv[2]);', base64_encode((string) $this->out), (string) $this->exit]);
+            }
+
+            protected function makeLanguageProcess(array $command): Process
+            {
+                // Independent of the host tesseract install: both required languages present.
+                return new Process(['php', '-r', 'echo "ara\neng\n";']);
             }
         };
     }
@@ -150,18 +165,53 @@ class TesseractOcrTest extends TestCase
         $this->assertCount(1, $this->fakeAi->calls);
     }
 
+    /** Evaluate config/ai.php with explicit env values, independent of the local .env. */
+    private function aiConfigWith(array $vars): array
+    {
+        $saved = [];
+        foreach ($vars as $k => $v) {
+            $saved[$k] = [$_ENV[$k] ?? null, $_SERVER[$k] ?? null, getenv($k)];
+            if ($v === null) {
+                unset($_ENV[$k], $_SERVER[$k]);
+                putenv($k);
+            } else {
+                $_ENV[$k] = $_SERVER[$k] = $v;
+                putenv("$k=$v");
+            }
+        }
+        try {
+            return require base_path('config/ai.php');
+        } finally {
+            foreach ($saved as $k => [$e, $s, $g]) {
+                $e === null ? Arr::forget($_ENV, $k) : $_ENV[$k] = $e;
+                $s === null ? Arr::forget($_SERVER, $k) : $_SERVER[$k] = $s;
+                $g === false ? putenv($k) : putenv("$k=$g");
+            }
+        }
+    }
+
     public function test_local_env_defaults_to_tesseract(): void
     {
-        $this->assertSame('tesseract', (function () {
-            $_ENV['APP_ENV'] = 'local';
-            putenv('APP_ENV=local');
-            try {
-                return (require base_path('config/ai.php'))['ocr']['driver'];
-            } finally {
-                putenv('APP_ENV=testing');
-                $_ENV['APP_ENV'] = 'testing';
-            }
-        })());
-        $this->assertNull(config('ai.ocr.driver'));
+        $this->assertSame('tesseract', $this->aiConfigWith(['APP_ENV' => 'local', 'AI_OCR_DRIVER' => null])['ocr']['driver']);
+        $this->assertNull($this->aiConfigWith(['APP_ENV' => 'testing', 'AI_OCR_DRIVER' => null])['ocr']['driver']);
+        $this->assertSame('manual', $this->aiConfigWith(['APP_ENV' => 'local', 'AI_OCR_DRIVER' => 'manual'])['ocr']['driver']);
+    }
+
+    public function test_empty_env_values_fall_back_to_defaults(): void
+    {
+        $c = $this->aiConfigWith(['APP_ENV' => 'local', 'AI_OCR_DRIVER' => '', 'TESSERACT_PATH' => '', 'TESSERACT_PSM' => '',
+            'AI_OCR_PREPROCESS' => '', 'AI_STT_DRIVER' => '', 'WHISPER_PATH' => '', 'WHISPER_MODEL' => '', 'TESSERACT_TESSDATA_DIR' => '']);
+        $this->assertSame('tesseract', $c['ocr']['driver']);
+        $this->assertSame('tesseract', $c['ocr']['tesseract_path']);
+        $this->assertSame('6', $c['ocr']['psm']);
+        $this->assertTrue($c['ocr']['preprocess']);
+        $this->assertSame('whisper', $c['voice']['stt_driver']);
+        $this->assertSame('whisper-cli', $c['voice']['whisper_path']);
+        $this->assertSame('', $c['voice']['whisper_model']);
+        $this->assertSame('large-v3-turbo', $c['voice']['whisper_default_model']);
+        $this->assertEmpty($c['ocr']['tessdata_dir'], 'tessdata dir stays optional/empty');
+
+        // explicit "false" is still respected
+        $this->assertFalse($this->aiConfigWith(['APP_ENV' => 'local', 'AI_OCR_PREPROCESS' => 'false'])['ocr']['preprocess']);
     }
 }

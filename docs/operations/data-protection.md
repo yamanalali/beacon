@@ -15,7 +15,7 @@ Status: DRAFT procedures. Every period and approval below is **TODO: BUSINESS DE
 | Encrypted transmission | `BEACON_FORCE_HTTPS=true` -> HTTPS redirect + HSTS (`EnforceHttps`), `SESSION_SECURE_COOKIE=true` |
 | Protected stored backups | Backups encrypted (AES via Laravel Encrypter), stored on private disk |
 | Daily backup configuration / restore testing | See `backup-and-restore.md` |
-| Administrator MFA | **Not implemented - TODO: BUSINESS DECISION REQUIRED** (factor type, recovery codes, grace period) |
+| Administrator MFA | Implemented (TOTP + one-time recovery codes, section 53) behind `BEACON_ADMIN_MFA` (`config('mfa.enabled')`), **off by default**. Status shown on `/operations/security`. **TODO: BUSINESS DECISION REQUIRED** - whether to switch it on in production, grace period, and lost-device reset process (today recovery codes only, no admin reset). |
 
 The technical administrator can review the current environment at `/operations/security`.
 

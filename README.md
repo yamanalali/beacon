@@ -1,141 +1,164 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Beacon
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+نظام Laravel 12 مع Inertia وReact لمسك الدفاتر، وتقييم الجاهزية، والمطابقة مع مؤسسات التمويل الأصغر.
+القرارات المعتمدة موجودة بـ[`BEACON-DECISIONS.md`](BEACON-DECISIONS.md)، والمتطلبات الكاملة بـ`.cursor/rules/01-product-functional-requirements.mdc`.
 
-## About Laravel
+## وين وصلنا
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+آخر تحديث: 16 أكتوبر 2026، و`main` على `ecc3595`. الشغل موقوف حالياً بطلب يمان.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### ✅ انتهى (مدموج بـ`main`)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+**الحسابات والمعاملات المالية**
+- [x] تسجيل المعاملات (دخل/مصروف، نقدي وآجل، تسديدات جزئية) مع تصحيح المعاملة بدل الحذف
+- [x] بنود الفاتورة `transaction_items`: الواجهة والـAPI وتحذير عدم التطابق (#56، #58، #59)
+- [x] تصنيف `meals` وعملة AED للقراءة فقط (#46، #47)، وتنسيق موحّد للمبالغ `formatMoney` (#50)
+- [x] زر التسجيل السريع: صورة، صوت، يدوي (#34)
+- [x] التقارير المالية: الأرباح والخسائر، التدفق النقدي، المبيعات، المصاريف، الذمم المدينة والدائنة، مع فلاتر وطباعة وتصدير CSV/Excel
+- [x] الواجهة: نظام #13، RTL كامل، والجداول بتصير بطاقات عالموبايل
 
-## Learning Laravel
+**الفواتير بالـOCR (Tesseract)**
+- [x] صفحة التقاط الفاتورة وشاشة المراجعة (#29)، وقائمة المسودات الناطرة مراجعة (#35)
+- [x] تجهيز الصورة (تدوير، رمادي، تكبير، deskew) وbenchmark اصطناعي (#32)، وفحص `ara` (#44)
+- [x] اقتراح التصنيف من البنود (#41)، والحقول الإجبارية قبل التأكيد بلا قيم افتراضية (#38، #42، #43)
+- [x] البنود والمجموع من سطر «اجمالي» فقط، وقارئ الفواتير المسطّرة (#72)
+- [x] رقم الفاتورة القابل للتعديل (#76)
+- [x] اسم الزبون بفواتير المبيع («مطلوب من السادة / …») بيصير الطرف التاني
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+**الصوت (whisper.cpp)**
+- [x] لغة عربية ثابتة، تحويل الأرقام المحكية لأرقام، كلمات العملة والتاريخ الصريحة فقط (#45، #53)
+- [x] البائع، المدة، الإيجار، العملة الافتراضية، اقتراح التصنيف (#48، #49، #54، #57)
+- [x] البنود وقاعدة «الاف» وتحذيرات المبلغ (#66، #70)
+- [x] التكرار («كل شهر X»، «بالشهر X») بيتسجّل كملاحظة شهري/أسبوعي/سنوي
+- [x] استقبال نص المتصفح `source=browser_speech` بالسيرفر (#71)
+- [x] اختيار موديل whisper من الـconfig `WHISPER_MODEL`، وlog لما يكون ملف الموديل مو موجود، ومصحّح كلمات المصاري (#79، #89)
+- [x] الكلمات العامة متل «زبون، عميل» ما بتصير الطرف التاني (#86)
+- [x] شيل اللام قبل الألقاب بالطرف التاني، «لابو سمير» (#90)
+- [x] تنبيه التاريخ القديم أو المستقبلي `suggested_date_warning` بالباك (#87)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+**الداشبورد**
+- [x] داشبورد SME وBeacon على بيانات حقيقية من السيرفر (#28، #31، #36)
+- [x] مجاميع لكل عملة بلا تحويل وعدد الناطر مراجعة (#80، #83)، وبطاقة لكل عملة بالواجهة (#85)
 
-## Laravel Sponsors
+**الجاهزية والتقييم**
+- [x] snapshots مجمّدة للنتيجة وإعادة حساب يدوية مع تاريخ (#63، #64)
+- [x] Scoring v2: المحاور والفئات وأنواع المعايير (#65)، والمحرك والـAPI للأدمن (#74)
+- [x] واجهة بناء الـscoring matrix (#77)، ووزن المحور الفاضي null = حصة متساوية (#82، #88)
+- [x] صفحة النتيجة: رادار، المحاور، لون الفئة، تاريخ النسخ، بلا ids (#75، #84)
+- [x] المحرك: الفئات، المعايير الحاجبة، التفصيل، اقتراحات التحسين، المعاينة، وما في نشر بلا فئات (#74)
+- [x] صفحات الجاهزية والامتثال على نظام #13 (#4، #61)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+**الإحالة ومؤسسات التمويل**
+- [x] مطابقة MFI على الـsnapshot الحالي (#64)، وإصلاح seeder الـMFI التجريبي (#30)
+- [x] حزمة الإحالة مقروءة: المنشأة، الملخص المالي لكل عملة، الوثائق، الامتثال (#73، #78، #81، #88)
+- [x] الموافقة (consent) وسجل تغيير حالة الإحالة
 
-### Premium Partners
+**الأمان والتشغيل**
+- [x] عزل البيانات بين المنشآت: tests مصفوفة وتدقيق 131 endpoint بـ`docs/tenant-isolation-audit.md` (#69)
+- [x] السايد بار والموبايل حسب `auth.can` (#68)، وصلاحيات الكاميرا والمايك (#37)
+- [x] سجل التدقيق مع تصدير، إدارة الجلسات، تعطيل الحسابات، HTTPS/HSTS
+- [x] MFA (TOTP) للأدمن موجود بس مطفي افتراضياً (`BEACON_ADMIN_MFA=false`)
+- [x] الأقسام 53-56 الأمان والبيانات والنسخ (#10)، وMFA للأدمن (#12)
+- [x] نسخ احتياطي مشفّر مع restore-test يومي (`docs/operations/backup-and-restore.md`)
+- [x] سجل معالجي البيانات `DataControl::assertCanShare` (`docs/operations/data-protection.md`)
+- [x] صفحات أخطاء عربية (#33)، وصفحات المساعد والتصعيد والمعرفة والإشعارات (#39)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+> كل PR من #47 لـ#90 جرّبو QA فوق `main` قبل الدمج.
 
-## Contributing
+### 🔄 قيد العمل (موقوف بطلب يمان بـ16 أكتوبر)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- [ ] `fix/water-hundred-warning` (`02ab183`): تنبيه `amount_warning` لجمل متل «3 مياه ألف». الكود جاهز وناطر QA
+- [ ] `feature/list-exports`: تصدير CSV/Excel من قوائم المعاملات والمنشآت
+- [ ] `fix/security-mfa-config` (`a225648`، مو مرفوع): ملاحظة MFA بصفحة المستخدمين صارت تقرا من الـconfig
+- [ ] `feature/review-date-warning`: عرض تنبيه التاريخ بشاشة المراجعة (الباك جاهز بـ#87)
+- [ ] `test/acceptance-55-59`: اختبارات القبول وعزل الصلاحيات، بلّش فيها QA
+- [ ] نقل جداول الجاهزية والأقسام 53-56 للـDataTable المشترك، وتصحيح MFA بـ`docs/operations/data-protection.md`
+- [ ] `feature/browser-speech` (`c2d4e99`): التعرف على الصوت بكروم. يمان وافق إنو الصوت يروح لـGoogle، وناطر QA قبل الدمج
 
-## Code of Conduct
+### ⛔ باقي قبل الإطلاق
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**قرارات ناطرة يمان**
+- [ ] التبديل لموديل turbo بـ`.env` على `beaconfin` (هلق شغّال على `small`)
+- [ ] موافقة إرسال الصوت لـGoogle (`feature/browser-speech`)
 
-## Security Vulnerabilities
+**قرارات Beacon (`TODO: BUSINESS DECISION REQUIRED` بالكود)**
+- [ ] مزوّد الذكاء الاصطناعي المعتمد والموديل وحد الكلفة (`config/ai.php`، `AiServiceProvider`)، وحد الثقة للـOCR والتصنيف
+- [ ] كل معالجي البيانات الخارجيين غير معتمدين: `BEACON_DPA_OCR_APPROVED` وAI وSTT وEMAIL وBACKUP كلهن `false` (`config/operations.php`)
+- [ ] عملة التقارير وتحويل العملات ومصدر سعر الصرف (مؤجّل، `SmeDashboardData`)، والمنطقة الزمنية للتقارير (التطبيق UTC، فأول 3 ساعات من الشهر بتنحسب عالشهر الماضي)
+- [ ] فترات التقارير والرصيد الافتتاحي (`FinancialReportService`)
+- [ ] معايير التقييم والأوزان والفئات (`ReadinessAdminController`)، وتعريف المنشأة «النشطة»
+- [ ] محتوى حزمة الإحالة وفترة الملخص (هلق 12 شهر)، `ai.review.old_date_days` (هلق 365)، حقول نتيجة التمويل، ومين بيسجّلها
+- [ ] نطاق المساعد الذكي والتصعيد وقاعدة المعرفة والإشعارات (الصفحات موجودة من #39 بس النطاق ما انحسم): حالات التصعيد ومستلميه، وقنوات الإشعارات (هلق database بس) — TODO: BUSINESS DECISION REQUIRED
+- [ ] MFA: الأدوار والإلزام وفترة السماح وطريقة الاسترجاع
+- [ ] مدة الاحتفاظ بالبيانات والنسخ الاحتياطي، والموقع الخارجي للنسخ (`beacon:backup:prune` رافض يشتغل)
+- [ ] محرك قاعدة البيانات والاستضافة للإنتاج (هلق SQLite بس)
+- [ ] أهداف الأداء: عدد المستخدمين المتزامنين وزمن الاستجابة (القسم 58)
+- [ ] قرارات الصلاحيات التانية المعلّمة بالكود (السياسات، الأرشفة، الانسحاب، المواقع المسموحة)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+**فجوات بالكود مقابل المتطلبات**
+- [ ] العمل بلا إنترنت والمزامنة (الأقسام 47-49): في `useOnlineStatus` و`SyncStatusBadge`، و`RetryPanel` موجود بس مو مستعمل، وما في service worker ولا طابور محلي ولا منع تكرار عند الرجوع
+- [ ] تصدير داشبورد Beacon (القسم 39): `exportUrl` لسا `null`
+- [ ] عرض الفئة (`band`) بحزمة الإحالة
+- [ ] اقتراحات الوسوم بالذكاء الاصطناعي (مؤجّلة)
+- [ ] صفحات تسجيل الدخول والـMFI والمطابقة والأخطاء والأدمن على نظام #13، ونقل جداول الباك للـDataTable المشترك
+- [ ] `invoice_number` كعمود مستقل (موقوف بقرار، هلق بادئة بالملاحظة)
+- [ ] مقارنة Whisper للهجات (بدها تسجيلات من يمان)
 
-## Demo accounts (local only)
+**الإنتاج والتسليم (الأقسام 56-64)**
+- [ ] ⛔ حاجب للإطلاق: اختبارات القبول وعزل الصلاحيات للأقسام 55 و57 و58 و59 (حالات العزل الأمنية، الاختبار والقبول، السيناريوهات الإلزامية، والـdefects الحاجبة)
+- [ ] سيناريوهات القبول الإلزامية: دفتر عينة بيتطابق مع التقارير والتصدير، اختبار أداء على ~200 منشأة
+- [ ] تمرين استرجاع نسخة احتياطية رسمي ببيئة منفصلة وتوقيع Beacon
+- [ ] جدولة `schedule:run` على السيرفر وتفعيل `BEACON_FORCE_HTTPS`
+- [ ] Pilot مع 10-15 منشأة
+- [ ] وثائق التسليم: تعليمات النشر، إعداد البيئة، المعمارية، الصلاحيات، دليل SME العربي، دليل الأدمن وMFI
+- [ ] ما في أي defect حاجب مفتوح (فقدان بيانات، مجاميع غلط، وصول غير مصرّح)
 
-Set `DEMO_PASSWORD` in your local `.env`, keep `APP_ENV=local`, then run:
+## 💡 اقتراحات ميزات إضافية
+
+اقتراحات الفريق بعد الإطلاق، وكل وحدة بدها قرار من يمان قبل ما نبلّش فيها:
+
+- **تذكير بالذمم:** تنبيه قبل موعد استحقاق الدين الآجل وبعده، مع رسالة جاهزة يبعتها صاحب المنشأة للزبون عالواتساب.
+- **المعاملات المتكررة الفعلية:** الإيجار والرواتب ينزلوا تلقائياً كمسودات كل شهر بدل ما تكون ملاحظة بس.
+- **الميزانية والأهداف:** حد شهري لكل تصنيف مصاريف وتنبيه لما يقرّب يخلص.
+- **توقع التدفق النقدي:** توقع بسيط للشهر الجاي من المتكرر والذمم المفتوحة.
+- **خطة تحسين الجاهزية:** تحويل اقتراحات التحسين لمهام بتتبع، وتبيّن قديش بتغيّر النتيجة.
+- **تقرير شهري PDF بالعربي:** ملخص بينبعت لصاحب المنشأة أول كل شهر.
+- **تعدد المستخدمين بالمنشأة:** محاسب أو موظف بصلاحيات محدودة (تسجيل بلا حذف أو تقارير).
+- **المخزون البسيط:** ربط بنود الفاتورة بأصناف وكميات للمحلات الصغيرة.
+- **الإدخال بالواتساب:** صورة الفاتورة أو رسالة صوتية عالواتساب بتصير مسودة. بدها موافقة معالج بيانات.
+- **تطبيق PWA مع العمل بلا إنترنت:** بيكمّل فجوة الأقسام 47-49.
+- **لوحة MFI:** المؤسسة بتشوف الإحالات وحالة كل وحدة وبتسجّل نتيجة التمويل بنفسها.
+
+- **سجل نشاط لكل معاملة وإحالة:** مين أنشأها أو أكّدها أو عدّلها ومن وين إجت. الجهات التمويلية بتطلبو.
+- **كشف التكرار:** تنبيه إذا نفس الفاتورة أو نفس المبلغ والطرف التاني انضافوا مرتين.
+- **أكتر من معاملة بتسجيل صوتي واحد،** وتعلّم من تصحيحات المستخدم لأسماء الموردين والبنود.
+- **رابط إحالة موقّع بينتهي،** والمنشأة فيها تلغيه، وAPI للـMFI بتوكن على الإحالات الموافق عليها بس.
+- **رسوم بيانية:** تطوّر علامة الجاهزية من الـsnapshots، والدخل والمصروف لآخر 12 شهر.
+- **إشعارات:** تغيّر فئة الجاهزية أو حالة الإحالة، وتذكير بالفواتير الناطرة أو بالانقطاع عن التسجيل، ومواعيد الامتثال.
+- **استيراد كشف حساب بنكي CSV،** ووضع داكن.
+- **للجودة:** CI على GitHub لكل PR، وtests بالمتصفح (Dusk أو Playwright) للصوت والفاتورة، ومجموعة جمل وصور مُولّدة لقياس الدقة مع كل تغيير.
+
+## التشغيل محلياً
+
+```bash
+composer install && npm install
+cp .env.example .env && php artisan key:generate
+php artisan migrate
+composer run dev
+```
+
+الاختبارات: `php artisan test` و`npx vitest run`.
+## بنود الفاتورة من الـOCR (اقتراحات)
+
+مسودة الإيصال فيها `suggested_items: [{description, quantity, unit_price, total}]`: الأرقام أرقام، والقيمة يلي ما انقرت `null`، وإذا ما في بنود `[]`. وفيها كمان `items_mismatch` (تحذير بس، ما بيمنع الحفظ) و`suggested_invoice_number` و`suggested_amount_warning`. المبلغ بيجي بس من سطر «اجمالي/الإجمالي/المجموع»، وإذا ما انقرا بيصير مجموع البنود، وإذا ما في بنود بيبقى فاضي مع تحذير. ما بينحفظ شي قبل التأكيد.
+
+- `AI_OCR_LINE_PASS=true`: قراءة كل سطر لحالو (`--psm 7`)، وبترجّع العناوين القصيرة متل «بيتزا 1».
+- `AI_OCR_TABLE_PASS=true`: قارئ الفواتير المسطّرة (م | البيان | الكمية | السعر | القيمة) بـPHP GD: بيلاقي خطوط الجدول، وبيربط الأعمدة من سطر العناوين، وبيقرا خلايا الأرقام بـwhitelist أرقام، وبيتأكد إنو الكمية × السعر = القيمة.
+
+Benchmark (صور اصطناعية، مو جزء من التستات):
 
 ```
-php artisan db:seed --class=DemoSeeder
+python3 scripts/ocr-benchmark/generate.py storage/app/ocr-benchmark 12 42 8 4   # إيصالات + بنود + فواتير جدول
+php artisan ocr:benchmark storage/app/ocr-benchmark --by-variant
+python3 scripts/ocr-benchmark/generate.py --table-fixture tests/fixtures/ocr/table-invoice-synthetic.png
 ```
-
-This creates one active account per role (emails/roles are in `config/demo.php`) plus a demo enterprise with finance data. The seeder is idempotent and refuses to run outside `APP_ENV=local`. No passwords are stored in the repository: the password is whatever you set in `DEMO_PASSWORD`; the full local credentials list is kept on the developer machine in `Desktop\DEMO-ACCOUNTS.md`.
-
-## Voice draft transaction (local Whisper)
-
-Off by default (`AI_VOICE_ENABLED=false`). When it's on, the user uploads a short voice note. It gets transcribed and parsed into a **suggested** transaction that the user reviews and saves through the normal transaction form. Nothing is ever saved automatically, and the recording is deleted right after transcription, including when transcription fails.
-
-- `AI_STT_DRIVER=whisper` (default) uses the local [whisper.cpp](https://github.com/ggml-org/whisper.cpp) CLI. The audio stays on the server, so it needs no `DataControl` approval.
-- `AI_STT_DRIVER=provider` uses the external AI provider. It goes through `DataControl::assertCanShare('speech_to_text', ['voice_recording'])`, which is off by default.
-- TODO: BUSINESS DECISION REQUIRED: languages (Arabic MSA + Levantine assumed), the STT provider (local Whisper assumed), and recording retention (immediate deletion assumed).
-- whisper.cpp reads WAV/MP3/OGG/FLAC. Browser `webm` recordings may need converting (ffmpeg) or recording as WAV.
-
-```
-AI_VOICE_ENABLED=true
-AI_STT_DRIVER=whisper
-WHISPER_PATH=whisper-cli
-WHISPER_MODEL=/full/path/ggml-small.bin
-WHISPER_LANGUAGE=ar
-```
-
-### Windows install (whisper.cpp)
-
-1. From https://github.com/ggml-org/whisper.cpp/releases, download `whisper-bin-x64.zip` and unzip it to `C:\whisper`. It contains `whisper-cli.exe`.
-2. Download a multilingual model (it must not be an `.en` model), e.g. `ggml-small.bin` from https://huggingface.co/ggerganov/whisper.cpp/tree/main, into `C:\whisper\models`.
-3. In `.env`, set `WHISPER_PATH="C:\whisper\whisper-cli.exe"` and `WHISPER_MODEL="C:\whisper\models\ggml-small.bin"`, plus `AI_VOICE_ENABLED=true`.
-4. Test it with `C:\whisper\whisper-cli.exe -m C:\whisper\models\ggml-small.bin -f sample.wav -l ar -nt`.
-5. Run `php artisan config:clear`.
-
-## Free local receipt OCR (Tesseract)
-
-Receipt OCR (section 15) can run fully **locally** with [Tesseract](https://github.com/tesseract-ocr/tesseract). The image is processed on Beacon's own server and never leaves it, so Tesseract is **not** a third-party processor and needs **no** `allowed_data` / `DataControl` approval. Any *external* OCR/AI provider still goes through `DataControl::assertCanShare`.
-
-- Default driver: `tesseract` when `APP_ENV=local`; elsewhere the manual (or AI) extractor unless `AI_OCR_DRIVER` is set.
-- Results are low-confidence suggestions only. Nothing is saved until the user reviews and confirms.
-- Images only (JPG/PNG/WEBP/TIFF/BMP/GIF); PDFs fall back to manual entry.
-
-`.env` keys:
-
-```
-AI_OCR_DRIVER=tesseract        # tesseract | ai | manual
-TESSERACT_PATH=tesseract       # full path on Windows, see below
-TESSERACT_LANGS=ara+eng
-```
-
-### Windows install
-
-1. Download the installer from UB Mannheim: https://github.com/UB-Mannheim/tesseract/wiki (e.g. `tesseract-ocr-w64-setup-5.x.exe`).
-2. Run it. On **Choose Components**, expand *Additional language data (download)* and tick **Arabic** (English is included by default).
-3. Keep the default folder `C:\Program Files\Tesseract-OCR`.
-4. In `.env` set: `TESSERACT_PATH="C:\Program Files\Tesseract-OCR\tesseract.exe"`
-5. Check in PowerShell: `& "C:\Program Files\Tesseract-OCR\tesseract.exe" --list-langs` should list `ara` and `eng`.
-6. Run `php artisan config:clear`.
-
-Linux: `sudo apt install tesseract-ocr tesseract-ocr-ara`.
-
-### OCR image preprocessing (optional ImageMagick)
-
-`AI_OCR_PREPROCESS=true` (default in local) cleans the image before Tesseract: it fixes orientation with Tesseract OSD (90/180/270°), converts to grayscale, upscales small images, normalises contrast and deskews. It uses the ImageMagick CLI when installed, otherwise PHP GD (no deskew), otherwise it skips the step. Temp files are always deleted. `TESSERACT_PSM=6` is the default.
-
-Windows: install ImageMagick from https://imagemagick.org/script/download.php#windows (the `x64 dynamic` installer) and tick **Add application directory to your system path**. If it isn't on PATH, set `MAGICK_PATH="C:\Program Files\ImageMagick-7.x.x-Q16-HDRI\magick.exe"`. Linux: `sudo apt install imagemagick`.
-
-Benchmark (synthetic receipts, not in the test suite):
-
-```
-python3 scripts/ocr-benchmark/generate.py storage/app/ocr-benchmark 12
-php artisan ocr:benchmark --preprocess=0 --psm= --by-variant   # baseline
-php artisan ocr:benchmark --preprocess=1 --psm=6 --by-variant  # current default
-```
-
-## AI data sharing (section 54)
-
-AI features stay **disabled in production** until `allowed_data` in `config/operations.php` is filled with the approved fields for each processor (`ai_assistant`, `ocr`, `insights`) and the processor is approved (`BEACON_DPA_*_APPROVED`). Every outbound AI call goes through `DataControl::assertCanShare`; when sharing is not approved no provider call is made and the feature falls back to its manual / "AI unavailable" path.
-
-Which fields are approved per processor is a pending business decision (`TODO: BUSINESS DECISION REQUIRED`).
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

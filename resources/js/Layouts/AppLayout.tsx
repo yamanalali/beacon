@@ -51,6 +51,14 @@ export default function AppLayout({
                             </div>
                         </div>
                     ) : null}
+                    {flash?.warning ? (
+                        <div className="app-page pb-0">
+                            <div className="alert alert-warning mb-0 d-flex gap-2 align-items-start" role="status" data-testid="flash-warning">
+                                <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+                                <span>{flash.warning}</span>
+                            </div>
+                        </div>
+                    ) : null}
                     {children}
                 </main>
             </div>

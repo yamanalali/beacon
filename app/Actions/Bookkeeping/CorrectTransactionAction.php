@@ -38,6 +38,17 @@ class CorrectTransactionAction
             $locked->status = TransactionStatus::Superseded;
             $locked->save();
 
+            // `items` absent → carry the original's items over unchanged;
+            // present (even [] / null) → use exactly what was submitted.
+            if (! array_key_exists('items', $data)) {
+                $data['items'] = $locked->items()->get()->map(fn ($i): array => [
+                    'description' => $i->description,
+                    'quantity' => (string) $i->getRawOriginal('quantity'),
+                    'unit_price' => (string) $i->getRawOriginal('unit_price'),
+                    'total' => (string) $i->getRawOriginal('total'),
+                ])->values()->all();
+            }
+
             $corrected = $this->createTransaction->execute(
                 $actor,
                 $original->enterprise,

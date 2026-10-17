@@ -49,7 +49,9 @@ class HandleInertiaRequests extends Middleware
             'dir' => $locale === 'ar' ? 'rtl' : 'ltr',
             'auth' => [
                 'user' => $this->sharedUser($request),
+                // One boolean per sidebar key (NavigationBuilder: route middleware + policy/gate), plus record_transaction.
                 'can' => [
+                    ...$this->sidebarCan($request),
                     'record_transaction' => fn () => $this->quickRecord($request) !== null,
                 ],
                 'quick_record' => fn () => $this->quickRecord($request),
@@ -57,6 +59,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
+                'warning' => fn () => $request->session()->get('warning'),
                 'info' => fn () => $request->session()->get('info'),
                 'created_document_id' => fn () => $request->session()->get('created_document_id'),
             ],
@@ -96,6 +99,27 @@ class HandleInertiaRequests extends Middleware
             'voice_url' => config('ai.voice.enabled') ? route('ai.voice-drafts.store', $enterprise) : null,
             'manual_url' => route('enterprises.transactions.create', $enterprise),
         ];
+    }
+
+    /** @var array<string, bool>|null */
+    private ?array $sidebarAbilities = null;
+
+    /**
+     * Lazy `auth.can.<sidebar key>` flags, evaluated once per request from NavigationBuilder.
+     *
+     * @return array<string, \Closure(): bool>
+     */
+    private function sidebarCan(Request $request): array
+    {
+        $builder = app(NavigationBuilder::class);
+        $flags = [];
+
+        foreach ($builder->definitions() as $item) {
+            $key = $item['key'];
+            $flags[$key] = fn (): bool => ($this->sidebarAbilities ??= $builder->abilities($request->user()))[$key] ?? false;
+        }
+
+        return $flags;
     }
 
     private function sharedUser(Request $request): ?array

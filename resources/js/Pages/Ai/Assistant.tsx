@@ -1,11 +1,11 @@
-import { useState } from "react";
 import { Link } from "@inertiajs/react";
+import { useState, type FormEvent } from "react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
-import { useJsonAction } from "../../hooks/useJsonAction";
+import { postJson } from "../../Components/Ai/http";
 
-type Answer = {
+export type AssistantAnswer = {
     supported: boolean;
     ai_generated: boolean;
     label: string | null;
@@ -13,210 +13,139 @@ type Answer = {
     sources: { id: string; title: string }[];
     can_escalate: boolean;
 };
-export default function Assistant({
-    ai_available,
-    can_escalate,
-    question_max_length,
-}: {
-    ai_available: boolean;
-    can_escalate: boolean;
-    question_max_length: number;
-}) {
+type EscalationCreated = { id: string; status: string; message: string };
+
+type Props = { ai_available: boolean; can_escalate: boolean; question_max_length: number; fetchImpl?: typeof fetch };
+
+export default function Assistant({ ai_available, can_escalate, question_max_length, fetchImpl }: Props) {
     const [question, setQuestion] = useState("");
-    const [answer, setAnswer] = useState<Answer | null>(null);
-    const [escalation, setEscalation] = useState<string | null>(null);
-    const [answeredQuestion, setAnsweredQuestion] = useState("");
-    const { request, busy, error } = useJsonAction();
-    const valid = question.trim().length >= 3;
+    const [asked, setAsked] = useState("");
+    const [busy, setBusy] = useState<"ask" | "escalate" | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [answer, setAnswer] = useState<AssistantAnswer | null>(null);
+    const [escalated, setEscalated] = useState<EscalationCreated | null>(null);
+    const tooShort = question.trim().length < 3;
+
+    async function ask(e: FormEvent) {
+        e.preventDefault();
+        if (tooShort || busy) return;
+        setBusy("ask");
+        setError(null);
+        setEscalated(null);
+        const r = await postJson<AssistantAnswer>("/ai/assistant/ask", { question: question.trim() }, fetchImpl);
+        setBusy(null);
+        if (r.ok) {
+            setAnswer(r.data);
+            setAsked(question.trim());
+        } else setError(r.message);
+    }
+
+    async function escalate() {
+        const q = (asked || question).trim();
+        if (q.length < 3 || busy) return;
+        setBusy("escalate");
+        setError(null);
+        const r = await postJson<EscalationCreated>("/ai/escalations", { question: q }, fetchImpl);
+        setBusy(null);
+        if (r.ok) setEscalated(r.data);
+        else setError(r.message);
+    }
+
+    const showEscalate = can_escalate && (answer ? answer.can_escalate : !ai_available);
+
     return (
-        <AppLayout title="المساعد">
-            <div className="app-page">
-                <div className="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                    <PageHeader
-                        title="كيف نقدر نساعدك؟"
-                        description="اسأل عن السجلات المالية والامتثال واستخدام المنصة."
-                    />
-                    <Link
-                        href="/ai/pages/escalations"
-                        className="btn btn-outline-primary"
-                    >
-                        متابعة استفساراتي
-                    </Link>
-                </div>
-                <div className="row g-3">
-                    <div className="col-12 col-xl-8">
-                        <SectionCard title="اكتب سؤالك">
-                            {!ai_available ? (
-                                <div className="alert alert-info">
-                                    المساعد الذكي غير متاح حالياً. يمكنك تصفح
-                                    الإرشادات المعتمدة أو إرسال سؤالك لفريق
-                                    بيكون.
-                                </div>
-                            ) : null}
-                            <form
-                                onSubmit={async (e) => {
-                                    e.preventDefault();
-                                    if (!valid) return;
-                                    const result = await request<Answer>(
-                                        "post",
-                                        "/ai/assistant/ask",
-                                        { question: question.trim() },
-                                    );
-                                    if (result) {
-                                        setAnswer(result);
-                                        setAnsweredQuestion(question.trim());
-                                        setEscalation(null);
-                                    }
-                                }}
-                            >
-                                <label
-                                    htmlFor="question"
-                                    className="form-label"
-                                >
-                                    سؤالك
-                                </label>
-                                <textarea
-                                    id="question"
-                                    className="form-control mb-2"
-                                    rows={5}
-                                    maxLength={question_max_length}
-                                    minLength={3}
-                                    required
-                                    value={question}
-                                    onChange={(e) => {
-                                        setQuestion(e.target.value);
-                                        setAnswer(null);
-                                        setEscalation(null);
-                                    }}
-                                    aria-describedby="question-help"
-                                />
-                                <p
-                                    id="question-help"
-                                    className="small text-body-secondary"
-                                >
-                                    اكتب سؤالاً واضحاً، وتجنب مشاركة كلمات
-                                    المرور أو بيانات حساسة. {question.length} /{" "}
-                                    {question_max_length}
-                                </p>
-                                <div className="d-flex flex-wrap gap-2">
-                                    {ai_available ? (
-                                        <button
-                                            className="btn btn-primary"
-                                            disabled={busy || !valid}
-                                        >
-                                            {busy
-                                                ? "جارٍ الإرسال…"
-                                                : "اسأل المساعد"}
-                                        </button>
-                                    ) : null}
-                                    {can_escalate ? (
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline-primary"
-                                            disabled={
-                                                busy ||
-                                                !valid ||
-                                                escalation !== null
-                                            }
-                                            onClick={async () => {
-                                                const result = await request<{
-                                                    id: string;
-                                                }>("post", "/ai/escalations", {
-                                                    question: question.trim(),
-                                                });
-                                                if (result)
-                                                    setEscalation(result.id);
-                                            }}
-                                        >
-                                            إرسال لفريق بيكون
-                                        </button>
-                                    ) : null}
-                                </div>
-                            </form>
-                            {error ? (
-                                <div
-                                    className="alert alert-danger mt-3 mb-0"
-                                    role="alert"
-                                >
-                                    {error}
-                                </div>
-                            ) : null}
-                            {escalation ? (
-                                <div
-                                    className="alert alert-success mt-3 mb-0"
-                                    role="status"
-                                >
-                                    تم إرسال سؤالك.{" "}
-                                    <Link
-                                        href={`/ai/pages/escalations/${escalation}`}
-                                    >
-                                        متابعة الاستفسار
-                                    </Link>
-                                </div>
-                            ) : null}
-                        </SectionCard>
-                        {answer ? (
-                            <div className="mt-3" aria-live="polite">
-                                <SectionCard title="الإجابة">
-                                    <p className="small text-body-secondary">
-                                        {answeredQuestion}
-                                    </p>
-                                    {answer.ai_generated && answer.label ? (
-                                        <div className="alert alert-warning">
-                                            {answer.label}
-                                        </div>
-                                    ) : null}
-                                    <p
-                                        className="mb-0"
-                                        style={{
-                                            whiteSpace: "pre-wrap",
-                                            overflowWrap: "anywhere",
-                                        }}
-                                    >
-                                        {answer.answer}
-                                    </p>
-                                    {answer.sources.length ? (
-                                        <div className="mt-3">
-                                            <h3 className="h6">
-                                                المراجع المعتمدة
-                                            </h3>
-                                            <ul className="mb-0">
-                                                {answer.sources.map(
-                                                    (source) => (
-                                                        <li key={source.id}>
-                                                            <Link
-                                                                href={`/ai/pages/knowledge?search=${encodeURIComponent(source.title)}`}
-                                                            >
-                                                                {source.title}
-                                                            </Link>
-                                                        </li>
-                                                    ),
-                                                )}
-                                            </ul>
-                                        </div>
-                                    ) : null}
-                                </SectionCard>
-                            </div>
-                        ) : null}
+        <AppLayout title="المساعد الذكي">
+            <div className="app-page d-flex flex-column gap-3">
+                <PageHeader title="المساعد الذكي" description="اسأل عن مسك الدفاتر واستخدام المنصة والامتثال. الإجابات من قاعدة معرفة بيكون المعتمدة فقط." />
+                {!ai_available ? (
+                    <div className="alert alert-warning mb-0" role="status">
+                        <i className="bi bi-info-circle me-2" aria-hidden="true" />
+                        المساعد غير متاح حالياً. يمكنك إرسال سؤالك مباشرة إلى فريق بيكون.
                     </div>
-                    <div className="col-12 col-xl-4">
-                        <SectionCard title="إرشادات موثوقة">
-                            <p className="text-body-secondary">
-                                تصفح المعرفة المعتمدة من فريق بيكون. يمكنك إرسال
-                                الأسئلة التي تحتاج متابعة إلى الفريق.
+                ) : null}
+                <SectionCard title="سؤالك">
+                    <form onSubmit={ask} noValidate>
+                        <label htmlFor="ai-question" className="form-label">
+                            اكتب سؤالك
+                        </label>
+                        <textarea
+                            id="ai-question"
+                            className="form-control"
+                            rows={4}
+                            maxLength={question_max_length}
+                            value={question}
+                            onChange={(e) => setQuestion(e.target.value)}
+                            aria-describedby="ai-question-help"
+                        />
+                        <div id="ai-question-help" className="form-text d-flex justify-content-between">
+                            <span>لا تشارك كلمات مرور أو بيانات بطاقات.</span>
+                            <bdi dir="ltr">
+                                {question.length}/{question_max_length}
+                            </bdi>
+                        </div>
+                        <div className="d-grid d-sm-flex gap-2 mt-3">
+                            {ai_available ? (
+                                <button type="submit" className="btn btn-primary" disabled={tooShort || busy !== null}>
+                                    {busy === "ask" ? <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" /> : <i className="bi bi-stars me-2" aria-hidden="true" />}
+                                    اسأل المساعد
+                                </button>
+                            ) : null}
+                            {showEscalate && !escalated ? (
+                                <button type="button" className={ai_available ? "btn btn-outline-secondary" : "btn btn-primary"} onClick={escalate} disabled={(asked || question).trim().length < 3 || busy !== null}>
+                                    {busy === "escalate" ? <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" /> : <i className="bi bi-person-raised-hand me-2" aria-hidden="true" />}
+                                    أرسل السؤال لفريق بيكون
+                                </button>
+                            ) : null}
+                        </div>
+                    </form>
+                </SectionCard>
+                {error ? (
+                    <div className="alert alert-danger mb-0" role="alert">
+                        {error}
+                    </div>
+                ) : null}
+                {busy === "ask" ? (
+                    <p className="text-body-secondary mb-0" role="status">
+                        جارٍ البحث في قاعدة المعرفة…
+                    </p>
+                ) : null}
+                {answer ? (
+                    <SectionCard title="الإجابة">
+                        <div aria-live="polite">
+                            {answer.label ? (
+                                <span className="app-status app-status--neutral mb-2">
+                                    <i className="bi bi-stars" aria-hidden="true" />
+                                    <span>{answer.label}</span>
+                                </span>
+                            ) : null}
+                            <p className="mb-3" style={{ whiteSpace: "pre-line" }}>
+                                {answer.answer}
                             </p>
-                            <Link
-                                href="/ai/pages/knowledge"
-                                className="btn btn-light w-100"
-                            >
-                                تصفح دليل المعرفة{" "}
-                                <i
-                                    className="bi bi-arrow-left ms-2"
-                                    aria-hidden="true"
-                                />
-                            </Link>
-                        </SectionCard>
+                            {answer.sources.length > 0 ? (
+                                <>
+                                    <h3 className="h6">المصادر</h3>
+                                    <ul className="mb-0">
+                                        {answer.sources.map((s) => (
+                                            <li key={s.id}>{s.title}</li>
+                                        ))}
+                                    </ul>
+                                </>
+                            ) : null}
+                        </div>
+                    </SectionCard>
+                ) : null}
+                {escalated ? (
+                    <div className="alert alert-success mb-0 d-flex flex-wrap justify-content-between align-items-center gap-2" role="status">
+                        <span>{escalated.message}</span>
+                        <Link href={`/ai/pages/escalations/${escalated.id}`} className="btn btn-sm btn-outline-secondary">
+                            عرض الاستفسار
+                        </Link>
                     </div>
+                ) : null}
+                <div>
+                    <Link href="/ai/pages/escalations" className="btn btn-link px-0">
+                        استفساراتي السابقة
+                    </Link>
                 </div>
             </div>
         </AppLayout>

@@ -35,6 +35,8 @@ class ReadinessAssessmentTest extends TestCase
         $this->actingAs($admin)->post(route('admin.readiness.criteria.store', $set), [
             'code' => 'c1', 'label_ar' => 'معيار', 'weight' => 2, 'is_mandatory' => true, 'missing_data_treatment' => 'needs_review',
         ])->assertRedirect();
+        $this->actingAs($admin)->post(route('admin.readiness.publish', $set))->assertSessionHasErrors('bands'); // bands required to publish
+        $set->bands()->create(['label_ar' => 'band', 'min' => 0, 'max' => 100, 'color_token' => 'success', 'sort_order' => 1]);
         $this->actingAs($admin)->post(route('admin.readiness.publish', $set))->assertRedirect();
         $this->assertSame('published', $set->fresh()->status);
 

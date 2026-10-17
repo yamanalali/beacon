@@ -19,6 +19,8 @@ return [
     'currencies' => [
         'SYP' => 'ليرة سورية',
         'USD' => 'دولار أمريكي',
+        // Recognised from receipts only; never converted (manager decision).
+        'AED' => 'درهم إماراتي',
     ],
 
     'default_currency' => 'SYP',
@@ -41,6 +43,7 @@ return [
             'utilities' => 'كهرباء وماء واتصالات',
             'salaries' => 'أجور ورواتب',
             'transport' => 'نقل ومواصلات',
+            'meals' => 'طعام ومشروبات',
             'other_expense' => 'مصاريف أخرى',
         ],
     ],

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\SuggestedDateWarning;
+use App\Ai\Ocr\ReceiptLineItemParser;
 use App\Ai\Support\PaginatedProps;
 use App\Actions\Bookkeeping\ConfirmReceiptExtractionAction;
 use App\Actions\Bookkeeping\StartReceiptExtractionAction;
@@ -15,6 +17,7 @@ use App\Models\Document;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
+use App\Services\Ai\CategorySuggestion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -76,7 +79,10 @@ class ReceiptExtractionController extends Controller
         $allowed = config('bookkeeping.categories.'.$type, []);
 
         $suggestion = $extraction->status === ExtractionStatus::PendingReview
-            ? $categorizer->suggest($type, null, $extraction->suggested_counterparty, $allowed)
+            // Receipt-text suggestion (computed at extraction) first; bound categorizer as fallback.
+            ? ($extraction->suggested_category !== null && array_key_exists($extraction->suggested_category, $allowed)
+                ? new CategorySuggestion($extraction->suggested_category, null, true)
+                : $categorizer->suggest($type, null, $extraction->suggested_counterparty, $allowed))
             : null;
         // Only categories from the configured list are ever offered.
         if ($suggestion !== null && ! array_key_exists($suggestion->category, $allowed)) {
@@ -97,6 +103,22 @@ class ReceiptExtractionController extends Controller
                 'suggested_amount' => $extraction->suggested_amount,
                 'suggested_currency' => $extraction->suggested_currency,
                 'suggested_counterparty' => $extraction->suggested_counterparty,
+                'suggested_invoice_number' => $extraction->suggested_invoice_number,
+                // [{description, quantity, unit_price, total}], unread values null; [] when none.
+                'suggested_items' => $items = array_values($extraction->suggested_items ?? []),
+                // Warning only (never blocks saving): items don't add up to the amount, or a row's
+                // qty × unit ≠ total (values kept as read). Same names as the voice draft / ReviewForm.
+                'items_mismatch' => $mismatch = ((new ReceiptLineItemParser)->totalsMismatch($items, $extraction->suggested_amount) === true
+                    || (new ReceiptLineItemParser)->inconsistentRows($items) > 0),
+                'suggested_amount_warning' => $extraction->status !== ExtractionStatus::PendingReview || $extraction->extractor === 'manual' ? null
+                    : ($extraction->suggested_amount === null
+                        ? 'لم نتمكن من قراءة الإجمالي من الفاتورة، أدخل المبلغ يدوياً.'
+                        : ($mismatch ? 'البنود لا تطابق الإجمالي أو الكمية × السعر (قد يكون بسبب ضريبة أو خصم أو قراءة خاطئة)، تأكد من المبلغ.' : null)),
+                // Arabic hint: future date or older than ai.review.old_date_days (never blocks saving).
+                'suggested_date_warning' => $extraction->status !== ExtractionStatus::PendingReview || $extraction->extractor === 'manual' ? null
+                    : SuggestedDateWarning::for($extraction->suggested_date?->toDateString()),
+                // Invoice number at the start of the note (BEACON-DECISIONS 2026-10-16 «رقم الفاتورة»); no extra column.
+                'suggested_note' => $extraction->suggested_invoice_number !== null ? 'فاتورة رقم '.$extraction->suggested_invoice_number : null,
                 'document' => DocumentController::row($extraction->document),
                 'confirmed_transaction_public_id' => $extraction->confirmedTransaction?->public_id,
             ],
@@ -127,7 +149,7 @@ class ReceiptExtractionController extends Controller
 
         $transaction = $action->confirm($request->user(), $extraction, $request->validated());
 
-        return redirect()->route('transactions.show', $transaction)->with('success', 'تم حفظ العملية بعد مراجعتك.');
+        return TransactionController::withItemsWarning(redirect()->route('transactions.show', $transaction)->with('success', 'تم حفظ العملية بعد مراجعتك.'), $transaction);
     }
 
     public function reject(Request $request, ReceiptExtraction $extraction, ConfirmReceiptExtractionAction $action): RedirectResponse

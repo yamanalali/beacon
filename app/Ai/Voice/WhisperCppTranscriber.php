@@ -13,36 +13,151 @@ use Throwable;
  */
 class WhisperCppTranscriber implements SpeechToText
 {
+    /** Arabic only (MSA + Levantine assumed, TODO: BUSINESS DECISION REQUIRED). */
+    public const LANGUAGE = 'ar';
+
     public function name(): string
     {
         return 'whisper';
     }
 
+    /** Set when the last transcription failed; "encoding" = text came back as "????". */
+    public ?string $failureReason = null;
+
     public function transcribe(string $path, string $mimeType): ?string
     {
-        try {
-            $p = $this->makeProcess([
-                (string) config('ai.voice.whisper_path', 'whisper-cli'),
-                '-m', (string) config('ai.voice.whisper_model'),
-                '-f', $path,
-                '-l', (string) config('ai.voice.language', 'ar'),
-                '-nt', '-np',
-            ]);
-            $p->setTimeout((float) config('ai.voice.timeout', 60));
-            $p->run();
-            if (! $p->isSuccessful()) {
-                Log::warning('Whisper STT failed', ['exit' => $p->getExitCode(), 'error' => mb_substr($p->getErrorOutput(), 0, 300)]);
-
-                return null;
-            }
-            $text = trim(preg_replace('/\s+/u', ' ', $p->getOutput()) ?? '');
-
-            return $text === '' ? null : $text;
-        } catch (Throwable $e) {
-            Log::warning('Whisper STT unavailable', ['error' => $e->getMessage()]);
+        $this->failureReason = null;
+        // whisper.cpp writes <base>.txt as UTF-8; reading the file avoids console
+        // code-page mangling of stdout on Windows (Arabic -> "????").
+        $model = self::modelPath();
+        if (! $this->modelExists($model)) {
+            Log::warning('Whisper model file not found; set WHISPER_MODEL to the .bin path', ['model' => $model]);
+            $this->failureReason = 'failed';
 
             return null;
         }
+        $timeout = (int) config('ai.voice.timeout', 120);
+        // Whisper runs inside the request; PHP's default 30s limit would cut it first.
+        // Queue/CLI workers have no request limit, so leave them alone.
+        if (PHP_SAPI !== 'cli' && function_exists('set_time_limit')) {
+            @set_time_limit($timeout + 15);
+        }
+        $base = tempnam(sys_get_temp_dir(), 'stt_');
+        $txt = $base.'.txt';
+        try {
+            $p = $this->makeProcess([
+                (string) config('ai.voice.whisper_path', 'whisper-cli'),
+                '-m', $model,
+                '-f', $path,
+                '-l', self::LANGUAGE, // fixed: never auto-detect
+                '-nt', '-np',
+                '-otxt', '-of', $base,
+                ...$this->threadArgs(),
+                ...$this->promptArgs(),
+            ]);
+            $p->setTimeout((float) $timeout);
+            $p->run();
+            if (! $p->isSuccessful()) {
+                Log::warning('Whisper STT failed', ['exit' => $p->getExitCode(), 'error' => mb_substr($p->getErrorOutput(), 0, 300)]);
+                $this->failureReason = 'failed';
+
+                return null;
+            }
+            $raw = is_file($txt) ? (string) file_get_contents($txt) : $p->getOutput();
+            $raw = preg_replace('/^\xEF\xBB\xBF/', '', $raw) ?? $raw;
+            if (! mb_check_encoding($raw, 'UTF-8')) {
+                $raw = mb_convert_encoding($raw, 'UTF-8', 'Windows-1256');
+            }
+            $text = trim(preg_replace('/\s+/u', ' ', $raw) ?? '');
+            if ($text === '') {
+                $this->failureReason = 'empty';
+
+                return null;
+            }
+            if (self::looksLikeEncodingFailure($text)) {
+                Log::warning('Whisper STT returned "?" characters: text encoding failed (check UTF-8 output / prompt).');
+                $this->failureReason = 'encoding';
+
+                return null;
+            }
+
+            return config('ai.voice.whisper_correct', true) ? (new WhisperMoneyCorrector)->correct($text) : $text;
+        } catch (Throwable $e) {
+            Log::warning('Whisper STT unavailable', ['error' => $e->getMessage()]);
+            $this->failureReason = 'failed';
+
+            return null;
+        } finally {
+            foreach ([$base, $txt] as $f) {
+                if (is_file($f)) {
+                    @unlink($f);
+                }
+            }
+        }
+    }
+
+    /** Mostly "?" (or U+FFFD) instead of letters = the text was mangled by a code page. */
+    public static function looksLikeEncodingFailure(string $text): bool
+    {
+        $chars = preg_split('//u', preg_replace('/[\s\p{P}\d]+/u', '', str_replace(['?', "\u{FFFD}"], '§', $text)) ?? '', -1, PREG_SPLIT_NO_EMPTY);
+        if ($chars === []) {
+            return str_contains($text, '?');
+        }
+        $bad = count(array_filter($chars, fn ($c) => $c === '§'));
+
+        return $bad / count($chars) >= 0.5;
+    }
+
+    /**
+     * WHISPER_MODEL is either a file path or a short model name such as
+     * "large-v3-turbo" / "small", resolved to storage/app/whisper/ggml-<name>.bin.
+     */
+    public static function modelPath(): string
+    {
+        $model = trim((string) config('ai.voice.whisper_model'));
+        if ($model === '') {
+            $model = (string) config('ai.voice.whisper_default_model', 'large-v3-turbo');
+        }
+        if (preg_match('/^[A-Za-z0-9.\-]+$/', $model) && ! str_ends_with($model, '.bin')) {
+            return storage_path('app/whisper/ggml-'.$model.'.bin');
+        }
+
+        return $model;
+    }
+
+    protected function modelExists(string $path): bool
+    {
+        return is_file($path);
+    }
+
+    /** @return list<string> */
+    public function threadArgs(): array
+    {
+        $t = (int) config('ai.voice.whisper_threads', 0);
+
+        return $t > 0 ? ['-t', (string) $t] : [];
+    }
+
+    /** @return list<string> */
+    public function promptArgs(): array
+    {
+        $prompt = config('ai.voice.whisper_prompt');
+        if (! is_string($prompt) || trim($prompt) === '') {
+            return [];
+        }
+        // Windows passes CLI args through the ANSI code page: non-ASCII becomes "?".
+        if ($this->isWindows() && preg_match('/[^\x20-\x7E]/', $prompt)) {
+            Log::warning('WHISPER_PROMPT skipped on Windows: non-ASCII text cannot be passed safely as a CLI argument.');
+
+            return [];
+        }
+
+        return ['--prompt', $prompt];
+    }
+
+    protected function isWindows(): bool
+    {
+        return PHP_OS_FAMILY === 'Windows';
     }
 
     /** Seam for tests. */

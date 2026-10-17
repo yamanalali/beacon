@@ -7,6 +7,7 @@ use App\Actions\Bookkeeping\CorrectTransactionAction;
 use App\Actions\Bookkeeping\CreateTransactionAction;
 use App\Actions\Bookkeeping\RecordSettlementAction;
 use App\Actions\Bookkeeping\StartReceiptExtractionAction;
+use App\Contracts\ReceiptExtractor;
 use App\Enums\UserRole;
 use App\Models\ComplianceRequirement;
 use App\Models\ComplianceRequirementVersion;
@@ -15,6 +16,7 @@ use App\Models\Enterprise;
 use App\Models\EnterpriseComplianceRecord;
 use App\Models\FinancialTransaction;
 use App\Models\User;
+use App\Services\Ai\ReceiptExtractionResult;
 use App\Services\FinancialReports\FinancialReportService;
 use App\Support\TwoFactor\TwoFactorService;
 use Carbon\CarbonImmutable;
@@ -106,7 +108,7 @@ class AuditRegressionTest extends TestCase
     public function test_correction_keeps_payment_notes_author_and_dates_across_multiple_versions(): void
     {
         [$e,$u] = $this->setupSme();
-        $t = app(CreateTransactionAction::class)->execute($u, $e, $this->data());
+        $t = app(CreateTransactionAction::class)->execute($u, $e, $this->data(['items' => [['description' => 'Original item', 'quantity' => 2, 'unit_price' => 50]]]));
         $payment = app(RecordSettlementAction::class)->execute($u, $t, ['settlement_date' => '2026-02-01', 'amount' => '40', 'note' => 'Bank transfer']);
         $correct = app(CorrectTransactionAction::class);
         $second = $correct->execute($u, $t->fresh(), $this->data(['amount' => '120', 'correction_reason' => 'Correct total']));
@@ -120,6 +122,10 @@ class AuditRegressionTest extends TestCase
         $this->assertSame(1, $t->settlements()->count());
         $this->assertSame(1, $second->settlements()->count());
         $this->assertSame(1, FinancialTransaction::query()->posted()->count());
+        foreach ([$t, $second, $third] as $version) {
+            $this->assertSame('Original item', $version->items()->sole()->description);
+            $this->assertSame('100.00', (string) $version->items()->sole()->total);
+        }
     }
 
     public function test_correction_of_partial_payment_needs_no_new_paid_amount(): void
@@ -198,6 +204,39 @@ class AuditRegressionTest extends TestCase
         $this->actingAs($u)->post(route('extractions.confirm', $legacy), $this->data())->assertStatus(409);
         $this->actingAs($u)->post(route('documents.extractions.store', $d))->assertStatus(409);
         $this->assertDatabaseCount('financial_transactions', 1);
+    }
+
+    public function test_deduplicated_receipt_review_keeps_new_invoice_fields(): void
+    {
+        [$enterprise, $sme] = $this->setupSme();
+        $document = new Document;
+        $document->forceFill(['enterprise_id' => $enterprise->id, 'title' => 'Receipt', 'original_name' => 'r.jpg', 'disk' => 'local', 'path' => 'r.jpg', 'mime_type' => 'image/jpeg', 'size' => 10, 'uploaded_by' => $sme->id])->save();
+        $this->app->bind(ReceiptExtractor::class, fn () => new class implements ReceiptExtractor
+        {
+            public function name(): string
+            {
+                return 'test';
+            }
+
+            public function extract(Document $document): ReceiptExtractionResult
+            {
+                return new ReceiptExtractionResult(
+                    transactionDate: '2026-01-01', amount: '100', currency: 'USD', counterparty: 'Store',
+                    rawText: 'فاتورة مشتريات مطعم بيتزا',
+                    items: [['description' => 'Goods', 'quantity' => 2, 'unit_price' => 50, 'total' => 100]],
+                    invoiceNumber: 'INV-123',
+                );
+            }
+        });
+        $action = app(StartReceiptExtractionAction::class);
+        $review = $action->execute($sme, $document);
+        $again = $action->execute($sme, $document);
+        $this->assertSame($review->id, $again->id);
+        $this->assertSame('INV-123', $review->suggested_invoice_number);
+        $this->assertSame('Goods', $review->suggested_items[0]['description']);
+        $this->assertNotNull($review->suggested_category);
+        $this->assertDatabaseCount('receipt_extractions', 1);
+        $this->assertDatabaseCount('financial_transactions', 0);
     }
 
     public function test_required_frontend_pages_exist(): void

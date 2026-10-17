@@ -10,6 +10,20 @@ use Tests\TestCase;
 
 class OcrPreprocessTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // missingLanguages() caches `--list-langs` in a static per tesseract path; other tests
+        // (e.g. OcrArabicTotalTest) leave an "eng only" entry behind that would make ocrFile() skip.
+        TesseractReceiptExtractor::flushLanguageCache();
+    }
+
+    protected function tearDown(): void
+    {
+        TesseractReceiptExtractor::flushLanguageCache();
+        parent::tearDown();
+    }
+
     private function fakeProcess(string $stdout, int $exit = 0): Process
     {
         return new Process(['php', '-r', 'fwrite(STDOUT, base64_decode($argv[1])); exit((int) $argv[2]);', base64_encode($stdout), (string) $exit]);
@@ -113,6 +127,12 @@ class OcrPreprocessTest extends TestCase
                 $this->cmd = $command;
 
                 return ($this->f)("ACME\nTotal: 10 USD");
+            }
+
+            protected function makeLanguageProcess(array $command): Process
+            {
+                // Don't depend on the host's tesseract install: report both required languages.
+                return new Process(['php', '-r', 'echo "ara\neng\n";']);
             }
         };
         $this->assertSame("ACME\nTotal: 10 USD", $ext->ocrFile('/orig.png'));

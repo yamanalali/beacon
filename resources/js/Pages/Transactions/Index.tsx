@@ -9,6 +9,7 @@ import { PaymentStatusBadge } from "../../Components/Financial/PaymentStatusBadg
 import { SelectInput } from "../../Components/Forms/SelectInput";
 import { TextInput } from "../../Components/Forms/TextInput";
 import type { BookkeepingOptions, EnterpriseRef, TransactionRow } from "../../types/bookkeeping";
+import { Money } from "../../Components/Common/Money";
 
 type Filters = {
     search: string;
@@ -21,9 +22,8 @@ type Filters = {
 
 function Amount({ row }: { row: TransactionRow }) {
     return (
-        <span className="fw-semibold" dir="ltr" style={{ color: row.is_inflow ? "var(--app-success)" : "var(--app-text)" }}>
-            {row.is_inflow ? "+" : "−"}
-            {row.amount} {row.currency}
+        <span className="fw-semibold" style={{ color: row.is_inflow ? "var(--app-success)" : "var(--app-text)" }}>
+            <Money amount={row.amount} currency={row.currency} signed={row.is_inflow ? "in" : "out"} />
         </span>
     );
 }
@@ -45,7 +45,7 @@ const columns: Column<TransactionRow>[] = [
     { key: "category_label", header: "التصنيف", cell: (row) => row.category_label, hideOnMobile: true, defaultHidden: true },
     { key: "counterparty", header: "الجهة", cell: (row) => row.counterparty ?? "—" },
     { key: "amount", header: "المبلغ", cell: (row) => <Amount row={row} />, numeric: true },
-    { key: "outstanding", header: "المتبقي", cell: (row) => <bdi dir="ltr">{row.outstanding}</bdi>, numeric: true, hideOnMobile: true },
+    { key: "outstanding", header: "المتبقي", cell: (row) => <Money amount={row.outstanding} currency={row.currency} />, numeric: true, hideOnMobile: true },
     {
         key: "payment_status",
         header: "حالة الدفع",

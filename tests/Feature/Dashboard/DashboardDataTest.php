@@ -209,4 +209,100 @@ class DashboardDataTest extends TestCase
         $this->assertSame(route('enterprises.extractions.pending', $this->mine), $byKey['pending_reviews']['href']);
         $this->assertStringContainsString('/ai/pages/escalations', $byKey['open_escalations']['href']);
     }
+
+    public function test_totals_are_split_per_currency_without_conversion(): void
+    {
+        $this->seedBoth();
+        $this->tx($this->mine, 'expense', '40.00', '2026-10-04', 'USD');
+        $this->tx($this->mine, 'sale', '10.00', '2026-09-15', 'USD');
+        $this->tx($this->other, 'sale', '5000.00', '2026-10-02', 'USD');
+
+        $this->actingAs($this->sme)->get('/dashboard/sme')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p
+                ->has('kpis.by_currency.current_month', 2)
+                ->where('kpis.by_currency.current_month.0.currency', 'SYP')
+                ->where('kpis.by_currency.current_month.0.income_total', '1200.50')
+                ->where('kpis.by_currency.current_month.0.expense_total', '300.25')
+                ->where('kpis.by_currency.current_month.0.net', '900.25')
+                ->where('kpis.by_currency.previous_month.0.net', '-50.00')
+                ->where('kpis.by_currency.current_month.1.currency', 'USD')
+                ->where('kpis.by_currency.current_month.1.income_total', '999.00')
+                ->where('kpis.by_currency.current_month.1.expense_total', '40.00')
+                ->where('kpis.by_currency.current_month.1.net', '959.00')
+                ->where('kpis.by_currency.current_month.1.transaction_count', 2)
+                ->where('kpis.by_currency.previous_month.1.income_total', '10.00')
+                // Old single-currency props are unchanged.
+                ->where('kpis.current_month.income', '1200.50')
+                ->where('kpis.other_currencies', ['USD']));
+    }
+
+    public function test_unposted_count_equals_pending_extractions_today(): void
+    {
+        // TransactionStatus only has Posted/Superseded, so only receipts awaiting review count today.
+        $this->tx($this->mine, 'sale', '10.00', '2026-10-03');
+        $this->extraction($this->mine);
+        $this->extraction($this->mine);
+        $this->extraction($this->other);
+
+        $this->actingAs($this->sme)->get('/dashboard/sme')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p
+                ->where('kpis.pending_extractions_count', 2)
+                ->where('kpis.unposted_count', 2));
+    }
+
+    public function test_grouped_currency_totals_keep_cents_exact_across_many_rows(): void
+    {
+        foreach (range(1, 10) as $i) {
+            $this->tx($this->mine, 'sale', '0.10', '2026-10-03', 'USD');
+        }
+        $this->tx($this->mine, 'income', '0.20', '2026-10-03', 'USD');
+        $this->tx($this->mine, 'purchase', '0.30', '2026-10-03', 'USD');
+        $this->tx($this->mine, 'expense', '0.05', '2026-10-03', 'USD');
+
+        $this->actingAs($this->sme)->get('/dashboard/sme')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p
+                ->where('kpis.by_currency.current_month.1.currency', 'USD')
+                ->where('kpis.by_currency.current_month.1.income_total', '1.20')
+                ->where('kpis.by_currency.current_month.1.expense_total', '0.35')
+                ->where('kpis.by_currency.current_month.1.net', '0.85')
+                ->where('kpis.by_currency.current_month.1.transaction_count', 13)
+                ->where('kpis.by_currency.previous_month.1.transaction_count', 0));
+    }
+
+    public function test_default_currency_row_is_present_even_with_only_foreign_transactions(): void
+    {
+        $this->tx($this->mine, 'sale', '25.00', '2026-10-04', 'USD');
+
+        $this->actingAs($this->sme)->get('/dashboard/sme')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p
+                ->has('kpis.by_currency.current_month', 2)
+                ->where('kpis.by_currency.current_month.0.currency', 'SYP')
+                ->where('kpis.by_currency.current_month.0.net', '0.00')
+                ->where('kpis.by_currency.current_month.1.currency', 'USD')
+                ->where('kpis.by_currency.current_month.1.income_total', '25.00'));
+    }
+
+    public function test_unposted_count_includes_pending_reviews_and_is_enterprise_scoped(): void
+    {
+        $this->seedBoth();
+        $this->extraction($this->mine);
+
+        $this->actingAs($this->sme)->get('/dashboard/sme')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p
+                // 2 pending extractions of mine; superseded edits and the other enterprise's 2 are excluded.
+                ->where('kpis.unposted_count', 2)
+                ->where('kpis.pending_extractions_count', 2));
+    }
+
+    public function test_other_enterprise_currencies_do_not_leak(): void
+    {
+        $this->tx($this->other, 'sale', '5000.00', '2026-10-02', 'EUR');
+
+        $this->actingAs($this->sme)->get('/dashboard/sme')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p
+                ->has('kpis.by_currency.current_month', 1)
+                ->where('kpis.by_currency.current_month.0.currency', 'SYP')
+                ->where('kpis.unposted_count', 0)
+                ->where('kpis.other_currencies', []));
+    }
 }

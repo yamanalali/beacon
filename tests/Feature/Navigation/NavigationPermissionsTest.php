@@ -16,8 +16,8 @@ class NavigationPermissionsTest extends TestCase
 
     private const EXPECTED = [
         'sme_user' => ['dashboard.sme', 'enterprises', 'transactions', 'documents', 'reports', 'readiness', 'compliance', 'referrals', 'ai.assistant', 'ai.escalations', 'ai.knowledge', 'notifications', 'account', 'account.sessions'],
-        'beacon_advisor' => ['dashboard.beacon', 'enterprises', 'transactions', 'documents', 'reports', 'ai.assistant', 'ai.escalations', 'ai.knowledge', 'notifications', 'account', 'account.sessions'],
-        'beacon_admin' => ['dashboard.beacon', 'enterprises', 'transactions', 'documents', 'reports', 'ai.assistant', 'ai.escalations', 'ai.knowledge', 'notifications', 'admin', 'admin.users', 'admin.audit-logs', 'admin.compliance', 'admin.readiness', 'admin.mfis', 'admin.knowledge', 'operations.data-control', 'account', 'account.sessions'],
+        'beacon_advisor' => ['dashboard.beacon', 'enterprises', 'ai.assistant', 'ai.escalations', 'ai.knowledge', 'notifications', 'account', 'account.sessions'],
+        'beacon_admin' => ['dashboard.beacon', 'enterprises', 'ai.assistant', 'ai.escalations', 'ai.knowledge', 'notifications', 'admin', 'admin.users', 'admin.audit-logs', 'admin.compliance', 'admin.readiness', 'admin.mfis', 'admin.knowledge', 'operations.data-control', 'account', 'account.sessions'],
         'mfi_user' => ['mfi.referrals', 'notifications', 'account', 'account.sessions'],
         'technical_admin' => ['notifications', 'operations.security', 'operations.backups', 'operations.data-control', 'account', 'account.sessions'],
     ];
@@ -85,6 +85,53 @@ class NavigationPermissionsTest extends TestCase
             $status = $this->actingAs($user)->get(route($def['route']))->status();
             $this->assertContains($status, [403, 404], "{$role->value} should not open {$def['key']} (got {$status})");
         }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('roles')]
+    public function test_auth_can_matches_navigation_and_hidden_links_return_403(UserRole $role): void
+    {
+        $user = $this->makeUser($role);
+        $props = $this->actingAs($user)->get('/account')->assertOk()->viewData('page')['props']['auth'];
+        $keys = array_column($props['navigation'], 'key');
+
+        foreach ((new NavigationBuilder)->definitions() as $def) {
+            $this->assertArrayHasKey($def['key'], $props['can']);
+            $this->assertSame(in_array($def['key'], $keys, true), $props['can'][$def['key']], "{$role->value} can.{$def['key']}");
+        }
+
+        $this->assertSame($role === UserRole::SmeUser, $props['can']['record_transaction']);
+
+        foreach (['transactions' => '/transactions', 'documents' => '/documents', 'reports' => '/reports'] as $key => $url) {
+            $status = $this->actingAs($user)->get($url)->status();
+            $props['can'][$key]
+                ? $this->assertSame(302, $status, "{$role->value} {$url}")
+                : $this->assertSame(403, $status, "{$role->value} {$url}");
+        }
+    }
+
+    public function test_demo_beacon_admin_has_no_transactions_link_and_direct_url_is_403(): void
+    {
+        $admin = $this->makeUser(UserRole::BeaconAdmin);
+        $auth = $this->actingAs($admin)->get('/account')->viewData('page')['props']['auth'];
+
+        $this->assertFalse($auth['can']['transactions']);
+        $this->assertFalse($auth['can']['record_transaction']);
+        $this->assertTrue($auth['can']['enterprises']);
+        $this->assertNotContains('transactions', array_column($auth['navigation'], 'key'));
+        $this->actingAs($admin)->get('/transactions')->assertForbidden();
+
+        // Still reaches an enterprise's transactions read-only from the enterprise page.
+        $enterprise = Enterprise::query()->create(['business_name' => 'منشأة', 'location' => 'damascus']);
+        $this->actingAs($admin)->get(route('enterprises.transactions.index', $enterprise))->assertOk();
+        $this->actingAs($admin)->get(route('enterprises.transactions.create', $enterprise))->assertForbidden();
+    }
+
+    public function test_guest_and_inactive_users_get_all_false(): void
+    {
+        $user = $this->makeUser(UserRole::SmeUser);
+        $user->forceFill(['is_active' => false])->save();
+        $this->assertNotContains(true, (new NavigationBuilder)->abilities($user->fresh()));
+        $this->assertNotContains(true, (new NavigationBuilder)->abilities(null));
     }
 
     public function test_active_flag_follows_current_route(): void
