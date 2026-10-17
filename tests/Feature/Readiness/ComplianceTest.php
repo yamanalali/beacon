@@ -6,13 +6,14 @@ use App\Enums\UserRole;
 use App\Models\AuditLog;
 use App\Models\ComplianceRequirement;
 use App\Models\ComplianceRequirementVersion;
+use App\Models\EnterpriseComplianceRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LogicException;
 use Tests\TestCase;
 
 class ComplianceTest extends TestCase
 {
-    use RefreshDatabase, ReadinessTestHelpers;
+    use ReadinessTestHelpers, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -116,6 +117,46 @@ class ComplianceTest extends TestCase
             'compliance_requirement_version_id' => $requirement->currentVersion()->id,
         ]);
         $this->assertDatabaseHas('audit_logs', ['action' => 'compliance.enterprise_status_updated', 'actor_id' => $advisor->id]);
+    }
+
+    public function test_reviewing_a_new_version_resets_old_details_and_audits_the_previous_record(): void
+    {
+        $enterprise = $this->enterprise();
+        $advisor = $this->advisorOf($enterprise);
+        $requirement = $this->publishedRequirement();
+        $v1 = $requirement->currentVersion();
+        EnterpriseComplianceRecord::query()->create([
+            'enterprise_id' => $enterprise->id, 'compliance_requirement_id' => $requirement->id,
+            'compliance_requirement_version_id' => $v1->id, 'status' => 'completed',
+            'due_date' => '2026-01-01', 'notes' => 'Historical review',
+        ]);
+        $v2 = $requirement->versions()->create(['version_number' => 2, 'title_ar' => 'متطلب محدث', 'status' => 'published']);
+        $this->actingAs($advisor)->put(route('enterprises.compliance.update', [$enterprise, $requirement]), ['status' => 'completed', 'version_number' => 1])->assertSessionHasErrors('version_number');
+        $this->actingAs($advisor)->put(route('enterprises.compliance.update', [$enterprise, $requirement]), ['status' => 'in_progress', 'version_number' => 2])->assertSessionHasNoErrors();
+        $record = EnterpriseComplianceRecord::query()->sole();
+        $this->assertSame($v2->id, $record->compliance_requirement_version_id);
+        $this->assertNull($record->due_date);
+        $this->assertNull($record->notes);
+        $before = AuditLog::query()->where('action', 'compliance.enterprise_status_updated')->sole()->context['before'];
+        $this->assertSame($v1->id, $before['compliance_requirement_version_id']);
+        $this->assertSame('completed', $before['status']);
+        $this->assertSame('Historical review', $before['notes']);
+    }
+
+    public function test_draft_and_future_versions_do_not_reset_current_completion(): void
+    {
+        $enterprise = $this->enterprise();
+        $requirement = $this->publishedRequirement();
+        $v1 = $requirement->currentVersion();
+        $record = EnterpriseComplianceRecord::query()->create([
+            'enterprise_id' => $enterprise->id, 'compliance_requirement_id' => $requirement->id,
+            'compliance_requirement_version_id' => $v1->id, 'status' => 'completed',
+        ]);
+        $requirement->versions()->create(['version_number' => 2, 'title_ar' => 'نسخة مستقبلية', 'status' => 'published', 'effective_from' => now()->addYear()->toDateString()]);
+        $requirement->versions()->create(['version_number' => 3, 'title_ar' => 'مسودة', 'status' => 'draft']);
+        $this->assertTrue($record->isCompleted());
+        $this->assertSame(1, EnterpriseComplianceRecord::query()->forCurrentVersion()->count());
+        $this->assertSame(0, EnterpriseComplianceRecord::query()->needingVersionReview()->count());
     }
 
     private function expectExceptionOnUpdate(ComplianceRequirementVersion $version): void

@@ -38,8 +38,9 @@ class EnterpriseComplianceController extends Controller
                     return null;
                 }
                 $record = $records->get($requirement->id);
-                $status = $record?->status ?? 'not_started';
-                $due = $record?->due_date;
+                $needsReview = $record !== null && $record->compliance_requirement_version_id !== $version->id;
+                $status = $needsReview ? 'not_started' : ($record?->status ?? 'not_started');
+                $due = $needsReview ? null : $record?->due_date;
                 $completed = $status === 'completed';
 
                 return [
@@ -47,10 +48,12 @@ class EnterpriseComplianceController extends Controller
                     'category_label' => ComplianceRequirement::CATEGORIES[$requirement->category] ?? $requirement->category,
                     'version' => ComplianceAdminController::versionData($version),
                     'recorded_version_number' => $record?->version?->version_number,
+                    'needs_version_review' => $needsReview,
+                    'recorded_status_label' => $record ? (EnterpriseComplianceRecord::STATUSES[$record->status] ?? $record->status) : null,
                     'status' => $status,
                     'status_label' => EnterpriseComplianceRecord::STATUSES[$status] ?? $status,
                     'due_date' => $due?->toDateString(),
-                    'notes' => $record?->notes,
+                    'notes' => $needsReview ? null : $record?->notes,
                     'missing_document' => $version->requires_document && ! $completed,
                     'overdue' => ! $completed && $due !== null && $due->lt($today),
                     'approaching' => ! $completed && $due !== null && $due->gte($today)
@@ -75,6 +78,7 @@ class EnterpriseComplianceController extends Controller
         abort_if(! $requirement->is_active || $version === null, 422, 'المتطلب غير فعّال أو غير منشور.');
 
         $data = $request->validate([
+            'version_number' => ['sometimes', 'integer', Rule::in([$version->version_number])],
             'status' => ['required', Rule::in(array_keys(EnterpriseComplianceRecord::STATUSES))],
             'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:5000'],
@@ -84,6 +88,12 @@ class EnterpriseComplianceController extends Controller
             'enterprise_id' => $enterprise->id, 'compliance_requirement_id' => $requirement->id,
         ]);
         $before = $record->exists ? $record->only(['status', 'due_date', 'notes', 'compliance_requirement_version_id']) : null;
+        if ($record->exists && $record->compliance_requirement_version_id !== $version->id) {
+            // Prior version details remain in the audit's before snapshot.
+            $record->due_date = null;
+            $record->notes = null;
+        }
+        unset($data['version_number']);
         $record->fill($data + ['compliance_requirement_version_id' => $version->id, 'updated_by' => $actor->id])->save();
 
         $audit->record($actor, 'compliance.enterprise_status_updated', $record, [

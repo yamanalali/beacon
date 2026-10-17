@@ -70,7 +70,7 @@ export default function Form({
                                 onSubmit={(event) => {
                                     event.preventDefault();
                                     if (isCorrection) {
-                                        form.transform((d) => ({ ...d, items: toItemsPayload(d.items) }));
+                                        form.transform(({ paid_amount: _ignored, ...rest }) => ({ ...rest, items: toItemsPayload(rest.items) }));
                                         form.post(
                                             `/transactions/${original.public_id}/correct`,
                                         );
@@ -151,38 +151,56 @@ export default function Form({
                                     }
                                     error={form.errors.category}
                                 />
-                                <SelectInput
-                                    id="payment_status"
-                                    label="هل تم الدفع؟"
-                                    value={form.data.payment_status}
-                                    options={options.payment_statuses}
-                                    onChange={(v) =>
-                                        form.setData(
-                                            "payment_status",
-                                            v as typeof form.data.payment_status,
-                                        )
-                                    }
-                                    error={form.errors.payment_status}
-                                />
-                                {form.data.payment_status ===
-                                "partially_paid" ? (
-                                    <TextInput
-                                        id="paid_amount"
-                                        name="paid_amount"
-                                        label="المبلغ المدفوع الآن"
-                                        value={form.data.paid_amount}
-                                        onChange={(v) =>
-                                            form.setData("paid_amount", v)
-                                        }
-                                        error={form.errors.paid_amount}
-                                    />
-                                ) : null}
-                                {form.data.payment_status !== "paid" ? (
-                                    <p className="small text-body-secondary">
-                                        يمكنك تسجيل الدفعات اللاحقة من صفحة
-                                        العملية، ولن تُحسب العملية مرتين.
-                                    </p>
-                                ) : null}
+                                {isCorrection ? (
+                                    <div
+                                        className="alert alert-info"
+                                        role="note"
+                                    >
+                                        تبقى الدفعات المسجلة وتواريخها محفوظة.
+                                        تُحسب حالة الدفع تلقائياً من المبلغ
+                                        المصحح، ويمكن تسجيل دفعة جديدة من صفحة
+                                        العملية بعد حفظ التصحيح.
+                                    </div>
+                                ) : (
+                                    <>
+                                        <SelectInput
+                                            id="payment_status"
+                                            label="هل تم الدفع؟"
+                                            value={form.data.payment_status}
+                                            options={options.payment_statuses}
+                                            onChange={(v) =>
+                                                form.setData(
+                                                    "payment_status",
+                                                    v as typeof form.data.payment_status,
+                                                )
+                                            }
+                                            error={form.errors.payment_status}
+                                        />
+                                        {form.data.payment_status ===
+                                        "partially_paid" ? (
+                                            <TextInput
+                                                id="paid_amount"
+                                                name="paid_amount"
+                                                label="المبلغ المدفوع الآن"
+                                                value={form.data.paid_amount}
+                                                onChange={(v) =>
+                                                    form.setData(
+                                                        "paid_amount",
+                                                        v,
+                                                    )
+                                                }
+                                                error={form.errors.paid_amount}
+                                            />
+                                        ) : null}
+                                        {form.data.payment_status !== "paid" ? (
+                                            <p className="small text-body-secondary">
+                                                يمكنك تسجيل الدفعات اللاحقة من
+                                                صفحة العملية، ولن تُحسب العملية
+                                                مرتين.
+                                            </p>
+                                        ) : null}
+                                    </>
+                                )}
                                 <TextInput
                                     id="counterparty"
                                     name="counterparty"

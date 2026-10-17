@@ -44,7 +44,13 @@ describe("Compliance/Enterprise restyle", () => {
         fireEvent.change(screen.getByLabelText("الحالة"), { target: { value: "completed" } });
         fireEvent.change(screen.getByLabelText("الموعد"), { target: { value: "" } });
         fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
-        expect(put).toHaveBeenCalledWith("/enterprises/E1/compliance/R1", { status: "completed", due_date: null }, { preserveScroll: true });
+        expect(put).toHaveBeenCalledWith("/enterprises/E1/compliance/R1", { status: "completed", due_date: null, version_number: 2 }, expect.objectContaining({ preserveScroll: true }));
+    });
+
+    it("warns when an older completion needs review for the current version", () => {
+        render(<Enterprise enterprise={enterprise} items={[{ ...item, status: "not_started", status_label: "لم يبدأ", needs_version_review: true, recorded_version_number: 1, recorded_status_label: "مكتمل" }]} statuses={statuses} canUpdate={false} />);
+        expect(screen.getByRole("status").textContent).toContain("صدر إصدار جديد يحتاج مراجعة");
+        expect(screen.getByTestId("compliance-summary").textContent).toContain("0 من 1 مكتمل");
     });
 
     it("shows the empty state and no summary when there are no requirements", () => {

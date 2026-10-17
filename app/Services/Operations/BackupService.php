@@ -32,12 +32,17 @@ class BackupService
         $work = $this->tempDir();
 
         try {
-            $this->snapshotDatabase($work.'/database.sqlite');
+            $driver = DB::connection()->getDriverName();
+            $native = $driver === 'sqlite' ? null : app(NativeDatabaseBackup::class)->snapshot(DB::connection(), $work);
+            if ($driver === 'sqlite') {
+                $this->snapshotDatabase($work.'/database.sqlite');
+            }
             $documents = $this->copyDocuments($work.'/documents');
             $manifest = [
-                'format' => 1,
+                'format' => $native === null ? 1 : 2,
+                'database' => $native,
                 'created_at' => now()->toIso8601String(),
-                'tables' => $this->rowCounts(new PDO('sqlite:'.$work.'/database.sqlite')),
+                'tables' => $native === null ? $this->rowCounts(new PDO('sqlite:'.$work.'/database.sqlite')) : array_fill_keys($native['tables'], null),
                 'documents' => $documents,
             ];
             File::put($work.'/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT));
@@ -48,7 +53,9 @@ class BackupService
             File::delete($zipPath);
 
             $relative = trim(config('operations.backup.path'), '/').'/beacon-'.now()->format('Ymd-His').'-'.Str::lower(Str::random(6)).'.bak';
-            $this->disk()->put($relative, $encrypted);
+            if (! $this->disk()->put($relative, $encrypted)) {
+                throw new RuntimeException('Backup storage write failed.');
+            }
 
             $run->update([
                 'status' => BackupRun::STATUS_SUCCEEDED,
@@ -62,6 +69,7 @@ class BackupService
             $run->update(['status' => BackupRun::STATUS_FAILED, 'error' => $e->getMessage(), 'finished_at' => now()]);
         } finally {
             File::deleteDirectory($work);
+            File::delete($work.'.zip');
         }
 
         return $run->fresh();
@@ -93,15 +101,20 @@ class BackupService
             File::delete($work.'.zip');
 
             $manifest = json_decode(File::get($work.'/manifest.json'), true, flags: JSON_THROW_ON_ERROR);
-            $pdo = new PDO('sqlite:'.$work.'/database.sqlite');
-            $integrity = $pdo->query('PRAGMA integrity_check')->fetchColumn();
-            $counts = $this->rowCounts($pdo);
-            $pdo = null;
-
+            $nativeDetails = [];
             $mismatched = [];
-            foreach ($manifest['tables'] as $table => $count) {
-                if (($counts[$table] ?? null) !== $count) {
-                    $mismatched[] = $table;
+            if (($manifest['format'] ?? 1) === 2) {
+                $nativeDetails = app(NativeDatabaseBackup::class)->restoreTest($manifest['database'], $work);
+                $integrity = $nativeDetails['integrity_check'];
+            } else {
+                $pdo = new PDO('sqlite:'.$work.'/database.sqlite');
+                $integrity = $pdo->query('PRAGMA integrity_check')->fetchColumn();
+                $counts = $this->rowCounts($pdo);
+                $pdo = null;
+                foreach ($manifest['tables'] as $table => $count) {
+                    if (($counts[$table] ?? null) !== $count) {
+                        $mismatched[] = $table;
+                    }
                 }
             }
             $missingDocs = array_values(array_filter($manifest['documents'], fn ($d) => ! File::exists($work.'/documents/'.$d['path'])
@@ -110,7 +123,7 @@ class BackupService
             $ok = $integrity === 'ok' && $mismatched === [] && $missingDocs === [];
             $run->update([
                 'status' => $ok ? BackupRun::STATUS_SUCCEEDED : BackupRun::STATUS_FAILED,
-                'details' => [
+                'details' => $nativeDetails + [
                     'integrity_check' => $integrity,
                     'tables_checked' => count($manifest['tables']),
                     'tables_mismatched' => $mismatched,
@@ -156,10 +169,6 @@ class BackupService
 
     private function snapshotDatabase(string $target): void
     {
-        if (DB::connection()->getDriverName() !== 'sqlite') {
-            // TODO: BUSINESS DECISION REQUIRED - production database engine/hosting; add the engine-native dump here.
-            throw new RuntimeException('Only SQLite snapshots are implemented.');
-        }
         if (DB::transactionLevel() > 0) {
             throw new RuntimeException('Backups cannot run inside an open database transaction.');
         }
@@ -231,7 +240,7 @@ class BackupService
     private function tempDir(): string
     {
         $dir = storage_path('app/backup-work/'.Str::random(16));
-        File::ensureDirectoryExists($dir);
+        File::ensureDirectoryExists($dir, 0700);
 
         return $dir;
     }

@@ -52,7 +52,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('readiness_assessment_id')->constrained('readiness_assessments')->cascadeOnDelete();
             $table->foreignId('readiness_criterion_id')->constrained('readiness_criteria');
-            $table->foreignId('compliance_requirement_version_id')->nullable()->constrained('compliance_requirement_versions');
+            $table->foreignId('compliance_requirement_version_id')->nullable()->constrained('compliance_requirement_versions', indexName: 'rar_version_foreign');
             $table->string('outcome')->default('missing');
             $table->text('note')->nullable();
             $table->text('action_needed')->nullable();

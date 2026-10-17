@@ -10,6 +10,9 @@ type Item = {
     requirement_public_id: string;
     category_label: string;
     version: { version_number: number; title_ar: string; guidance_ar: string | null; guidance_pending: boolean; deadline_note_ar: string | null };
+    needs_version_review?: boolean;
+    recorded_version_number?: number | null;
+    recorded_status_label?: string | null;
     status: string;
     status_label: string;
     due_date: string | null;
@@ -34,6 +37,8 @@ function tone(item: Item): StatusTone {
 }
 
 function Row({ item, enterprise, statuses, canUpdate }: { item: Item; enterprise: Props["enterprise"]; statuses: Record<string, string>; canUpdate: boolean }) {
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [status, setStatus] = useState(item.status);
     const [dueDate, setDueDate] = useState(item.due_date ?? "");
     const id = item.requirement_public_id;
@@ -56,6 +61,7 @@ function Row({ item, enterprise, statuses, canUpdate }: { item: Item; enterprise
                     <span><bdi dir="ltr">{item.due_date}</bdi>{item.overdue ? " (متأخر)" : item.approaching ? " (قريب)" : ""}</span>
                 </p>
             ) : null}
+            {item.needs_version_review ? <div className="alert alert-warning py-2" role="status">صدر إصدار جديد يحتاج مراجعة. حالة الإصدار {item.recorded_version_number}: {item.recorded_status_label}؛ لم تُعتمد للإصدار الحالي.</div> : null}
             {item.missing_document ? <p className="app-record-line"><span>الوثائق</span><span className="text-danger">وثيقة مطلوبة لم تُستكمل</span></p> : null}
             {canUpdate ? (
                 <div className="row g-2 align-items-end pt-3">
@@ -73,13 +79,15 @@ function Row({ item, enterprise, statuses, canUpdate }: { item: Item; enterprise
                         <button
                             type="button"
                             className="btn btn-primary"
-                            onClick={() => router.put(`/enterprises/${enterprise.public_id}/compliance/${id}`, { status, due_date: dueDate || null }, { preserveScroll: true })}
+                            disabled={saving}
+                            onClick={() => router.put(`/enterprises/${enterprise.public_id}/compliance/${id}`, { status, due_date: dueDate || null, version_number: item.version.version_number }, { preserveScroll: true, onStart: () => { setSaving(true); setError(null); }, onError: errors => setError(Object.values(errors).join(" ")), onFinish: () => setSaving(false) })}
                         >
                             حفظ
                         </button>
                     </div>
                 </div>
             ) : null}
+            {error ? <p className="text-danger mt-2 mb-0" role="alert">{error}</p> : null}
         </article>
     );
 }
@@ -106,7 +114,7 @@ export default function Enterprise({ enterprise, items, statuses, canUpdate }: P
                     ) : (
                         <div className="d-flex flex-column gap-3">
                             {items.map((item) => (
-                                <Row key={item.requirement_public_id} item={item} enterprise={enterprise} statuses={statuses} canUpdate={canUpdate} />
+                                <Row key={`${item.requirement_public_id}-${item.version.version_number}-${item.status}-${item.due_date}`} item={item} enterprise={enterprise} statuses={statuses} canUpdate={canUpdate} />
                             ))}
                         </div>
                     )}

@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 class ReadinessAssessmentTest extends TestCase
 {
-    use RefreshDatabase, ReadinessTestHelpers;
+    use ReadinessTestHelpers, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -102,6 +102,24 @@ class ReadinessAssessmentTest extends TestCase
         $this->actingAs($advisor)->put(route('readiness-assessments.results.update', [$assessment, $books]), ['outcome' => 'met'])->assertStatus(422);
         $this->expectException(LogicException::class);
         $assessment->update(['score' => 100]);
+    }
+
+    public function test_new_assessment_requires_review_of_a_new_compliance_version(): void
+    {
+        $enterprise = $this->enterprise();
+        $advisor = $this->advisorOf($enterprise);
+        $requirement = $this->publishedRequirement();
+        $v1 = $requirement->currentVersion();
+        EnterpriseComplianceRecord::query()->create([
+            'enterprise_id' => $enterprise->id, 'compliance_requirement_id' => $requirement->id,
+            'compliance_requirement_version_id' => $v1->id, 'status' => 'completed',
+        ]);
+        $v2 = $requirement->versions()->create(['version_number' => 2, 'title_ar' => 'متطلب محدث', 'status' => 'published']);
+        $this->publishedRuleSet([['code' => 'licence', 'weight' => 1, 'compliance_requirement_id' => $requirement->id]]);
+        $this->actingAs($advisor)->post(route('enterprises.readiness.store', $enterprise))->assertRedirect();
+        $result = ReadinessAssessment::query()->sole()->results()->sole();
+        $this->assertSame('missing', $result->outcome);
+        $this->assertSame($v2->id, $result->compliance_requirement_version_id);
     }
 
     public function test_old_assessment_keeps_its_rule_set_after_new_rules_are_published(): void

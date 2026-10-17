@@ -15,6 +15,16 @@ return [
         'disk' => env('BEACON_BACKUP_DISK', 'local'), // private disk (storage/app/private)
         'path' => env('BEACON_BACKUP_PATH', 'backups'),
         'include_documents' => true,
+        // Optional dedicated connection with CREATE/DROP DATABASE privileges for isolated restore tests.
+        'restore_connection' => env('BEACON_BACKUP_RESTORE_CONNECTION'),
+        'native' => [
+            'mysql_dump' => env('BEACON_MYSQLDUMP_BINARY', 'mysqldump'),
+            'mariadb_dump' => env('BEACON_MARIADB_DUMP_BINARY', 'mariadb-dump'),
+            'mysql_client' => env('BEACON_MYSQL_BINARY', 'mysql'),
+            'pgsql_dump' => env('BEACON_PG_DUMP_BINARY', 'pg_dump'),
+            'pgsql_restore' => env('BEACON_PG_RESTORE_BINARY', 'pg_restore'),
+            'timeout' => (int) env('BEACON_BACKUP_COMMAND_TIMEOUT', 300),
+        ],
         // Encryption key for backup archives. Keep it OUTSIDE the backup location. Falls back to APP_KEY.
         'key' => env('BEACON_BACKUP_KEY'),
         // TODO: BUSINESS DECISION REQUIRED - final backup retention period (section 56). NULL = never prune automatically.

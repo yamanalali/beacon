@@ -61,7 +61,7 @@ export type SmeComplianceItem = {
 };
 
 export type DashboardAlert = {
-    key: "overdue_compliance" | "pending_reviews" | "open_escalations";
+    key: "overdue_compliance" | "pending_reviews" | "open_escalations" | "compliance_version_review";
     severity: "danger" | "warning" | "info";
     count: number;
     title: string;

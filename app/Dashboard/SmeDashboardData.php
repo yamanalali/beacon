@@ -22,6 +22,7 @@ use Carbon\CarbonImmutable;
 class SmeDashboardData
 {
     private const INCOME_TYPES = [TransactionType::Sale, TransactionType::Income];
+
     private const EXPENSE_TYPES = [TransactionType::Purchase, TransactionType::Expense];
 
     /** @return array<string, mixed> */
@@ -53,7 +54,7 @@ class SmeDashboardData
         $openCompliance = EnterpriseComplianceRecord::query()->with('version')
             ->where('enterprise_id', $enterprise->id)
             ->whereNotNull('due_date')
-            ->where('status', '!=', 'completed');
+            ->forCurrentVersion()->where('status', '!=', 'completed');
 
         $overdue = (clone $openCompliance)->where('due_date', '<', $today->toDateString())
             ->orderBy('due_date')->get();
@@ -97,7 +98,12 @@ class SmeDashboardData
             'overdue' => $r->due_date->lt($today),
         ];
 
+        $versionReviews = EnterpriseComplianceRecord::query()->where('enterprise_id', $enterprise->id)->needingVersionReview()->count();
         $alerts = [];
+        if ($versionReviews > 0) {
+            $alerts[] = ['key' => 'compliance_version_review', 'severity' => 'warning', 'count' => $versionReviews,
+                'title' => 'متطلبات امتثال محدثة تحتاج مراجعة', 'href' => route('enterprises.compliance.index', $enterprise)];
+        }
         if ($overdue->isNotEmpty()) {
             $alerts[] = [
                 'key' => 'overdue_compliance',
