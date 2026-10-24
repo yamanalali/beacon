@@ -169,3 +169,9 @@ describe("reorder", () => {
         expect(r.map((p) => [p.code, p.sort_order])).toEqual([["B", 0], ["A", 1]]);
     });
 });
+
+
+it.each([null, {}, { type: "choice", config: null }, { type: "choice", config: { options: [null] } }])("rejects malformed imported criterion %j without crashing", criterion => {
+    const file = { ...exportRuleSet(draft), criteria: [criterion] };
+    expect(importRuleSet(JSON.stringify(file), { id: 1, version_number: 1 })).toMatchObject({ ok: false });
+});

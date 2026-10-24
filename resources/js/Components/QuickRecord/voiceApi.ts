@@ -53,7 +53,7 @@ export async function sendVoice(url: string, audio: Blob, fetchImpl: typeof fetc
         return { ok: false, kind: "invalid", message: j?.errors?.audio?.[0] ?? "تعذّرت قراءة التسجيل. حاول مرة أخرى." };
     }
     if (!res.ok) return { ok: false, kind: "error", message: "حدث خطأ أثناء معالجة التسجيل. حاول مرة أخرى." };
-    return { ok: true, data: (await res.json()) as VoiceDraftResponse };
+    return readVoiceResponse(res);
 }
 
 /**
@@ -82,5 +82,16 @@ export async function sendTranscript(url: string, transcript: string, fetchImpl:
         return { ok: false, kind: "invalid", message: j?.errors?.transcript?.[0] ?? j?.errors?.source?.[0] ?? "تعذّر فهم النص. عدّله وحاول مرة أخرى." };
     }
     if (!res.ok) return { ok: false, kind: "error", message: "حدث خطأ أثناء معالجة النص. حاول مرة أخرى." };
-    return { ok: true, data: (await res.json()) as VoiceDraftResponse };
+    return readVoiceResponse(res);
+}
+
+/** An expired login or a proxy error can return HTML with status 200. Never open a broken review. */
+async function readVoiceResponse(res: Response): Promise<VoiceResult> {
+    try {
+        const data = await res.json() as VoiceDraftResponse;
+        if (!data?.draft || !Array.isArray(data.options?.types) || !Array.isArray(data.options?.currencies) || !data.options?.categories || !Array.isArray(data.options?.payment_statuses) || typeof data.confirm?.url !== "string") throw new Error();
+        return { ok: true, data };
+    } catch {
+        return { ok: false, kind: "error", message: "تعذرت قراءة رد الخادم. حدّث الصفحة وسجّل الدخول ثم حاول مجدداً، أو استخدم الإدخال اليدوي." };
+    }
 }

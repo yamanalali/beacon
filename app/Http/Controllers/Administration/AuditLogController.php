@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
 use App\Services\FinancialReports\ReportExporter;
+use App\Support\AuditContextPresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -44,7 +45,7 @@ class AuditLogController extends Controller
 
         return Inertia::render('Administration/AuditLogs/Show', [
             'log' => $this->row($auditLog) + [
-                'context_json' => json_encode(RecordAuditLog::withoutSecrets($auditLog->context ?? []), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'context_rows' => AuditContextPresenter::rows($auditLog->context ?? []),
             ],
         ]);
     }
@@ -70,7 +71,7 @@ class AuditLogController extends Controller
                     $log->action,
                     $log->target_type,
                     $log->target_id,
-                    (string) json_encode(RecordAuditLog::withoutSecrets($log->context ?? []), JSON_UNESCAPED_UNICODE),
+                    implode("\n", array_map(fn (array $row): string => $row['label'].': '.$row['value'], AuditContextPresenter::rows($log->context ?? []))),
                 ]));
             }
             fclose($out);

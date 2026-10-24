@@ -1,5 +1,5 @@
 import { Link, router } from "@inertiajs/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
@@ -26,14 +26,16 @@ function targetHref(n: NotificationRow): string | null {
 export default function Index({ notifications, unread_count, filters, fetchImpl }: Props) {
     const [readIds, setReadIds] = useState<Set<string>>(new Set());
     const [error, setError] = useState<string | null>(null);
-    const unread = Math.max(0, unread_count - readIds.size);
+    useEffect(() => { setReadIds(new Set()); }, [notifications]);
+    const pendingUnread = notifications.data.filter(n => !n.read_at && readIds.has(n.id)).length;
+    const unread = Math.max(0, unread_count - pendingUnread);
 
     async function markRead(n: NotificationRow) {
         setError(null);
         const r = await postJson(`/notifications/${n.id}/read`, null, fetchImpl);
         if (r.ok) {
             setReadIds((s) => new Set(s).add(n.id));
-            router.reload({ only: ["unread_count"] });
+            router.reload({ only: ["notifications", "unread_count"], onSuccess: () => setReadIds(new Set()) });
         } else setError(r.message);
     }
 
