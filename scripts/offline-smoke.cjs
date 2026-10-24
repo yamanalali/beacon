@@ -41,15 +41,17 @@ const assert = (condition, message) => { if (!condition) throw new Error(message
         }), { type, payload });
         let state;
         for (let attempt = 0; attempt < 100; attempt++) {
-            state = await command('STATUS'); if (state.active && state.pages.length > 10) break;
+            state = await command('STATUS'); if (state.active && state.preparation?.status === 'complete') break;
             await page.waitForTimeout(300);
         }
-        assert(state.active, 'Offline preparation was not activated');
+        assert(state.active && state.preparation?.status === 'complete', 'Automatic login preparation did not finish');
+        await page.getByTestId('offline-prepared').waitFor();
         const saved = state.pages.find(p => p.url.match(/\/enterprises\/[A-Za-z0-9-]+/));
         assert(saved, 'No enterprise was prepared');
         const enterprise = saved.url.match(/\/enterprises\/[A-Za-z0-9-]+/)[0];
         const manual = enterprise + '/transactions/create';
-        await command('PREPARE', { urls: [manual] });
+        assert(state.pages.some(page => page.url === manual), 'The transaction form was not prepared automatically');
+        console.log('PASS automatic preparation immediately after login without a prepare command');
         await page.goto(manual); await page.locator('#amount').waitFor();
         await context.setOffline(true); await page.reload(); await page.locator('#amount').waitFor();
         console.log('PASS offline application hard reload');

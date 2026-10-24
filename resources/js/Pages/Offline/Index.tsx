@@ -1,3 +1,4 @@
+import { OfflinePreparationStatus } from "../../Components/Feedback/ConnectionStatus";
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
@@ -19,11 +20,12 @@ export default function Index() {
         {offline?.missing_page ? <div className="alert alert-warning" role="alert">الصفحة المطلوبة لم تُحفظ بعد. افتحها وأنت متصل لتجهيزها لاحقاً.</div> : null}
         {error || status.error ? <div className="alert alert-warning" role="alert">{error || status.error}</div> : null}
         <SectionCard title="تجهيز هذا الجهاز">
-            <p>يُحفظ التطبيق والصفحات التي تفتحها على هذا الجهاز الموثوق لمدة سبعة أيام. استخدم الزر لتحديث صفحات مساحة العمل قبل مغادرة مكان يتوفر فيه اتصال.</p>
+            <p>يبدأ حفظ ملفات الواجهة والصفحات الأساسية تلقائياً فور تسجيل الدخول، دون الضغط على أي زر. تظهر حالة التجهيز هنا، وتُحفظ الصفحات التي تفتحها لاحقاً أيضاً لمدة سبعة أيام. الزر أدناه اختياري لتحديث النسخة المحفوظة.</p>
             <p className="small text-body-secondary">الملفات المحفوظة خاصة بهذا المتصفح. تسجيل الخروج أو مسح بيانات المتصفح يحذف النسخ والطلبات غير المرسلة. لا تستخدم هذا الخيار على جهاز مشترك.</p>
             {!status.supported ? <p role="status">يلزم متصفح يدعم العمل دون اتصال، وموقع يعمل عبر HTTPS.</p> : null}
-            <div className="d-flex flex-wrap gap-2">
-                <button type="button" className="btn btn-primary" disabled={!status.ready || status.busy || !navigator.onLine} onClick={() => void prepareOffline([location.pathname, ...auth.navigation.map(i => i.href), ...(auth.quick_record ? [auth.quick_record.manual_url] : [])])}>{status.busy ? 'يرجى الانتظار…' : 'تجهيز الصفحات وتحديثها'}</button>
+            <OfflinePreparationStatus status={status} />
+            <div className="d-flex flex-wrap gap-2 mt-2">
+                <button type="button" className="btn btn-primary" disabled={!status.ready || status.busy || status.preparing || !navigator.onLine} onClick={() => void prepareOffline([location.pathname, ...auth.navigation.map(i => i.href), ...(auth.quick_record ? [auth.quick_record.manual_url] : [])])}>{status.preparing || status.busy ? 'يرجى الانتظار…' : 'تحديث النسخة المحفوظة'}</button>
                 <button type="button" className="btn btn-outline-primary" disabled={!status.ready || status.busy} onClick={() => void syncOffline()}>المزامنة الآن</button>
                 <button type="button" className="btn btn-outline-danger" disabled={!status.ready || status.busy} onClick={() => { if (window.confirm('حذف كل الصفحات والملفات والطلبات غير المرسلة من هذا الجهاز؟')) void act('CLEAR'); }}>مسح بيانات هذا الجهاز</button>
             </div>

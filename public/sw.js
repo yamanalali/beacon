@@ -98,25 +98,42 @@ function linkedPages(page) {
     }
     return links;
 }
-async function warm(urls, expand = true) {
-    const todo = [...new Set(urls)], done = new Set();
+async function warm(urls, expand = true, track = false) {
+    const scope = await scopeNow();
+    const eligible = url => sameOrigin(url) && cacheable(new URL(url, self.location.origin).pathname) && !/\/(?:export|download|preview)(?:\/|$)/.test(url);
+    const todo = [...new Set(urls.filter(eligible).map(relative))], done = new Set();
+    let saved = 0;
+    const progress = async status => {
+        if (!track || !scope) return;
+        await setMetadata('preparation:' + scope, { status, saved, processed: done.size, total: Math.min(110, todo.length) });
+        await notify();
+    };
+    await progress('preparing');
     for (let i = 0; i < todo.length && done.size < 110; i++) {
         const url = todo[i];
         if (done.has(url) || !sameOrigin(url) || !cacheable(new URL(url, self.location.origin).pathname) || /\/(?:export|download|preview)(?:\/|$)/.test(url)) continue;
+        if (!scope || await scopeNow() !== scope) { await progress('interrupted'); return; }
         done.add(url);
+        let available = false;
         for (const inertia of [true, false]) {
             const version = await metadata('inertiaVersion');
             const req = new Request(new URL(url, self.location.origin), { credentials: 'same-origin', headers: inertia ? { 'X-Inertia': 'true', 'X-Inertia-Version': version ?? '', 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html, application/xhtml+xml' } : { Accept: 'text/html' } });
             try {
-                const response = await fetch(req); await remember(req, response);
+                const response = await fetch(req);
+                if (response.status >= 500 || [401, 419].includes(response.status) || (response.redirected && new URL(response.url).pathname === '/login')) throw new Error('Preparation interrupted');
+                await remember(req, response);
+                if (response.ok && response.headers.get('X-Beacon-Offline-Scope') === scope && await cached(url, inertia)) available = true;
                 if (inertia && response.ok && response.headers.get('X-Inertia') === 'true') {
                     const page = await response.clone().json();
-                    if (expand) todo.push(...linkedPages(page));
+                    if (expand) for (const link of linkedPages(page).filter(eligible).map(relative)) if (!todo.includes(link)) todo.push(link);
                     if (page.component === 'FinancialReports/Show' && page.props?.enterprise?.public_id) await saveReportData(page.props.enterprise.public_id);
                 }
-            } catch { return; }
+            } catch { if (available) saved++; await progress('interrupted'); return; }
         }
+        if (available) saved++;
+        if (track && (done.size % 2 === 0 || done.size === todo.length)) await progress('preparing');
     }
+    await progress('complete');
 }
 function htmlWithPage(html, page) {
     return html.replace(/(<script[^>]*data-page="[^"]+"[^>]*>)[\s\S]*?(<\/script>)/, (_, open, close) => open + JSON.stringify(page).replace(/</g, '\\u003c') + close);
@@ -345,10 +362,10 @@ self.addEventListener('message', event => {
                 const previous = await metadata('scope');
                 if (previous && previous !== scope) { await clearScope(previous); await purgeCaches(); }
                 await setMetadata('scope', scope); await setMetadata('unlocked', true);
-                await warm(['/offline', ...urls]); await sync();
+                await warm(['/offline', ...urls], true, true); await sync();
             } else if (type === 'LOCK') await lock();
             else if (type === 'SYNC') await sync();
-            else if (type === 'PREPARE') await warm(urls);
+            else if (type === 'PREPARE') await warm(urls, true, true);
             else if (type === 'CLEAR') { await lock(true); await setMetadata('scope', null); }
             else if (type === 'DETAILS' || type === 'FILE') {
                 const row = await data('entries', 'get', id);
@@ -387,7 +404,7 @@ self.addEventListener('message', event => {
                 if (title !== 'صفحة محفوظة' || !pageMap.has(url)) pageMap.set(url, { url, title });
             }
             const pages = [...pageMap.values()];
-            event.ports[0]?.postMessage({ ok: true, active: !!active, queue, pages, syncing: !!syncing, lastSync: await metadata('lastSync'), error: await metadata('lastError'), offlineAt: await metadata('lastOfflineAt') });
+            event.ports[0]?.postMessage({ ok: true, active: !!active, preparation: active ? await metadata('preparation:' + active) : null, queue, pages, syncing: !!syncing, lastSync: await metadata('lastSync'), error: await metadata('lastError'), offlineAt: await metadata('lastOfflineAt') });
         } catch (error) { event.ports[0]?.postMessage({ ok: false, error: error.message ?? 'تعذر تنفيذ الطلب على الجهاز.' }); }
     })());
 });
