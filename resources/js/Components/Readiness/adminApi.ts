@@ -58,11 +58,14 @@ export async function mutate(method: "POST" | "PUT" | "DELETE", url: string, bod
     } catch {
         return { ok: false, message: "تعذّر الاتصال بالخادم. حاول مرة أخرى.", errors: {} };
     }
-    if (res.status === 422 || res.status === 403 || res.status === 404 || res.status === 429 || res.status >= 500) {
+    if (!res.ok) {
         const j = (await res.json().catch(() => null)) as { message?: string; errors?: Record<string, string[]> } | null;
         const errors = flattenErrors(j?.errors);
-        const fallback = res.status === 403 ? "ليست لديك صلاحية لهذا الإجراء." : res.status === 429 ? "محاولات كثيرة، انتظر قليلاً." : "تعذّر تنفيذ الطلب.";
-        return { ok: false, message: j?.message && Object.keys(errors).length === 0 ? j.message : Object.keys(errors).length ? "راجع الحقول المعلّمة." : fallback, errors };
+        const fallback = res.status === 401 || res.status === 419 ? "انتهت الجلسة. حدّث الصفحة وسجّل الدخول ثم حاول مجدداً." : res.status === 403 ? "ليست لديك صلاحية لهذا الإجراء." : res.status === 429 ? "محاولات كثيرة، انتظر قليلاً." : "تعذّر تنفيذ الطلب.";
+        return { ok: false, message: Object.keys(errors).length ? "راجع الحقول المعلّمة." : res.status === 422 ? j?.message ?? fallback : fallback, errors };
+    }
+    if (res.redirected && /\/login(?:[/?#]|$)/.test(res.url)) {
+        return { ok: false, message: "انتهت الجلسة. حدّث الصفحة وسجّل الدخول ثم حاول مجدداً.", errors: {} };
     }
     router.reload({ only: ["ruleSets"] });
     return { ok: true };

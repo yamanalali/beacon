@@ -337,8 +337,13 @@ export function importRuleSet(json: string, base: { id: number; version_number: 
     try {
         data = JSON.parse(json);
     } catch {
-        return { ok: false, error: "الملف ليس JSON صالحاً." };
+        return { ok: false, error: "تعذرت قراءة ملف القواعد. اختر ملفاً سبق تنزيله من النظام." };
     }
+    try { return importedDraft(data, base); }
+    catch { return { ok: false, error: "بيانات ملف القواعد غير صالحة. اختر ملفاً سبق تنزيله من النظام." }; }
+}
+
+function importedDraft(data: unknown, base: { id: number; version_number: number }): ImportResult {
     const r = data as Partial<RuleSetExport> | null;
     if (!r || r.format !== EXPORT_FORMAT || r.format_version !== 1) return { ok: false, error: "صيغة الملف غير معروفة." };
     if (!Array.isArray(r.pillars) || !Array.isArray(r.criteria) || !Array.isArray(r.bands)) return { ok: false, error: "الملف ناقص: المحاور أو المعايير أو الشرائح." };

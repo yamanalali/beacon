@@ -29,7 +29,7 @@ describe("RuleSetBuilder wired to the admin API", () => {
         expect(within(cards[0]).getAllByTestId("criterion-row")).toHaveLength(2);
         expect(cards[2].textContent).toContain("معايير غير مصنفة");
         expect(screen.queryByTestId("validation")).toBeNull();
-        expect(screen.getByRole("link", { name: /تصدير JSON/ }).getAttribute("href")).toBe("/admin/readiness/1/export");
+        expect(screen.getByRole("link", { name: /تنزيل ملف القواعد/ }).getAttribute("href")).toBe("/admin/readiness/1/export");
     });
 
     it("shows the effective equal-share weights (implicit pillar = average of set weights)", () => {

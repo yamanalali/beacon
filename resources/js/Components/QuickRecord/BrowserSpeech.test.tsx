@@ -137,7 +137,7 @@ describe("sendTranscript", () => {
     const json = (status: number, body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 
     it("posts a trimmed, capped transcript with source=browser_speech and no audio", async () => {
-        const f = vi.fn().mockReturnValue(json(200, { draft: { input_source: "browser_speech" } }));
+        const f = vi.fn().mockReturnValue(json(200, { draft: { input_source: "browser_speech" }, confirm: { url: "/confirm" }, options: { types: [], currencies: [], categories: {}, payment_statuses: [] } }));
         const r = await sendTranscript("/voice", `  ${"أ".repeat(VOICE_TRANSCRIPT_MAX + 5)}  `, f as unknown as typeof fetch);
         expect(r.ok && r.data.draft.input_source).toBe("browser_speech");
         const body = f.mock.calls[0][1].body as FormData;

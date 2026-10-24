@@ -162,7 +162,11 @@ export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetche
 
     // ---- set level ----
     const doImport = async (file: File) => {
-        const parsed = importRuleSet(await file.text(), { id: rs.id, version_number: rs.version_number });
+        if (file.size > 2 * 1024 * 1024) return setNotice({ tone: "danger", text: "حجم الملف أكبر من المسموح (2 ميغابايت)." });
+        let contents: string;
+        try { contents = await file.text(); }
+        catch { return setNotice({ tone: "danger", text: "تعذرت قراءة الملف. اختر الملف مرة أخرى." }); }
+        const parsed = importRuleSet(contents, { id: rs.id, version_number: rs.version_number });
         if (!parsed.ok) return setNotice({ tone: "danger", text: parsed.error });
         if (parsed.issues.length) return setNotice({ tone: "warning", text: "الملف لا يجتاز فحص القواعد، أصلحه ثم أعد الاستيراد:", list: parsed.issues.map((i) => i.message) });
         await run(actions.importFile(file), undefined, "تم استيراد القواعد كمسودة جديدة.");
@@ -213,8 +217,8 @@ export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetche
                     <StatusBadge label={rs.status === "draft" ? "مسودة" : rs.status === "published" ? "معتمدة (مجمّدة)" : "مؤرشفة"} tone={rs.status === "draft" ? "warning" : rs.status === "published" ? "success" : "neutral"} />
                 </span>
                 <span className="d-flex flex-wrap gap-2">
-                    <a className="btn btn-outline-primary" href={actions.exportUrl(rs)} download><i className="bi bi-download" aria-hidden="true" /> تصدير JSON</a>
-                    <button type="button" className="btn btn-outline-primary" disabled={busy} onClick={() => fileRef.current?.click()}><i className="bi bi-upload" aria-hidden="true" /> استيراد JSON</button>
+                    <a className="btn btn-outline-primary" href={actions.exportUrl(rs)} download><i className="bi bi-download" aria-hidden="true" /> تنزيل ملف القواعد</a>
+                    <button type="button" className="btn btn-outline-primary" disabled={busy} onClick={() => fileRef.current?.click()}><i className="bi bi-upload" aria-hidden="true" /> تحميل ملف قواعد</button>
                     <input ref={fileRef} type="file" accept="application/json,.json" className="d-none" aria-label="ملف القواعد" data-testid="import-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) void doImport(f); e.target.value = ""; }} />
                     <button type="button" className="btn btn-outline-primary" disabled={busy} onClick={() => void run(actions.duplicate(rs), undefined, "تم إنشاء مسودة جديدة من هذه النسخة.")}><i className="bi bi-copy" aria-hidden="true" /> نسخ كمسودة جديدة</button>
                     {!readOnly ? <button type="button" className="btn btn-primary" disabled={publishBlocked || busy} title={noBands ? NO_BANDS_MESSAGE : undefined} onClick={publish}>اعتماد ونشر</button> : null}

@@ -9,6 +9,7 @@ function xsrf(): string | null {
 }
 
 const FALLBACK: Record<number, string> = {
+    401: "انتهت الجلسة. حدّث الصفحة وسجّل الدخول ثم حاول مجدداً.",
     403: "ليست لديك صلاحية لهذا الإجراء.",
     404: "العنصر غير موجود.",
     419: "انتهت الجلسة، حدّث الصفحة وحاول مجدداً.",
@@ -37,7 +38,12 @@ export async function postJson<T>(
     } catch {
         json = null;
     }
-    if (res.ok) return { ok: true, status: res.status, data: json as T };
+    if (res.ok) {
+        if (!json || typeof json !== "object" || Array.isArray(json)) {
+            return { ok: false, status: res.status, message: "تعذرت قراءة رد الخادم. حدّث الصفحة وسجّل الدخول ثم حاول مجدداً." };
+        }
+        return { ok: true, status: res.status, data: json as T };
+    }
     const j = (json ?? {}) as { message?: string; errors?: Record<string, string[]> };
     const first = j.errors ? Object.values(j.errors)[0]?.[0] : undefined;
     return {

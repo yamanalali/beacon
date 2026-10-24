@@ -46,6 +46,19 @@ class TransactionFormExperienceTest extends TestCase
         $this->assertSame('2.500', $transaction->items()->sole()->quantity);
     }
 
+    public function test_settlement_accepts_localized_amounts_and_rejects_ambiguous_grouping(): void
+    {
+        [$enterprise, $user] = $this->business();
+        $transaction = $this->record($enterprise, $user, ['amount' => '2000', 'payment_status' => 'unpaid']);
+        $url = route('transactions.settlements.store', $transaction);
+        $this->actingAs($user)->post($url, ['settlement_date' => now()->toDateString(), 'amount' => '١٬٢٣٤٫٥٠'])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('1234.50', $transaction->settlements()->sole()->amount);
+        $this->post($url, ['settlement_date' => now()->toDateString(), 'amount' => '12,50'])
+            ->assertSessionHasErrors('amount');
+        $this->assertSame(1, $transaction->settlements()->count());
+    }
+
     public function test_ambiguous_grouping_and_extra_decimals_are_rejected_instead_of_guessed(): void
     {
         [$enterprise, $user] = $this->business();

@@ -38,6 +38,10 @@ describe("postJson", () => {
     });
 });
 
+it.each(["<html>Login</html>", "null", "[]", "invalid response"])("rejects unusable successful API bodies: %s", async body => {
+    expect(await postJson("/x", {}, vi.fn().mockResolvedValue(new Response(body)))).toMatchObject({ ok: false });
+});
+
 describe("Assistant", () => {
     it("asks, shows the AI label, answer and sources, then escalates", async () => {
         const f = vi.fn((url: string) =>
@@ -124,6 +128,15 @@ describe("Knowledge", () => {
 
 describe("Notifications", () => {
     const n = { id: "11111111-1111-1111-1111-111111111111", data: { type: "compliance_deadline", title: "موعد امتثال قريب", message: "تجديد الرخصة", enterprise_public_id: "ENT1" }, read_at: null, created_at: "2026-10-16T09:00:00+03:00" };
+    it("keeps the unread count correct after refreshed server props arrive", async () => {
+        const second = { ...n, id: "second" };
+        const f = vi.fn(() => json(200, { id: n.id, read_at: "now" }));
+        const { rerender } = render(<Notifications notifications={page([n, second])} unread_count={2} filters={{}} fetchImpl={f as unknown as typeof fetch} />);
+        await act(async () => { fireEvent.click(screen.getAllByRole("button", { name: "تعليم كمقروء" })[0]); });
+        expect(screen.getByText("لديك 1 إشعار غير مقروء.")).toBeTruthy();
+        rerender(<Notifications notifications={page([{ ...n, read_at: "now" }, second])} unread_count={1} filters={{}} fetchImpl={f as unknown as typeof fetch} />);
+        expect(screen.getByText("لديك 1 إشعار غير مقروء.")).toBeTruthy();
+    });
     it("marks a notification read and updates the count", async () => {
         const f = vi.fn(() => json(200, { id: n.id, read_at: "now" }));
         render(<Notifications notifications={page([n])} unread_count={1} filters={{}} fetchImpl={f as unknown as typeof fetch} />);

@@ -1,3 +1,4 @@
+import { transactionToday } from "../../lib/transactionInput";
 import type { ReactNode } from "react";
 import { Link, useForm } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
@@ -53,7 +54,7 @@ export default function Show({
     can_settle: boolean;
     can_upload: boolean;
 }) {
-    const form = useForm({ settlement_date: new Date().toISOString().slice(0, 10), amount: transaction.outstanding, note: "" });
+    const form = useForm({ settlement_date: transactionToday(), amount: transaction.outstanding, note: "" });
     const approval = useForm({});
     const settleLabel = transaction.is_inflow ? "تسجيل دفعة مستلمة" : "تسجيل دفعة مدفوعة";
 

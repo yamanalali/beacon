@@ -63,6 +63,29 @@ class AdministrationTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'audit_log.exported']);
     }
 
+    public function test_audit_details_and_export_are_readable_without_raw_json(): void
+    {
+        $users = $this->usersByRole();
+        $log = app(RecordAuditLog::class)->record($users['beacon_admin'], 'user.role_changed', $users['sme_user'], [
+            'before' => ['role' => 'sme_user'],
+            'after' => ['role' => 'beacon_advisor', 'is_active' => true],
+            'nested' => ['password' => 'not-visible'],
+        ]);
+
+        $this->actingAs($users['beacon_admin'])->get('/admin/audit-logs/'.$log->id)
+            ->assertOk()->assertInertia(fn ($page) => $page
+            ->missing('log.context_json')
+            ->where('log.context_rows.0.label', 'قبل التغيير / الدور')
+            ->where('log.context_rows.0.value', 'مستخدم المنشأة')
+            ->where('log.context_rows.1.value', 'مستشار بيكون')
+            ->where('log.context_rows.2.value', 'نعم'));
+        $csv = $this->get('/admin/audit-logs/export?action=user.role_changed')->streamedContent();
+        $this->assertStringContainsString('قبل التغيير / الدور: مستخدم المنشأة', $csv);
+        $this->assertStringNotContainsString('"before":', $csv);
+        $this->assertStringNotContainsString('not-visible', $csv);
+        $this->assertSame('sme_user', $log->fresh()->context['before']['role']);
+    }
+
     public function test_audit_history_cannot_be_modified_or_deleted(): void
     {
         $users = $this->usersByRole();

@@ -7,7 +7,7 @@ const rec = { state: "idle", seconds: 0, start: vi.fn(), stop: vi.fn(), cancel: 
 vi.mock("./useWavRecorder", () => ({ MAX_SECONDS: 60, useWavRecorder: () => rec }));
 
 import { VoiceRecorder } from "./VoiceRecorder";
-import type { VoiceDraftResponse } from "./voiceApi";
+import type { VoiceDraftResponse, sendVoice } from "./voiceApi";
 import { localToday } from "../Transactions/ReviewForm";
 
 const response: VoiceDraftResponse = {
@@ -20,7 +20,7 @@ const response: VoiceDraftResponse = {
 };
 afterEach(() => { cleanup(); routerPost.mockReset(); });
 
-async function recordAndStop(send: ReturnType<typeof vi.fn>) {
+async function recordAndStop(send: typeof sendVoice) {
     rec.state = "recording";
     rec.stop.mockResolvedValue(new Blob(["x"], { type: "audio/wav" }));
     render(<VoiceRecorder voiceUrl="/v" manualUrl="/manual" send={send} />);

@@ -11,7 +11,7 @@ type Log = {
     target_id: string;
     actor_name: string | null;
     actor_email: string | null;
-    context_json: string;
+    context_rows: { label: string; value: string }[];
 };
 
 export default function Show({ log }: { log: Log }) {
@@ -41,9 +41,20 @@ export default function Show({ log }: { log: Log }) {
                     </dl>
                 </SectionCard>
                 <SectionCard title="تفاصيل التغيير (قبل / بعد)">
-                    <pre dir="ltr" className="mb-0 small" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                        {log.context_json}
-                    </pre>
+                    {log.context_rows.length ? (
+                        <div className="table-responsive">
+                            <table className="table align-middle mb-0">
+                                <caption className="visually-hidden">تفاصيل التغيير</caption>
+                                <thead><tr><th scope="col">البيان</th><th scope="col">القيمة</th></tr></thead>
+                                <tbody>{log.context_rows.map((row, index) => (
+                                    <tr key={index}>
+                                        <th scope="row">{row.label}</th>
+                                        <td style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}><bdi>{row.value}</bdi></td>
+                                    </tr>
+                                ))}</tbody>
+                            </table>
+                        </div>
+                    ) : <p className="text-body-secondary mb-0">لا توجد تفاصيل إضافية لهذا الإجراء.</p>}
                 </SectionCard>
             </div>
         </AppLayout>
