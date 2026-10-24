@@ -58,6 +58,7 @@ export async function mutate(method: "POST" | "PUT" | "DELETE", url: string, bod
     } catch {
         return { ok: false, message: "تعذّر الاتصال بالخادم. حاول مرة أخرى.", errors: {} };
     }
+    if (res.status === 202) return { ok: false, message: "حُفظ الطلب على الجهاز بانتظار المزامنة.", errors: {} };
     if (!res.ok) {
         const j = (await res.json().catch(() => null)) as { message?: string; errors?: Record<string, string[]> } | null;
         const errors = flattenErrors(j?.errors);

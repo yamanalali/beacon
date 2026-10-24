@@ -1,3 +1,4 @@
+import { offlineReady } from "../../lib/offline";
 import { useEffect, useRef, useState } from "react";
 import { Link, useForm, usePage } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
@@ -94,7 +95,7 @@ export default function Form({ enterprise, options, original, template = null, c
                                 form.post(`/transactions/${original.public_id}/correct`);
                             } else {
                                 persist();
-                                if (!navigator.onLine) return;
+                                if (!navigator.onLine && !offlineReady()) return;
                                 form.transform(({ correction_reason: _ignored, ...rest }) => ({ ...rest, amount: normalizeTransactionAmount(rest.amount), paid_amount: rest.payment_status === "partially_paid" ? normalizeTransactionAmount(rest.paid_amount) : "", client_draft_id: draftId, items: toItemsPayload(rest.items) }));
                                 form.post(`/enterprises/${enterprise.public_id}/transactions`, { onSuccess: () => { try { removeDraft(scope, enterprise.public_id, draftId); } catch { /* Retrying a retained draft is idempotent. */ } } });
                             }

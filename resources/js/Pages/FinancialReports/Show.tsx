@@ -1,3 +1,5 @@
+import { usePage } from "@inertiajs/react";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { Link, router } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import AppLayout from "../../Layouts/AppLayout";
@@ -39,6 +41,15 @@ export default function Show({
     print: boolean;
     can_export?: boolean;
 }) {
+    const online = useOnlineStatus();
+    const { offline } = usePage().props;
+    const local = !online || offline?.cached === true;
+    const downloadLocalCsv = () => {
+        const safe = (value: string) => { const text = /^\s*[=+@]/.test(value) || /^\s*-(?!\d)/.test(value) ? "'" + value : value; return '"' + text.replaceAll('"', '""') + '"'; };
+        const rows = [[report.title], [report.period_label], ...report.notes.map(note => [note]), ...report.sections.flatMap(section => [[section.title], section.columns, ...section.rows])];
+        const blob = new Blob(["\uFEFF" + rows.map(row => row.map(safe).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `offline-${report.key}-${filters.from}-${filters.to}.csv`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
     const [values, setValues] = useState<Filters>(filters);
     const base = `/enterprises/${enterprise.public_id}/reports`;
     const query = new URLSearchParams(filters).toString();
@@ -87,14 +98,14 @@ export default function Show({
 
                 <div className="d-flex flex-wrap gap-2 d-print-none">
                     {can_export ? <>
-                    <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/xlsx?${query}`}>
+                    {local ? <button type="button" className="btn btn-outline-primary" disabled>Excel متاح عند الاتصال</button> : <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/xlsx?${query}`}>
                         <i className="bi bi-file-earmark-excel me-2" aria-hidden="true" />
                         تنزيل Excel
-                    </a>
-                    <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/csv?${query}`}>
+                    </a>}
+                    {local ? <button type="button" className="btn btn-outline-primary" onClick={downloadLocalCsv}>تنزيل CSV من النسخة المحفوظة</button> : <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/csv?${query}`}>
                         <i className="bi bi-filetype-csv me-2" aria-hidden="true" />
                         تنزيل CSV
-                    </a>
+                    </a>}
                     <button type="button" className="btn btn-outline-primary" style={{ minHeight: "48px" }} onClick={() => window.print()}>
                         <i className="bi bi-printer me-2" aria-hidden="true" />
                         طباعة / حفظ PDF

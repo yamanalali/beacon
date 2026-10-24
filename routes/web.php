@@ -33,3 +33,10 @@ foreach ([
         require $routeFile;
     }
 }
+
+Route::get('/offline/assets', [\App\Http\Controllers\Offline\OfflineController::class, 'assets'])->name('offline.assets');
+Route::middleware('auth')->group(function () {
+    Route::get('/offline', [\App\Http\Controllers\Offline\OfflineController::class, 'index'])->name('offline.index');
+    Route::get('/offline/report-data/{enterprise:public_id}', [\App\Http\Controllers\Offline\OfflineController::class, 'reportData'])->name('offline.report-data');
+    Route::get('/offline/session', [\App\Http\Controllers\Offline\OfflineController::class, 'session'])->name('offline.session');
+});

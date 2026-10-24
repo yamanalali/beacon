@@ -88,6 +88,7 @@ export type AuthCan = {
 };
 
 export type BeaconSharedProps = PageProps & {
+    offline?: { cached?: boolean; cached_at?: string; queued_id?: string; missing_page?: string };
     locale: string;
     dir: "rtl" | "ltr";
     auth: {
