@@ -3,6 +3,7 @@ import { data, entries, metadata, setMetadata, clearScope, enqueue, mutation, ca
 const PRIVATE = 'beacon-private-';
 let syncing;
 const clientScopes = new Map();
+const clientScope = async id => clientScopes.get(id) ?? await metadata('client:' + id);
 const relative = url => { const u = new URL(url, self.location.origin); return u.pathname + u.search; };
 const sameOrigin = url => new URL(url, self.location.origin).origin === self.location.origin;
 const cacheName = scope => PRIVATE + scope;
@@ -153,6 +154,8 @@ self.addEventListener('install', event => { event.waitUntil(installAssets()); })
 self.addEventListener('activate', event => { event.waitUntil((async () => {
     const active = await metadata('staticCache');
     for (const name of await caches.keys()) if (name.startsWith('beacon-static-') && name !== active) await caches.delete(name);
+    const live = new Set((await self.clients.matchAll({ includeUncontrolled: true })).map(client => 'client:' + client.id));
+    for (const row of await data('meta', 'getAll')) if (row.key.startsWith('client:') && !live.has(row.key)) await data('meta', 'delete', row.key);
     await self.clients.claim();
 })()); });
 async function queueRequest(request, id, label) {
@@ -173,7 +176,7 @@ async function queueRequest(request, id, label) {
         : new Response(JSON.stringify({ offline_queued: true, message: 'حُفظ الطلب على هذا الجهاز وسيُرسل عند عودة الاتصال.' }), { status: 202, headers: { 'Content-Type': 'application/json' } });
 }
 async function handleMutation(request, clientId) {
-    if (await scopeNow() && clientScopes.has(clientId) && clientScopes.get(clientId) !== await scopeNow()) return new Response(null, { status: 409, headers: { 'X-Inertia-Location': '/offline.html' } });
+    if (await scopeNow() && await clientScope(clientId) && await clientScope(clientId) !== await scopeNow()) return new Response(null, { status: 409, headers: { 'X-Inertia-Location': '/offline.html' } });
     const path = new URL(request.url).pathname;
     if (path === '/logout') {
         await setMetadata('logoutPending', true);
@@ -237,7 +240,7 @@ async function handleGet(request, clientId) {
             return new Response(JSON.stringify({ message: 'هذه الميزة تحتاج اتصالاً بالخادم.' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
         }
     }
-    if (await scopeNow() && clientScopes.has(clientId) && clientScopes.get(clientId) !== await scopeNow()) return caches.match('/offline.html');
+    if (await scopeNow() && await clientScope(clientId) && await clientScope(clientId) !== await scopeNow()) return caches.match('/offline.html');
     if (await finishLogout()) return caches.match('/offline.html');
     try {
         const result = await fetch(request);
@@ -328,9 +331,9 @@ self.addEventListener('message', event => {
     event.waitUntil((async () => {
         try {
             const { type, scope, urls = [], id } = event.data ?? {};
-            if (scope) clientScopes.set(event.source.id, scope);
+            if (scope) { clientScopes.set(event.source.id, scope); await setMetadata('client:' + event.source.id, scope); }
             const currentScope = await scopeNow();
-            if (currentScope && clientScopes.has(event.source.id) && clientScopes.get(event.source.id) !== currentScope && !['CONFIGURE', 'STATUS'].includes(type)) throw new Error('تغير الحساب. افتح التطبيق من جديد قبل المتابعة.');
+            if (currentScope && await clientScope(event.source.id) && await clientScope(event.source.id) !== currentScope && !['CONFIGURE', 'STATUS'].includes(type)) throw new Error('تغير الحساب. افتح التطبيق من جديد قبل المتابعة.');
             if (type === 'CONFIGURE') {
                 const response = await fetch('/offline/session', { headers: { Accept: 'application/json' }, cache: 'no-store' });
                 const session = response.ok ? await response.json() : null;
@@ -365,7 +368,7 @@ self.addEventListener('message', event => {
                 await notify();
             }
             const current = await scopeNow();
-            const active = clientScopes.has(event.source.id) && clientScopes.get(event.source.id) !== current ? null : current;
+            const active = await clientScope(event.source.id) && await clientScope(event.source.id) !== current ? null : current;
             // Messages never return request bodies or authentication material.
             const queue = active ? (await entries(active)).map(({ id, label, createdAt, status, errors, source }) => ({ id, label, createdAt, status, errors, source })) : [];
             const saved = active ? await (await caches.open(cacheName(active))).keys() : [];
