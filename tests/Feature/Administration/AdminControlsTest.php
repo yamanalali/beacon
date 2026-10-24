@@ -11,6 +11,7 @@ use App\Models\ReadinessRuleSet;
 use App\Models\User;
 use App\Models\UserInvitation;
 use App\Services\FinancialReports\FinancialReportService;
+use App\Support\AccountSecurity;
 use App\Support\Currencies;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -108,6 +109,7 @@ class AdminControlsTest extends TestCase
         $user->forceFill(['access_permissions' => ['export' => false]])->save();
         $this->actingAs($user)->get("/enterprises/{$enterprise->public_id}/reports/export/csv")->assertForbidden();
         $user->forceFill(['access_permissions' => ['view' => false]])->save();
+        $this->withSession([AccountSecurity::SESSION_USER => $user->id, AccountSecurity::SESSION_STAMP => AccountSecurity::stamp($user->fresh())]);
         $this->actingAs($user->fresh())->get(route('enterprises.transactions.index', $enterprise))->assertForbidden();
         $admin = $this->admin();
         $admin->forceFill(['access_permissions' => ['export' => false]])->save();

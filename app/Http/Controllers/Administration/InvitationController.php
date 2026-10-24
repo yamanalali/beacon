@@ -30,7 +30,11 @@ class InvitationController extends Controller
     public function store(Request $request, RecordAuditLog $audit)
     {
         $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
-        $data = $request->validate(['name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+        $data = $request->validate(['name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email'), function ($attribute, $value, $fail) {
+            if (User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower($value)])->exists()) {
+                $fail('هذا البريد مستخدم بالفعل.');
+            }
+        }],
             'role' => ['required', Rule::enum(UserRole::class)], 'enterprise_id' => ['nullable', 'required_if:role,sme_user', 'exists:enterprises,id'],
             'mfi_institution_id' => ['nullable', 'required_if:role,mfi_user', 'exists:mfi_institutions,id']]);
         $token = Str::random(64);
@@ -75,7 +79,9 @@ class InvitationController extends Controller
             $invite = $this->valid($token);
             $invite = UserInvitation::query()->lockForUpdate()->findOrFail($invite->id);
             abort_if($invite->accepted_at || $invite->revoked_at || $invite->expires_at->isPast() || ! hash_equals($invite->token_hash, hash('sha256', $token)), 410);
-            if (User::query()->where('email', $invite->email)->exists()) {
+            $issuer = User::query()->lockForUpdate()->find($invite->invited_by);
+            abort_unless($issuer?->isActive() && $issuer->role === UserRole::BeaconAdmin, 410);
+            if (User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower($invite->email)])->exists()) {
                 throw ValidationException::withMessages(['password' => 'يوجد حساب بهذا البريد. اطلب من المسؤول مراجعة الدعوة.']);
             }
             $user = new User(['name' => $invite->name, 'email' => $invite->email, 'password' => $data['password']]);

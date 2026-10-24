@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\UserRole;
 use App\Models\ComplianceRequirement;
 use App\Models\Enterprise;
 use App\Models\EnterpriseComplianceRecord;
@@ -12,6 +13,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 
 class OfflinePolicy
 {
@@ -29,6 +31,21 @@ class OfflinePolicy
     public static function scope(User $user): string
     {
         return hash_hmac('sha256', 'offline-user:'.$user->id, (string) config('app.key'));
+    }
+
+    /** Cache authorization changes with role, password, membership and referral consent. */
+    public static function authorization(User $user): string
+    {
+        $links = match ($user->role) {
+            UserRole::SmeUser => DB::table('enterprise_members')->where('user_id', $user->id)->orderBy('enterprise_id')->pluck('enterprise_id')->all(),
+            UserRole::BeaconAdvisor => DB::table('advisor_assignments')->where('user_id', $user->id)->orderBy('enterprise_id')->pluck('enterprise_id')->all(),
+            UserRole::MfiUser => DB::table('referrals')->leftJoin('referral_consents', 'referrals.id', '=', 'referral_consents.referral_id')
+                ->where('referrals.mfi_institution_id', $user->mfi_institution_id)->orderBy('referrals.id')->orderBy('referral_consents.id')
+                ->get(['referrals.id', 'referrals.status', 'referrals.disclosed_items', 'referral_consents.id as consent_id', 'referral_consents.status as consent_status', 'referral_consents.scope'])->all(),
+            default => [],
+        };
+
+        return hash('sha256', AccountSecurity::stamp($user).json_encode($links, JSON_THROW_ON_ERROR));
     }
 
     public static function versions(Request $request, bool $nested = false): array

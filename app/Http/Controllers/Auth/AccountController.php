@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Actions\Audit\RecordAuditLog;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\UpdatePasswordRequest;
+use App\Support\AccountSecurity;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,6 +31,10 @@ class AccountController extends Controller
             'password' => $request->validated('password'),
         ]);
 
-        return back()->with('status', 'تم تحديث كلمة المرور.');
+        AccountSecurity::revokeDatabaseSessions($request->user(), $request->session()->getId());
+        AccountSecurity::bind($request, $request->user()->fresh(), true);
+        app(RecordAuditLog::class)->record($request->user(), 'security.password_changed', $request->user());
+
+        return back()->with('status', 'تم تحديث كلمة المرور وإنهاء الجلسات الأخرى.');
     }
 }

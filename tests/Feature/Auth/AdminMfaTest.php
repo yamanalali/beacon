@@ -58,7 +58,7 @@ class AdminMfaTest extends TestCase
         $this->enableMfa();
         $admin = User::factory()->create(['role' => UserRole::TechnicalAdmin]);
 
-        $this->actingAs($admin)->post('/account/two-factor')->assertRedirect(route('two-factor.show'));
+        $this->actingAs($admin)->post('/account/two-factor', ['current_password' => 'password'])->assertRedirect(route('two-factor.show'));
         $admin->refresh();
         $this->assertNotNull($admin->two_factor_secret);
         $this->assertNull($admin->two_factor_confirmed_at);

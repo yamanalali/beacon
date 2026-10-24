@@ -3,9 +3,11 @@
 namespace App\Actions\Auth;
 
 use App\Actions\Audit\RecordAuditLog;
+use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\AccountSecurity;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class DeactivateUserAccount
 {
@@ -17,16 +19,14 @@ class DeactivateUserAccount
             abort(403);
         }
 
-        $target->forceFill([
-            'is_active' => false,
-        ])->save();
-
-        if (Schema::hasTable('sessions')) {
-            DB::table('sessions')->where('user_id', $target->getKey())->delete();
-        }
-
-        $this->audit->record($actor, 'user.deactivated', $target, [
-            'is_active' => false,
-        ]);
+        DB::transaction(function () use ($actor, $target): void {
+            [$actor, $target, $activeAdmins] = AccountSecurity::administrationPair($actor, $target);
+            if ($target->role === UserRole::BeaconAdmin && $target->isActive() && $activeAdmins <= 1) {
+                throw ValidationException::withMessages(['user' => 'لا يمكن إيقاف آخر مدير نشط.']);
+            }
+            $target->forceFill(['is_active' => false])->save();
+            AccountSecurity::revokeDatabaseSessions($target);
+            $this->audit->record($actor, 'user.deactivated', $target, ['is_active' => false]);
+        });
     }
 }

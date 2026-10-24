@@ -5,8 +5,8 @@ namespace App\Actions\Auth;
 use App\Actions\Audit\RecordAuditLog;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\AccountSecurity;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -30,25 +30,15 @@ class ChangeUserRole
         }
 
         DB::transaction(function () use ($actor, $target, $role): void {
-            if ($target->role === UserRole::BeaconAdmin) {
-                $otherAdmins = User::query()
-                    ->where('role', UserRole::BeaconAdmin->value)
-                    ->where('is_active', true)
-                    ->whereKeyNot($target->id)
-                    ->lockForUpdate()
-                    ->count();
-
-                if ($otherAdmins === 0) {
-                    throw ValidationException::withMessages(['role' => 'لا يمكن تغيير دور آخر مدير نشط في النظام.']);
-                }
+            [$actor, $target, $activeAdmins] = AccountSecurity::administrationPair($actor, $target);
+            if ($target->role === UserRole::BeaconAdmin && $target->isActive() && $activeAdmins <= 1) {
+                throw ValidationException::withMessages(['role' => 'لا يمكن تغيير دور آخر مدير نشط في النظام.']);
             }
 
             $before = $target->role;
             $target->forceFill(['role' => $role])->save();
 
-            if (Schema::hasTable('sessions')) {
-                DB::table('sessions')->where('user_id', $target->getKey())->delete();
-            }
+            AccountSecurity::revokeDatabaseSessions($target);
 
             $this->audit->record($actor, 'user.role_changed', $target, [
                 'before' => ['role' => $before->value],

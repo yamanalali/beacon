@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\AccountSecurity;
 use App\Support\TwoFactor\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ class AuthenticatedSessionController extends Controller
             Auth::guard('web')->logout();
             $request->session()->regenerate();
             $request->session()->put(TwoFactorChallengeController::SESSION_USER, $user->getKey());
+            $request->session()->put(TwoFactorChallengeController::SESSION_STAMP, AccountSecurity::stamp($user->fresh()));
             $request->session()->put(
                 TwoFactorChallengeController::SESSION_EXPIRES,
                 now()->addMinutes((int) config('mfa.challenge_ttl_minutes', 5))->timestamp,

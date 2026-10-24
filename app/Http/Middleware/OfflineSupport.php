@@ -75,6 +75,7 @@ class OfflineSupport
         if ($request->user() && $request->user()->isActive() && $response->getStatusCode() < 400) {
             $response->headers->set('X-Beacon-Offline-Scope', OfflinePolicy::scope($request->user()));
             if ($request->isMethod('GET')) {
+                $response->headers->set('X-Beacon-Authorization', OfflinePolicy::authorization($request->user()));
                 $response->headers->set('X-Beacon-Offline-Versions', json_encode(OfflinePolicy::versions($request), JSON_THROW_ON_ERROR));
                 $response->headers->set('X-Beacon-Offline-Writes', implode(',', OfflinePolicy::WRITES));
             }

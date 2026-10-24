@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Administration;
 use App\Actions\Audit\RecordAuditLog;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AccountSecurity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -23,11 +24,11 @@ class AccessController extends Controller
             'permissions.view' => ['required_with:permissions', 'boolean'], 'permissions.record' => ['required_with:permissions', 'boolean'],
             'permissions.approve' => ['required_with:permissions', 'boolean'], 'permissions.export' => ['required_with:permissions', 'boolean'], 'permissions.require_approval' => ['required_with:permissions', 'boolean']]);
         DB::transaction(function () use ($request, $user, $audit, $data) {
-            $locked = User::query()->lockForUpdate()->findOrFail($user->id);
+            [, $locked] = AccountSecurity::administrationPair($request->user(), $user);
             $before = $locked->access_permissions;
             $locked->access_permissions = $data['permissions'];
             $locked->save();
-            DB::table('sessions')->where('user_id', $locked->id)->delete();
+            AccountSecurity::revokeDatabaseSessions($locked);
             $audit->record($request->user(), 'user.permissions_updated', $locked, ['before' => $before, 'after' => $data['permissions']]);
         });
 

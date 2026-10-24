@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Support\AccountSecurity;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +13,13 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('email'))) {
+            $this->merge(['email' => mb_strtolower(trim($this->input('email')))]);
+        }
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -23,7 +31,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'email' => ['required', 'string', 'email', 'max:255'],
             'password' => ['required', 'string'],
         ];
     }
@@ -44,19 +52,17 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        $credentials = $this->only('email', 'password');
-
-        if (! Auth::validate($credentials)) {
+        $email = mb_strtolower(trim($this->string('email')->toString()));
+        $canonical = AccountSecurity::canonicalEmail($email);
+        $credentials = ['email' => $canonical ?? '', 'password' => $this->input('password')];
+        if (! Auth::attempt($credentials)) {
             RateLimiter::hit($this->throttleKey());
-
-            throw ValidationException::withMessages([
-                'email' => 'بيانات الدخول غير صحيحة.',
-            ]);
+            throw ValidationException::withMessages(['email' => 'بيانات الدخول غير صحيحة.']);
         }
-
-        $user = User::query()->where('email', $this->string('email')->toString())->first();
+        $user = Auth::user();
 
         if (! $user instanceof User || ! $user->isActive()) {
+            Auth::logout();
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -64,7 +70,7 @@ class LoginRequest extends FormRequest
             ]);
         }
 
-        Auth::login($user);
+        AccountSecurity::bind($this, $user);
 
         RateLimiter::clear($this->throttleKey());
     }

@@ -21,7 +21,7 @@ class OfflineController extends Controller
 
     public function session(Request $request)
     {
-        return response()->json(['scope' => OfflinePolicy::scope($request->user()), 'csrf' => csrf_token(), 'version' => app(HandleInertiaRequests::class)->version($request)])
+        return response()->json(['scope' => OfflinePolicy::scope($request->user()), 'authorization' => OfflinePolicy::authorization($request->user()), 'csrf' => csrf_token(), 'version' => app(HandleInertiaRequests::class)->version($request)])
             ->header('Cache-Control', 'no-store');
     }
 

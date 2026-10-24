@@ -19,6 +19,10 @@ class SecurityHeaders
     {
         $response = $next($request);
 
+        if ($request->user() || $request->is('login', 'forgot-password', 'reset-password*', 'two-factor-challenge', 'invitations/*')) {
+            $response->headers->set('Cache-Control', 'no-store, private');
+        }
+
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');

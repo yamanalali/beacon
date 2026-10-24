@@ -9,6 +9,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
 /**
  * Admin MFA (TOTP) lives in HasTwoFactor and is off unless config('mfa.enabled'). TODO: BUSINESS DECISION REQUIRED - roles, factor types, grace period, lost-device recovery (see config/mfa.php).
@@ -37,6 +38,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'security_stamp',
     ];
 
     /**
@@ -53,6 +55,16 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'access_permissions' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $user): void {
+            if ($user->isDirty(['password', 'role', 'is_active', 'access_permissions', 'mfi_institution_id', 'two_factor_secret', 'two_factor_confirmed_at', 'two_factor_recovery_codes'])) {
+                $user->security_stamp = Str::random(48);
+                $user->remember_token = Str::random(60);
+            }
+        });
     }
 
     public function permission(string $key, bool $default): bool
