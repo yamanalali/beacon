@@ -28,3 +28,7 @@ jobs:
       - name: Keep test modules out of production
         run: node -e "const m=require('./public/build/manifest.json');if(Object.keys(m).some(k=>k.includes('.test.')))process.exit(1)"
       - run: php artisan test
+      - name: Offline browser acceptance
+        env:
+          BEACON_BROWSER_EXECUTABLE: /usr/bin/google-chrome
+        run: npm run test:offline

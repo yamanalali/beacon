@@ -38,6 +38,7 @@ export async function postJson<T>(
     } catch {
         json = null;
     }
+    if (res.status === 202 && (json as { offline_queued?: boolean } | null)?.offline_queued) return { ok: false, status: 202, message: "حُفظ الطلب على الجهاز وسيُرسل عند عودة الاتصال. راجع قائمة الانتظار." };
     if (res.ok) {
         if (!json || typeof json !== "object" || Array.isArray(json)) {
             return { ok: false, status: res.status, message: "تعذرت قراءة رد الخادم. حدّث الصفحة وسجّل الدخول ثم حاول مجدداً." };

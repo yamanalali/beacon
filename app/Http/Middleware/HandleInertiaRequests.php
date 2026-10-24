@@ -46,6 +46,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'locale' => $locale,
+            'offline_versions' => fn () => $request->user() ? \App\Support\OfflinePolicy::versions($request, true) : [],
             'dir' => $locale === 'ar' ? 'rtl' : 'ltr',
             'auth' => [
                 'user' => $this->sharedUser($request),

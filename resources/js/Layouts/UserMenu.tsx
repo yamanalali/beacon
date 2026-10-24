@@ -1,3 +1,4 @@
+import { confirmOfflineLogout } from "../lib/offline";
 import { clearDeviceDrafts } from "../lib/offlineDrafts";
 import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useRef } from "react";
@@ -70,7 +71,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
                     جلسات الدخول
                 </Link>
                 <Link
-                    onBefore={() => clearDeviceDrafts()}
+                    onBefore={() => { if (!confirmOfflineLogout()) return false; clearDeviceDrafts(); }}
                     href="/logout"
                     method="post"
                     as="button"
