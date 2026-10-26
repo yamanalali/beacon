@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Actions\Audit\RecordAuditLog;
 use App\Http\Controllers\Controller;
+use App\Support\AccountSecurity;
 use App\Support\TwoFactor\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,8 +18,7 @@ class TwoFactorSettingsController extends Controller
     public function __construct(
         private readonly TwoFactorService $twoFactor,
         private readonly RecordAuditLog $audit,
-    ) {
-    }
+    ) {}
 
     public function show(Request $request): Response
     {
@@ -39,6 +39,7 @@ class TwoFactorSettingsController extends Controller
 
     public function enable(Request $request): RedirectResponse
     {
+        $this->ensurePassword($request);
         $user = $request->user();
 
         if (! $user->hasConfirmedTwoFactor()) {
@@ -49,12 +50,15 @@ class TwoFactorSettingsController extends Controller
             ])->save();
         }
 
+        AccountSecurity::revokeDatabaseSessions($user, $request->session()->getId());
+        AccountSecurity::bind($request, $user->fresh(), true);
+
         return redirect()->route('two-factor.show');
     }
 
     public function confirm(Request $request): RedirectResponse
     {
-        $request->validate(['code' => ['required', 'string']]);
+        $request->validate(['code' => ['required', 'string', 'max:32']]);
         $user = $request->user();
 
         if ($user->hasConfirmedTwoFactor() || $user->two_factor_secret === null) {
@@ -68,6 +72,8 @@ class TwoFactorSettingsController extends Controller
         $user->forceFill(['two_factor_confirmed_at' => now()])->save();
         $codes = $this->twoFactor->regenerateRecoveryCodes($user);
 
+        AccountSecurity::revokeDatabaseSessions($user, $request->session()->getId());
+        AccountSecurity::bind($request, $user->fresh(), true);
         $this->audit->record($user, 'mfa.enrolled', $user, ['factor' => 'totp']);
 
         return redirect()->route('two-factor.show')->with('mfa_new_recovery_codes', $codes);
@@ -80,6 +86,8 @@ class TwoFactorSettingsController extends Controller
         abort_unless($user->hasConfirmedTwoFactor(), 404);
 
         $codes = $this->twoFactor->regenerateRecoveryCodes($user);
+        AccountSecurity::revokeDatabaseSessions($user, $request->session()->getId());
+        AccountSecurity::bind($request, $user->fresh(), true);
         $this->audit->record($user, 'mfa.recovery_codes_regenerated', $user);
 
         return redirect()->route('two-factor.show')->with('mfa_new_recovery_codes', $codes);
@@ -92,6 +100,8 @@ class TwoFactorSettingsController extends Controller
         $wasConfirmed = $user->hasConfirmedTwoFactor();
 
         $this->twoFactor->disable($user);
+        AccountSecurity::revokeDatabaseSessions($user, $request->session()->getId());
+        AccountSecurity::bind($request, $user->fresh(), true);
 
         if ($wasConfirmed) {
             $this->audit->record($user, 'mfa.disabled', $user, ['by' => 'self']);

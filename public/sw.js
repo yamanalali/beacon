@@ -18,6 +18,19 @@ async function lock(clear = false) {
     if (clear && scope) await clearScope(scope);
     await notify();
 }
+async function updateAuthorization(scope, authorization, existing = true) {
+    if (!authorization) return;
+    const previous = await metadata('authorization:' + scope);
+    if (existing && previous !== authorization) {
+        await caches.delete(cacheName(scope));
+        for (const entry of await entries(scope)) {
+            entry.status = 'review';
+            entry.errors = ['تحدّث أمان الحساب أو صلاحياته. راجع هذا الطلب قبل إعادة إرساله.'];
+            await data('entries', 'put', entry);
+        }
+    }
+    await setMetadata('authorization:' + scope, authorization);
+}
 async function cached(url, inertia = false) {
     const scope = await scopeNow(); if (!scope) return null;
     const response = await (await caches.open(cacheName(scope))).match(key(url, inertia));
@@ -28,6 +41,14 @@ async function remember(request, response) {
     const scope = await scopeNow();
     if (!scope || !response.ok || response.headers.get('X-Beacon-Offline-Scope') !== scope || !sameOrigin(response.url || request.url)) return;
     if (request.headers.has('X-Inertia-Partial-Data') || request.headers.has('X-Inertia-Partial-Component') || request.headers.has('X-Inertia-Except-Once-Props')) return;
+    const authorization = response.headers.get('X-Beacon-Authorization');
+    if (authorization && authorization !== await metadata('authorization:' + scope)) {
+        const session = await fetch('/offline/session', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+        if (!session.ok) { await lock(); return; }
+        const current = await session.json();
+        if (current.scope !== scope || current.authorization !== authorization) return;
+        await updateAuthorization(scope, authorization);
+    }
     const type = response.headers.get('Content-Type') ?? '';
     // API JSON is not a page and never substitutes for an HTML navigation.
     const inertia = response.headers.get('X-Inertia') === 'true';
@@ -299,10 +320,11 @@ async function synchronize() {
     let session;
     try {
         const response = await fetch('/offline/session', { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' });
-        if (!response.ok) throw new Error('انتهت الجلسة. سجّل الدخول بالحساب نفسه لاستكمال المزامنة.');
+        if (!response.ok) { if ([401, 403, 419].includes(response.status)) await lock(); throw new Error('انتهت الجلسة. سجّل الدخول بالحساب نفسه لاستكمال المزامنة.'); }
         session = await response.json();
         if (session.scope !== scope) throw new Error('الحساب الحالي مختلف. سجّل الدخول بالحساب صاحب العمليات.');
     } catch (error) { await setMetadata('lastError', error.message ?? 'تعذر الاتصال بالخادم.'); await notify(); return; }
+    await updateAuthorization(scope, session.authorization);
     await setMetadata('lastError', null);
     const refreshUrls = new Set(['/offline']);
     for (const entry of await entries(scope)) {
@@ -361,6 +383,7 @@ self.addEventListener('message', event => {
                 await installAssets();
                 const previous = await metadata('scope');
                 if (previous && previous !== scope) { await clearScope(previous); await purgeCaches(); }
+                await updateAuthorization(scope, session.authorization, previous === scope);
                 await setMetadata('scope', scope); await setMetadata('unlocked', true);
                 await warm(['/offline', ...urls], true, true); await sync();
             } else if (type === 'LOCK') await lock();

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\PasswordResetLinkRequest;
+use App\Support\AccountSecurity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,16 +19,12 @@ class PasswordResetLinkController extends Controller
 
     public function store(PasswordResetLinkRequest $request): RedirectResponse
     {
-        $status = Password::sendResetLink(
-            $request->only('email')
+        Password::sendResetLink(
+            ['email' => AccountSecurity::canonicalEmail($request->validated('email')) ?? '']
         );
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return back()->with('status', 'إذا كان البريد مسجلاً، أرسلنا رابط إعادة تعيين كلمة المرور.');
-        }
-
-        throw ValidationException::withMessages([
-            'email' => 'تعذر إرسال رابط إعادة التعيين. تحقق من البريد وحاول مرة أخرى.',
-        ]);
+        // Identical status, redirect and validation bag for known, unknown and
+        // broker-throttled emails. Never enumerate registered accounts.
+        return back()->with('status', 'إذا كان البريد مسجلاً، أرسلنا رابط إعادة تعيين كلمة المرور.');
     }
 }

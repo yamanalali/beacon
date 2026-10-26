@@ -87,6 +87,26 @@ const assert = (condition, message) => { if (!condition) throw new Error(message
         assert(verification.status === 0 && verification.stdout.includes('[1,1,1]'), 'Expected exactly one transaction, receipt and upload: ' + verification.stdout + verification.stderr);
         await command('SYNC'); // No duplicate writes on another synchronization.
         console.log('PASS server acknowledgement and exactly-once business records');
+        // Revoke account permissions while a device has an unsent offline operation.
+        await page.goto(manual); await page.locator('#amount').waitFor();
+        await context.setOffline(true); await page.reload(); await page.locator('#amount').waitFor();
+        await page.locator('#amount').fill('77.00'); await page.locator('#category').selectOption({ index: 1 });
+        await page.locator('button[type=submit]').click(); await page.waitForURL(url => url.pathname === '/offline');
+        state = await command('STATUS'); assert(state.queue.length === 1, 'Security test operation was not queued');
+        artisan('tinker', '--execute', "\\App\\Models\\User::where('email', 'sme@beacon.test')->firstOrFail()->forceFill(['access_permissions' => ['export' => false]])->save();");
+        await context.setOffline(false); await page.goto('/account'); await page.waitForURL(url => url.pathname === '/login');
+        await page.locator('#email').fill('sme@beacon.test'); await page.locator('#password').fill(password); await page.locator('button[type=submit]').click();
+        await page.waitForURL(url => url.pathname === '/dashboard/sme');
+        for (let attempt = 0; attempt < 100; attempt++) {
+            state = await command('STATUS'); if (state.active && state.queue[0]?.status === 'review') break;
+            await page.waitForTimeout(300);
+        }
+        assert(state.active && state.queue.length === 1 && state.queue[0].status === 'review', 'Changed permissions must preserve the operation for review without submitting it');
+        assert(state.queue[0].errors.length > 0, 'Security review needs a user-facing explanation');
+        await command('REMOVE', { id: state.queue[0].id });
+        // Complete the new authorized snapshot before disconnecting again.
+        await command('PREPARE', { urls: ['/offline'] });
+        console.log('PASS permission revocation rejects the old session and preserves offline work for review after login');
         await context.setOffline(true); await page.goto('/offline');
         await page.locator('.app-user-menu summary:visible').first().click(); await page.getByRole('button', { name: 'تسجيل الخروج', exact: true }).first().click();
         await page.waitForURL(url => url.pathname === '/offline.html');

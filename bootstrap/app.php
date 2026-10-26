@@ -1,8 +1,17 @@
 <?php
 
+use App\Http\Middleware\EnsureSessionCredentialsCurrent;
+use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\OfflineSupport;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,20 +23,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo('/login');
 
         $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \App\Http\Middleware\SecurityHeaders::class,
-            \App\Http\Middleware\EnsureUserIsActive::class,
-            \App\Http\Middleware\OfflineSupport::class,
+            HandleInertiaRequests::class,
+            SecurityHeaders::class,
+            EnsureUserIsActive::class,
+            EnsureSessionCredentialsCurrent::class,
+            OfflineSupport::class,
         ]);
 
         $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'role' => EnsureUserHasRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['code', 'recovery_code', 'token']);
+
         // Custom Arabic error pages (Inertia). JSON requests keep JSON errors.
         // 500/503 use the custom page only when APP_DEBUG is off; 422 validation is not handled here, so no technical details reach users.
-        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
+        $exceptions->respond(function (Response $response, Throwable $e, Request $request) {
             $status = $response->getStatusCode();
 
             if ($request->expectsJson() || ! in_array($status, [403, 404, 419, 429, 500, 503], true)) {
@@ -40,7 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $user = $request->user();
 
-            return \Inertia\Inertia::render('Errors/ErrorPage', [
+            return Inertia::render('Errors/ErrorPage', [
                 'status' => $status,
                 'homeUrl' => $user ? route('home') : route('login'),
                 'isGuest' => $user === null,

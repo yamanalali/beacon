@@ -18,13 +18,13 @@ type Props = {
 };
 
 export default function TwoFactor({ mfa, recovery_codes }: Props) {
-    const enable = useForm({});
+    const enable = useForm({ current_password: "" });
     const confirm = useForm({ code: "" });
     const secured = useForm({ current_password: "" });
 
     function submitConfirm(event: FormEvent) {
         event.preventDefault();
-        confirm.post("/account/two-factor/confirm");
+        confirm.post("/account/two-factor/confirm", { onFinish: () => confirm.reset("code") });
     }
 
     return (
@@ -84,6 +84,7 @@ export default function TwoFactor({ mfa, recovery_codes }: Props) {
                                             onClick={() =>
                                                 secured.post(
                                                     "/account/two-factor/recovery-codes",
+                                                    { onFinish: () => secured.reset("current_password") },
                                                 )
                                             }
                                         >
@@ -96,6 +97,7 @@ export default function TwoFactor({ mfa, recovery_codes }: Props) {
                                             onClick={() =>
                                                 secured.delete(
                                                     "/account/two-factor",
+                                                    { onFinish: () => secured.reset("current_password") },
                                                 )
                                             }
                                         >
@@ -155,12 +157,13 @@ export default function TwoFactor({ mfa, recovery_codes }: Props) {
                                         أضف طبقة حماية لحساب الإدارة باستخدام
                                         تطبيق مصادقة (TOTP).
                                     </p>
+                                    <TextInput id="enable_current_password" name="current_password" type="password" autoComplete="current-password" label="كلمة المرور الحالية" value={enable.data.current_password} error={enable.errors.current_password} onChange={value => enable.setData("current_password", value)} />
                                     <button
                                         type="button"
                                         className="btn btn-primary"
                                         disabled={enable.processing}
                                         onClick={() =>
-                                            enable.post("/account/two-factor")
+                                            enable.post("/account/two-factor", { onFinish: () => enable.reset("current_password") })
                                         }
                                     >
                                         بدء التفعيل

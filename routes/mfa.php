@@ -3,8 +3,8 @@
 use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\TwoFactorSettingsController;
 use App\Http\Middleware\EnsureAdminMfaAvailable;
-use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureMfaEnabled;
+use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
 // Admin MFA (section 53). All routes 404 unless config('mfa.enabled') is true.
@@ -19,7 +19,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware(['auth', EnsureUserIsActive::class, EnsureAdminMfaAvailable::class])->group(function () {
     Route::get('/account/two-factor', [TwoFactorSettingsController::class, 'show'])->name('two-factor.show');
-    Route::post('/account/two-factor', [TwoFactorSettingsController::class, 'enable'])->name('two-factor.enable');
+    Route::post('/account/two-factor', [TwoFactorSettingsController::class, 'enable'])->middleware('throttle:5,1')->name('two-factor.enable');
     Route::post('/account/two-factor/confirm', [TwoFactorSettingsController::class, 'confirm'])
         ->middleware('throttle:5,1')
         ->name('two-factor.confirm');

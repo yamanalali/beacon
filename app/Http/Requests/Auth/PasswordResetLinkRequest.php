@@ -6,6 +6,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class PasswordResetLinkRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('email'))) {
+            $this->merge(['email' => mb_strtolower(trim($this->input('email')))]);
+        }
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -17,7 +24,7 @@ class PasswordResetLinkRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'email' => ['required', 'string', 'email', 'max:255'],
         ];
     }
 
