@@ -45,7 +45,7 @@ class FinancialReportController extends Controller
     public function export(Request $request, Enterprise $enterprise, string $format, FinancialReportService $service, ReportExporter $exporter, RecordAuditLog $audit): StreamedResponse
     {
         Gate::authorize('reports.export', $enterprise);
-        abort_unless(in_array($format, ['csv', 'xlsx'], true), 404);
+        abort_unless(in_array($format, ['csv', 'xlsx', 'pdf'], true), 404);
         [$key, $from, $to, $basis] = $this->params($request);
 
         $report = $service->generate($key, $enterprise, $from, $to, $basis);
@@ -55,7 +55,11 @@ class FinancialReportController extends Controller
 
         $filename = $key.'-'.$from->format('Ymd').'-'.$to->format('Ymd');
 
-        return $format === 'csv' ? $exporter->csv($report, $filename) : $exporter->xlsx($report, $filename);
+        return match ($format) {
+            'csv' => $exporter->csv($report, $filename),
+            'xlsx' => $exporter->xlsx($report, $filename),
+            'pdf' => $exporter->pdf($report, $filename),
+        };
     }
 
     /**

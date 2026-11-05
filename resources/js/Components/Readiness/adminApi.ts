@@ -109,7 +109,11 @@ export const serverActions: BuilderActions = {
     deleteBand: (b) => mutate("DELETE", R.band(b.id)),
     reorderBands: (rs, ids) => mutate("POST", R.bandsReorder(rs.id), { ids }),
     duplicate: (rs) => mutate("POST", R.duplicate(rs.id)),
-    importFile: (file) => { const f = new FormData(); f.append("file", file); return mutate("POST", R.import(), f); },
+    importFile: (file) => {
+        const f = new FormData();
+        f.append("file", file);
+        return mutate("POST", R.import(), f);
+    },
     publish: (rs) => mutate("POST", R.publish(rs.id)),
     exportUrl: (rs) => R.export(rs.id),
 };

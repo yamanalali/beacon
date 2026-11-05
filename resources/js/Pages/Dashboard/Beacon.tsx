@@ -17,9 +17,10 @@ import { StatusBadge, type StatusTone } from "../../Components/Feedback/StatusBa
 import type { BeaconProgrammeData, ReferralStatus } from "../../types/dashboard";
 
 /**
- * Beacon programme dashboard (§38/§39). STUB: no backend endpoint yet.
- * All values must come from the server (same calculation as exports). React never computes KPIs.
- * TODO: BUSINESS DECISION REQUIRED — exact KPI definitions, reporting periods, filters, formulas, targets (§39).
+ * Beacon programme dashboard (§38/§39).
+ * Programme KPIs, filters, and CSV export come from the server (BeaconDashboardData).
+ * SECTION_38 indicator grid stays empty until Beacon defines formulas — React never invents KPIs.
+ * TODO: BUSINESS DECISION REQUIRED — exact §38 indicator definitions, targets (§39).
  */
 export type Indicator = { key: string; label: string; value: string | null };
 
@@ -194,7 +195,7 @@ export default function Beacon({
                         title="لوحة متابعة البرنامج"
                         description="مؤشرات المتابعة والتقييم لبرنامج Beacon."
                     />
-                    {exportUrl ? <ExportButton baseUrl={exportUrl} /> : null}
+                    {exportUrl ? <ExportButton baseUrl={exportUrl} formats={["csv"]} /> : null}
                 </div>
                 <div className="app-overview-banner">
                     <div className="d-flex align-items-center gap-3">

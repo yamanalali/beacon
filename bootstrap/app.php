@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureMfaEnrollment;
 use App\Http\Middleware\EnsureSessionCredentialsCurrent;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             SecurityHeaders::class,
             EnsureUserIsActive::class,
             EnsureSessionCredentialsCurrent::class,
+            EnsureMfaEnrollment::class,
             OfflineSupport::class,
         ]);
 

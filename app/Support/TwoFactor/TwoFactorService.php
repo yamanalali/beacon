@@ -7,6 +7,8 @@ use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -32,6 +34,50 @@ class TwoFactorService
     public function challengeRequired(User $user): bool
     {
         return $this->appliesTo($user) && $user->hasConfirmedTwoFactor();
+    }
+
+    /** Whether enrollment is eventually mandatory for this role (grace may still be open). */
+    public function enrollmentEnforced(): bool
+    {
+        return $this->enabled() && config('mfa.enforce_after_days') !== null;
+    }
+
+    /** Deadline after which an unenrolled eligible admin must complete MFA setup. */
+    public function enrollmentDeadline(User $user): ?CarbonInterface
+    {
+        if (! $this->appliesTo($user) || ! $this->enrollmentEnforced()) {
+            return null;
+        }
+
+        $days = (int) config('mfa.enforce_after_days');
+        $from = config('mfa.enforced_from')
+            ? Carbon::parse((string) config('mfa.enforced_from'))->startOfDay()
+            : ($user->created_at?->copy() ?? now());
+
+        return $from->copy()->addDays(max(0, $days));
+    }
+
+    /**
+     * Unenrolled eligible admin whose grace period has ended must stay on MFA setup
+     * until enrollment is confirmed.
+     */
+    public function enrollmentRequired(User $user): bool
+    {
+        if (! $this->appliesTo($user) || $user->hasConfirmedTwoFactor()) {
+            return false;
+        }
+
+        $deadline = $this->enrollmentDeadline($user);
+
+        return $deadline !== null && $deadline->isPast();
+    }
+
+    /** Self-disable is blocked while enrollment remains mandatory for the role. */
+    public function mayDisable(User $user): bool
+    {
+        return $this->appliesTo($user)
+            && $user->hasConfirmedTwoFactor()
+            && ! $this->enrollmentEnforced();
     }
 
     public function generateSecret(): string

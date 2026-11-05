@@ -165,14 +165,42 @@ class AdminMfaTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'mfa.disabled', 'target_id' => (string) $admin->id]);
     }
 
-    public function test_admin_without_enrollment_logs_in_normally_when_enabled(): void
+    public function test_admin_without_enrollment_logs_in_normally_when_enabled_without_enforcement(): void
     {
-        // TODO: BUSINESS DECISION REQUIRED - enforcement/grace period; today enrollment is optional.
         $this->enableMfa();
+        config(['mfa.enforce_after_days' => null]);
         $admin = User::factory()->create(['role' => UserRole::BeaconAdmin]);
 
         $this->post('/login', ['email' => $admin->email, 'password' => 'password'])->assertRedirect(route('home'));
         $this->assertAuthenticatedAs($admin);
+        $this->get(route('dashboard.beacon'))->assertOk();
+    }
+
+    public function test_unenrolled_admin_is_locked_to_mfa_setup_after_grace_period(): void
+    {
+        $this->enableMfa();
+        config(['mfa.enforce_after_days' => 0, 'mfa.enforced_from' => null]);
+        $admin = User::factory()->create([
+            'role' => UserRole::BeaconAdmin,
+            'created_at' => now()->subDay(),
+        ]);
+
+        $this->post('/login', ['email' => $admin->email, 'password' => 'password'])->assertRedirect(route('home'));
+        $this->assertAuthenticatedAs($admin);
+
+        $this->get(route('dashboard.beacon'))->assertRedirect(route('two-factor.show'));
+        $this->get('/account/two-factor')->assertOk();
+    }
+
+    public function test_disable_is_blocked_when_enrollment_is_enforced(): void
+    {
+        $this->enableMfa();
+        config(['mfa.enforce_after_days' => 7]);
+        [$admin] = $this->enrolledAdmin();
+
+        $this->actingAs($admin)->delete('/account/two-factor', ['current_password' => 'password'])
+            ->assertSessionHasErrors('current_password');
+        $this->assertTrue($admin->fresh()->hasConfirmedTwoFactor());
     }
 
     public function test_non_admin_is_unaffected_and_cannot_open_settings(): void

@@ -25,7 +25,7 @@ class MfaChecklistTest extends TestCase
         $user->forceFill(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => now()])->save();
     }
 
-    public function test_item_reports_disabled_and_stays_pending_decision(): void
+    public function test_item_reports_disabled_and_stays_pending_decision_outside_production(): void
     {
         $tech = User::factory()->create(['role' => UserRole::TechnicalAdmin]);
 
@@ -33,12 +33,13 @@ class MfaChecklistTest extends TestCase
 
         $this->assertSame('pending_decision', $item['status']);
         $this->assertFalse($item['mfa_enabled']);
+        $this->assertFalse($item['mfa_enforced']);
         $this->assertStringContainsString('BEACON_ADMIN_MFA=false', $item['detail_ar']);
     }
 
     public function test_item_counts_only_confirmed_admin_enrollments_without_secrets(): void
     {
-        config(['mfa.enabled' => true]);
+        config(['mfa.enabled' => true, 'mfa.enforce_after_days' => 7]);
         $secret = 'KRSXG5CTMVRXEZLUKRSXG5CTMVRXEZLU';
         $tech = User::factory()->create(['role' => UserRole::TechnicalAdmin]);
         $this->enroll($tech, $secret);
@@ -50,8 +51,9 @@ class MfaChecklistTest extends TestCase
         $response = $this->actingAs($tech)->get(route('operations.security'));
         $item = collect($response->viewData('page')['props']['items'])->firstWhere('key', 'admin_mfa');
 
-        $this->assertSame('pending_decision', $item['status']);
+        $this->assertSame('warning', $item['status']);
         $this->assertTrue($item['mfa_enabled']);
+        $this->assertTrue($item['mfa_enforced']);
         $this->assertSame(1, $item['mfa_enrolled_admins']);
         $this->assertSame(3, $item['mfa_total_admins']);
         $this->assertStringContainsString('1 من 3', $item['detail_ar']);
@@ -60,5 +62,21 @@ class MfaChecklistTest extends TestCase
         $this->assertStringNotContainsString($secret, $body);
         $this->assertStringNotContainsString('two_factor_secret', $body);
         $this->assertStringNotContainsString('recovery', $body);
+    }
+
+    public function test_item_is_ok_when_all_admins_enrolled_and_enforced(): void
+    {
+        config(['mfa.enabled' => true, 'mfa.enforce_after_days' => 7]);
+        $tech = User::factory()->create(['role' => UserRole::TechnicalAdmin]);
+        $this->enroll($tech);
+        $admin = User::factory()->create(['role' => UserRole::BeaconAdmin]);
+        $this->enroll($admin);
+
+        $item = $this->mfaItem($tech);
+
+        $this->assertSame('ok', $item['status']);
+        $this->assertTrue($item['mfa_enforced']);
+        $this->assertSame(2, $item['mfa_enrolled_admins']);
+        $this->assertSame(2, $item['mfa_total_admins']);
     }
 }

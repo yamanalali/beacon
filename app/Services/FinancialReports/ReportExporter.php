@@ -3,13 +3,15 @@
 namespace App\Services\FinancialReports;
 
 use Illuminate\Support\Str;
+use Mpdf\Mpdf;
+use Mpdf\Output\Destination;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use ZipArchive;
 
 /**
- * CSV and Excel (.xlsx) export without third-party packages.
- * XLSX is written as a minimal Office Open XML package with ZipArchive.
+ * CSV and Excel (.xlsx) without third-party packages; PDF via mpdf/mpdf (GPL-2.0)
+ * for Arabic RTL shaping and CSS table layout. Native PHP cannot emit PDF.
  */
 class ReportExporter
 {
@@ -57,6 +59,36 @@ class ReportExporter
             @unlink($path);
         }, $filename.'.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function pdf(FinancialReport $report, string $filename): StreamedResponse
+    {
+        $tempDir = storage_path('app/mpdf');
+        if (! is_dir($tempDir) && ! mkdir($tempDir, 0755, true) && ! is_dir($tempDir)) {
+            throw new RuntimeException('Cannot create mPDF temp directory.');
+        }
+
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'directionality' => 'rtl',
+            'tempDir' => $tempDir,
+            'default_font' => 'xbriyaz',
+            'margin_left' => 12,
+            'margin_right' => 12,
+            'margin_top' => 14,
+            'margin_bottom' => 14,
+        ]);
+        $mpdf->SetDirectionality('rtl');
+        $mpdf->WriteHTML(view('exports.financial-report-pdf', ['report' => $report])->render());
+        $content = $mpdf->Output('', Destination::STRING_RETURN);
+
+        return response()->streamDownload(function () use ($content): void {
+            echo $content;
+        }, $filename.'.pdf', [
+            'Content-Type' => 'application/pdf',
             'Cache-Control' => 'private, no-store',
         ]);
     }

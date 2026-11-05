@@ -1,4 +1,5 @@
 import { Link } from "@inertiajs/react";
+import { ConnectionStatus } from "../Components/Feedback/ConnectionStatus";
 import { UserMenu } from "./UserMenu";
 
 export function DesktopTopbar({ title }: { title: string }) {
@@ -16,6 +17,7 @@ export function DesktopTopbar({ title }: { title: string }) {
                     <i className="bi bi-grid-1x2" aria-hidden="true" /> مساحة
                     عمل بيكون
                 </span>
+                <ConnectionStatus />
                 <UserMenu />
             </div>
         </header>

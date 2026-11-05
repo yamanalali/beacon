@@ -223,4 +223,24 @@ class TransactionTest extends TestCase
             ->get(route('enterprises.transactions.index', ['enterprise' => $enterprise, 'payment_status' => 'paid']))
             ->assertInertia(fn ($page) => $page->has('transactions.data', 1)->where('transactions.data.0.type', 'sale'));
     }
+
+    public function test_index_shows_income_expense_and_remaining_summary(): void
+    {
+        [$enterprise, $sme] = $this->enterpriseWithSme();
+        $this->actingAs($sme)->post(route('enterprises.transactions.store', $enterprise), $this->payload(['amount' => '1000']));
+        $this->actingAs($sme)->post(route('enterprises.transactions.store', $enterprise), $this->payload([
+            'type' => 'expense', 'category' => 'rent', 'amount' => '400', 'payment_status' => 'paid',
+        ]));
+
+        $this->actingAs($sme)
+            ->get(route('enterprises.transactions.index', $enterprise))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Transactions/Index')
+                ->where('summary.currency', 'SYP')
+                ->where('summary.income', '1000.00')
+                ->where('summary.expense', '400.00')
+                ->where('summary.remaining', '600.00')
+                ->where('summary.count', 2));
+    }
 }

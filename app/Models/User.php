@@ -12,7 +12,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 
 /**
- * Admin MFA (TOTP) lives in HasTwoFactor and is off unless config('mfa.enabled'). TODO: BUSINESS DECISION REQUIRED - roles, factor types, grace period, lost-device recovery (see config/mfa.php).
+ * Admin MFA (TOTP) lives in HasTwoFactor. Local/testing off unless config('mfa.enabled'); production defaults on with enrollment enforcement (see config/mfa.php). TODO: BUSINESS DECISION REQUIRED - lost-device recovery.
  */
 class User extends Authenticatable
 {

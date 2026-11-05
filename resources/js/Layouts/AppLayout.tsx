@@ -5,7 +5,6 @@ import { DesktopSidebar } from "./DesktopSidebar";
 import { DesktopTopbar } from "./DesktopTopbar";
 import { MobileAppHeader } from "./MobileAppHeader";
 import { MobileBottomNavigation } from "./MobileBottomNavigation";
-import { ConnectionStatus } from "../Components/Feedback/ConnectionStatus";
 
 export default function AppLayout({
     title,
@@ -22,7 +21,7 @@ export default function AppLayout({
     }, [dir, locale]);
 
     return (
-        <div className="app-shell d-flex flex-column flex-lg-row min-vh-100">
+        <div className="app-shell d-flex flex-column flex-lg-row min-vh-100" dir={dir} lang={locale}>
             <Head title={`${title} | بيكون`} />
             <a className="app-skip" href="#main-content">
                 تخطى إلى المحتوى
@@ -31,7 +30,6 @@ export default function AppLayout({
             <div className="app-frame d-flex flex-column flex-grow-1">
                 <MobileAppHeader title={title} />
                 <DesktopTopbar title={title} />
-                <ConnectionStatus />
                 <main
                     id="main-content"
                     className="app-content flex-grow-1"

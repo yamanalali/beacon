@@ -1,21 +1,18 @@
-import { Link, usePage } from "@inertiajs/react";
-import { QuickLinks } from "../../Components/Common/QuickLinks";
-import { visibleLinks } from "../../Layouts/navigationModel";
+import { Link } from "@inertiajs/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppLayout from "../../Layouts/AppLayout";
-import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { QuickRecordButton } from "../../Components/QuickRecord/QuickRecord";
-import { StatCard } from "../../Components/Common/StatCard";
-import { CurrencyCards } from "../../Components/Dashboard/CurrencyCards";
 import { Money } from "../../Components/Common/Money";
-import { changeLabel, currencyName, currencySymbol, formatMoneyIsolated } from "../../lib/money";
+import { currencySymbol, formatMoneyIsolated } from "../../lib/money";
+import { trendLabel } from "../../Components/Dashboard/CurrencyCards";
 import { StatusBadge, type StatusTone } from "../../Components/Feedback/StatusBadge";
-import type { DashboardAlert, SmeComplianceItem, SmeDashboardProps, SmeRecentTransaction } from "../../types/dashboard";
+import type { DashboardAlert, SmeDashboardKpis, SmeDashboardProps, SmeRecentTransaction } from "../../types/dashboard";
 
 /**
- * Simple SME personal dashboard (§40). Summarizes existing information only; no new metrics or scoring.
- * STUB: each area renders an empty state until its owning module (finance/compliance/readiness/referral) exposes data.
+ * SME finance home (§40). Layout-only hierarchy: net → دخل/مصروف → سجّل معاملة → آخر الحركات → الحالة.
+ * Same server props and QuickRecord flow — no new metrics.
  */
 export type SummaryItem = { id: string | number; title: string; meta?: string };
 
@@ -27,17 +24,28 @@ const ALERT_TONE: Record<DashboardAlert["severity"], StatusTone> = {
     info: "neutral",
 };
 
+const ALERT_ICON: Record<DashboardAlert["key"], string> = {
+    overdue_compliance: "bi-exclamation-triangle",
+    pending_reviews: "bi-receipt",
+    open_escalations: "bi-chat-left-text",
+    compliance_version_review: "bi-journal-check",
+};
+
 /** Alert row: links only when the server gives an href (null = plain text). */
 export function AlertItem({ alert }: { alert: DashboardAlert }) {
     const body = (
         <>
-            <span>{alert.title}</span>
+            <span className="sme-alert__icon" aria-hidden="true">
+                <i className={`bi ${ALERT_ICON[alert.key] ?? "bi-bell"}`} />
+            </span>
+            <span className="sme-alert__title">{alert.title}</span>
             <StatusBadge tone={ALERT_TONE[alert.severity]} label={String(alert.count)} />
+            {alert.href ? <i className="bi bi-chevron-left text-body-secondary" aria-hidden="true" /> : null}
         </>
     );
-    const cls = "list-group-item px-0 d-flex justify-content-between align-items-center gap-2";
+    const cls = `sme-alert sme-alert--${alert.severity}`;
     return alert.href ? (
-        <Link href={alert.href} className={`${cls} list-group-item-action`}>
+        <Link href={alert.href} className={cls}>
             {body}
         </Link>
     ) : (
@@ -47,39 +55,101 @@ export function AlertItem({ alert }: { alert: DashboardAlert }) {
 
 const money = formatMoneyIsolated;
 
+const TYPE_LABEL: Record<SmeRecentTransaction["type"], string> = {
+    sale: "مبيع",
+    income: "دخل",
+    purchase: "شراء",
+    expense: "مصروف",
+};
+
+function transactionTitle(t: SmeRecentTransaction): string {
+    const desc = t.description?.trim();
+    if (desc) return desc;
+    const label = t.category_label?.trim();
+    if (label) return label;
+    return TYPE_LABEL[t.type];
+}
+
 function TransactionRow({ t }: { t: SmeRecentTransaction }) {
+    const income = t.direction === "income";
     return (
-        <li className="list-group-item px-0">
-            <Link href={t.url} className="d-flex justify-content-between gap-2 text-reset text-decoration-none">
-                <span>
-                    <span className="d-block fw-semibold">{t.category}</span>
-                    <small className="text-body-secondary">
-                        {t.counterparty ? `${t.counterparty} · ` : ""}
-                        <bdi dir="ltr">{t.transaction_date}</bdi>
-                    </small>
+        <li>
+            <Link href={t.url} className="sme-tx">
+                <span className={`sme-tx__icon ${income ? "is-in" : "is-out"}`} aria-hidden="true">
+                    <i className={`bi ${income ? "bi-arrow-down-left" : "bi-arrow-up-right"}`} />
                 </span>
-                <span className={t.direction === "income" ? "text-success fw-semibold" : "fw-semibold"}>
-                    <Money amount={t.amount} currency={t.currency} signed={t.direction === "income" ? "in" : "out"} />
+                <span className="sme-tx__copy">
+                    <span className="sme-tx__title">{transactionTitle(t)}</span>
+                    <span className="sme-tx__meta">
+                        {TYPE_LABEL[t.type]}
+                        {t.counterparty ? ` · ${t.counterparty}` : ""}
+                        {" · "}
+                        <bdi dir="ltr">{t.transaction_date}</bdi>
+                    </span>
+                </span>
+                <span className={`sme-tx__amount ${income ? "is-in" : "is-out"}`}>
+                    <Money amount={t.amount} currency={t.currency} signed={income ? "in" : "out"} />
                 </span>
             </Link>
         </li>
     );
 }
 
-function DeadlineList({ items, empty }: { items: SmeComplianceItem[]; empty: string }) {
-    if (items.length === 0) return <EmptyState title={empty} icon="bi-calendar-check" />;
+function currencyOptions(kpis: SmeDashboardKpis): string[] {
+    const fromBreakdown = (kpis.by_currency?.current_month ?? []).map((c) => c.currency);
+    if (fromBreakdown.length > 0) {
+        const ordered = [...fromBreakdown];
+        ordered.sort((a, b) => (a === b ? 0 : a === "SYP" ? -1 : b === "SYP" ? 1 : a.localeCompare(b)));
+        return ordered;
+    }
+    const codes = [kpis.currency, ...kpis.other_currencies];
+    return [...new Set(codes.filter(Boolean))];
+}
+
+function totalsFor(kpis: SmeDashboardKpis, code: string): {
+    net: string;
+    income: string;
+    expense: string;
+    count: number;
+    prevNet: string | null;
+    prevIncome: string | null;
+    prevExpense: string | null;
+} {
+    const cur = (kpis.by_currency?.current_month ?? []).find((c) => c.currency === code);
+    const prev = (kpis.by_currency?.previous_month ?? []).find((c) => c.currency === code);
+    if (cur) {
+        return {
+            net: cur.net,
+            income: cur.income_total,
+            expense: cur.expense_total,
+            count: cur.transaction_count,
+            prevNet: prev?.net ?? null,
+            prevIncome: prev?.income_total ?? null,
+            prevExpense: prev?.expense_total ?? null,
+        };
+    }
+    if (code === kpis.currency) {
+        return {
+            net: kpis.current_month.net,
+            income: kpis.current_month.income,
+            expense: kpis.current_month.expense,
+            count: kpis.current_month.count,
+            prevNet: kpis.previous_month.net,
+            prevIncome: kpis.previous_month.income,
+            prevExpense: kpis.previous_month.expense,
+        };
+    }
+    return { net: "0.00", income: "0.00", expense: "0.00", count: 0, prevNet: null, prevIncome: null, prevExpense: null };
+}
+
+function HomeSkeleton() {
     return (
-        <ul className="list-group list-group-flush">
-            {items.map((d) => (
-                <li key={d.id} className="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
-                    <span>{d.title}</span>
-                    <span className="d-flex align-items-center gap-2">
-                        <bdi dir="ltr" className="text-body-secondary small">{d.due_date}</bdi>
-                        {d.overdue ? <StatusBadge tone="danger" label="متأخر" /> : null}
-                    </span>
-                </li>
-            ))}
-        </ul>
+        <div className="sme-home sme-home--loading" aria-busy="true" aria-label="جارٍ التحميل" data-testid="home-skeleton">
+            <div className="sme-skel sme-skel--hero" />
+            <div className="sme-skel sme-skel--btn" />
+            <div className="sme-skel sme-skel--list" />
+            <div className="sme-skel sme-skel--chips" />
+        </div>
     );
 }
 
@@ -92,117 +162,195 @@ export default function Sme({
     compliance = { overdue: [], upcoming: [] },
     alerts = [],
 }: Props) {
-    const can = usePage().props.auth?.can;
-    return (
-        <AppLayout title="الرئيسية">
-            <div className="app-page">
-                <PageHeader
-                    title="ملخص منشأتك"
-                    description="آخر النشاطات وما يحتاج إجراء منك."
-                />
-                <div className="d-grid d-lg-flex mb-4">
-                    <QuickRecordButton />
-                </div>
-                {enterprise === null ? (
+    const deadlines = [...compliance.overdue, ...compliance.upcoming].slice(0, 3);
+    const enterpriseHref = enterprise ? `/enterprises/${enterprise.public_id}` : null;
+    const feed = recent_transactions.slice(0, 5);
+    const topDeadline = deadlines[0] ?? null;
+
+    const codes = useMemo(() => (kpis ? currencyOptions(kpis) : []), [kpis]);
+    const [currency, setCurrency] = useState<string>(codes[0] ?? "SYP");
+    useEffect(() => {
+        if (codes.length === 0) return;
+        if (!codes.includes(currency)) setCurrency(codes[0]);
+    }, [codes, currency]);
+
+    const active = kpis ? totalsFor(kpis, currency) : null;
+    const netTone = active ? (Number(active.net) > 0 ? "is-up" : Number(active.net) < 0 ? "is-down" : "") : "";
+    const netTrend = active ? trendLabel(active.net, active.prevNet) : null;
+    const incomeTrend = active ? trendLabel(active.income, active.prevIncome) : null;
+    const expenseTrend = active ? trendLabel(active.expense, active.prevExpense) : null;
+
+    const heroActionRef = useRef<HTMLDivElement>(null);
+    const [showFab, setShowFab] = useState(false);
+    useEffect(() => {
+        const el = heroActionRef.current;
+        if (!el || typeof IntersectionObserver === "undefined") return;
+        const io = new IntersectionObserver(([entry]) => setShowFab(!entry.isIntersecting), { threshold: 0.15 });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [enterprise, kpis]);
+
+    if (enterprise === null) {
+        return (
+            <AppLayout title="الرئيسية">
+                <div className="app-page sme-home">
                     <SectionCard>
                         <EmptyState
                             icon="bi-buildings"
                             title="لا توجد منشأة مرتبطة بحسابك بعد"
                             description="تواصل مع فريق Beacon لربط حسابك بمنشأتك."
                         />
+                        <div className="sme-primary mt-3">
+                            <QuickRecordButton />
+                        </div>
                     </SectionCard>
-                ) : (
-                    <>
-                        {alerts.length > 0 ? (
-                            <SectionCard title="يحتاج انتباهك">
-                                <div className="list-group list-group-flush" data-testid="alerts">
-                                    {alerts.map((a) => (
-                                        <AlertItem key={a.key} alert={a} />
-                                    ))}
-                                </div>
-                            </SectionCard>
-                        ) : null}
-                        {kpis && (kpis.by_currency?.current_month?.length ?? 0) > 0 ? (
-                            <CurrencyCards kpis={kpis} />
-                        ) : kpis ? (
-                            <section aria-label="مؤشرات هذا الشهر">
-                                <div className="row g-3">
-                                    <div className="col-6 col-lg-3">
-                                        <StatCard label="دخل هذا الشهر" value={money(kpis.current_month.income, kpis.currency)} hint={changeLabel(kpis.current_month.income, kpis.previous_month.income)} icon="bi-arrow-down-left" />
-                                    </div>
-                                    <div className="col-6 col-lg-3">
-                                        <StatCard label="مصروف هذا الشهر" value={money(kpis.current_month.expense, kpis.currency)} hint={changeLabel(kpis.current_month.expense, kpis.previous_month.expense)} icon="bi-arrow-up-right" tone="amber" />
-                                    </div>
-                                    <div className="col-6 col-lg-3">
-                                        <StatCard label="الصافي" value={money(kpis.current_month.net, kpis.currency)} hint={`${kpis.current_month.count} معاملة هذا الشهر`} icon="bi-graph-up" tone="blue" />
-                                    </div>
-                                    <div className="col-6 col-lg-3">
-                                        <StatCard label="فواتير بانتظار المراجعة" value={String(kpis.pending_extractions_count)} hint={`إجمالي المعاملات: ${kpis.transaction_count}`} icon="bi-receipt" tone="violet" />
-                                    </div>
-                                </div>
-                                {kpis.other_currencies.length > 0 ? (
-                                    <p className="small text-body-secondary mt-2 mb-0" data-testid="currency-note">
-                                        <i className="bi bi-info-circle me-1" aria-hidden="true" />
-                                        هذه الأرقام تشمل فقط المعاملات المسجّلة بـ{currencyName(kpis.currency)} (<bdi>{currencySymbol(kpis.currency)}</bdi>). لديك معاملات أخرى
-                                        بعملات مختلفة لم تُحتسب هنا:{" "}
-                                        {kpis.other_currencies.map((c, i) => (
-                                            <span key={c}>
-                                                {i > 0 ? "، " : ""}
-                                                {currencyName(c)} (<bdi>{currencySymbol(c)}</bdi>)
-                                            </span>
-                                        ))}
-                                        .
-                                    </p>
-                                ) : null}
-                            </section>
-                        ) : null}
-                        <div className="row g-3">
-                            <div className="col-12 col-lg-6">
-                                <SectionCard title="آخر المعاملات">
-                                    {recent_transactions.length === 0 ? (
-                                        <EmptyState title="لا توجد معاملات بعد" icon="bi-wallet2" />
-                                    ) : (
-                                        <ul className="list-group list-group-flush">
-                                            {recent_transactions.map((t) => (
-                                                <TransactionRow key={t.public_id} t={t} />
-                                            ))}
-                                        </ul>
-                                    )}
-                                </SectionCard>
+                </div>
+            </AppLayout>
+        );
+    }
+
+    if (kpis === null) {
+        return (
+            <AppLayout title="الرئيسية">
+                <div className="app-page">
+                    <HomeSkeleton />
+                </div>
+            </AppLayout>
+        );
+    }
+
+    return (
+        <AppLayout title="الرئيسية">
+            <div className="app-page sme-home">
+                {/*
+                  Mobile: single column (hero → CTA → alerts → feed → status).
+                  Desktop (≥992): 12-col — hero 8 + CTA 4; feed 8 + status 4. width:auto, max 1040px.
+                */}
+                <div className="sme-home__grid">
+                    <section className={`sme-hero ${netTone}`} aria-label="مؤشرات هذا الشهر" data-testid="home-balance">
+                        {codes.length > 1 ? (
+                            <div className="sme-currency-toggle" role="tablist" aria-label="العملة" data-testid="currency-toggle">
+                                {codes.map((code) => (
+                                    <button
+                                        key={code}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={currency === code}
+                                        className={currency === code ? "is-active" : undefined}
+                                        onClick={() => setCurrency(code)}
+                                    >
+                                        <bdi>{currencySymbol(code)}</bdi>
+                                    </button>
+                                ))}
                             </div>
-                            <div className="col-12 col-lg-6">
-                                <SectionCard title="مواعيد الامتثال">
-                                    <DeadlineList
-                                        items={[...compliance.overdue, ...compliance.upcoming]}
-                                        empty="لا توجد مواعيد قريبة"
-                                    />
-                                </SectionCard>
+                        ) : (
+                            <div className="sme-hero__eyebrow" data-testid="currency-note">
+                                <span aria-hidden="true" />
+                                <bdi>{currencySymbol(currency)}</bdi>
                             </div>
-                            <div className="col-12">
-                                <SectionCard title="الجاهزية والإحالة">
-                                    <p className="mb-1">
-                                        آخر درجة جاهزية:{" "}
-                                        <strong>
-                                            <bdi dir="ltr">{readinessStatus ?? "غير متاحة بعد"}</bdi>
-                                        </strong>
-                                    </p>
-                                    {referralStatus ? (
-                                        <p className="mb-0">
-                                            حالة الإحالة: <strong>{referralStatus}</strong>
-                                        </p>
-                                    ) : null}
-                                </SectionCard>
+                        )}
+
+                        <p className="sme-hero__label">صافي هذا الشهر</p>
+                        <p className="sme-hero__net" data-testid="hero-net">
+                            <bdi>{money(active!.net, currency)}</bdi>
+                        </p>
+                        <p className="sme-hero__meta">
+                            {netTrend ? (
+                                <>
+                                    {netTrend}
+                                    {" · "}
+                                </>
+                            ) : null}
+                            <bdi dir="ltr">{active!.count}</bdi> معاملة
+                        </p>
+
+                        <div className="sme-hero__split">
+                            <div className="sme-hero__stat is-in">
+                                <span>دخل</span>
+                                <strong>
+                                    <bdi>{money(active!.income, currency)}</bdi>
+                                </strong>
+                                {incomeTrend ? <small>{incomeTrend}</small> : null}
+                            </div>
+                            <div className="sme-hero__stat is-out">
+                                <span>مصروف</span>
+                                <strong>
+                                    <bdi>{money(active!.expense, currency)}</bdi>
+                                </strong>
+                                {expenseTrend ? <small>{expenseTrend}</small> : null}
                             </div>
                         </div>
-                    </>
-                )}
-                <QuickLinks
-                    items={visibleLinks(can, [
-                        { href: "/transactions", label: "المعاملات", description: "المبيعات والمشتريات والدفعات", icon: "bi-wallet2" },
-                        { href: "/reports", label: "التقارير", description: "فهم وضع منشأتك المالي", icon: "bi-bar-chart-line" },
-                        { href: "/documents", label: "المستندات", description: "كل وثائقك في مكان واحد", icon: "bi-folder2-open" },
-                    ])}
-                />
+                    </section>
+
+                    <div className="sme-primary sme-primary--panel" ref={heroActionRef}>
+                        <p className="sme-primary__hint d-none d-lg-block">سجّل مبيعاً أو مصروفاً بسرعة</p>
+                        <QuickRecordButton />
+                    </div>
+
+                    {alerts.length > 0 ? (
+                        <section className="sme-block sme-home__alerts" aria-label="يحتاج انتباهك">
+                            <div className="sme-alerts" data-testid="alerts">
+                                {alerts.slice(0, 2).map((a) => (
+                                    <AlertItem key={a.key} alert={a} />
+                                ))}
+                            </div>
+                        </section>
+                    ) : null}
+
+                    <section className="sme-block sme-feed">
+                        <div className="sme-block__head">
+                            <h2>آخر الحركات</h2>
+                            <Link href="/transactions" className="sme-block__link">
+                                عرض الكل
+                            </Link>
+                        </div>
+                        {feed.length === 0 ? (
+                            <div className="sme-feed__empty">
+                                <EmptyState title="لا توجد معاملات بعد" description="سجّل أول مبيع أو مصروف." icon="bi-wallet2" />
+                                <div className="sme-primary">
+                                    <QuickRecordButton />
+                                </div>
+                            </div>
+                        ) : (
+                            <ul className="sme-tx-list">
+                                {feed.map((t) => (
+                                    <TransactionRow key={t.public_id} t={t} />
+                                ))}
+                            </ul>
+                        )}
+                    </section>
+
+                    <aside className="sme-home__side" aria-label="الامتثال والجاهزية">
+                        <section className="sme-status">
+                            <Link href={enterpriseHref ? `${enterpriseHref}/compliance` : "#"} className="sme-status__chip">
+                                <span className="sme-status__chip-label">الامتثال</span>
+                                {topDeadline ? (
+                                    <strong className={topDeadline.overdue ? "text-danger" : ""}>
+                                        {topDeadline.overdue ? "متأخر" : "قريب"}
+                                    </strong>
+                                ) : (
+                                    <strong>لا مواعيد</strong>
+                                )}
+                            </Link>
+                            <Link href={enterpriseHref ? `${enterpriseHref}/readiness` : "#"} className="sme-status__chip">
+                                <span className="sme-status__chip-label">الجاهزية</span>
+                                <strong>
+                                    <bdi dir="ltr">{readinessStatus ?? "—"}</bdi>
+                                </strong>
+                            </Link>
+                            <Link href={enterpriseHref ? `${enterpriseHref}/referrals` : "#"} className="sme-status__chip">
+                                <span className="sme-status__chip-label">الإحالة</span>
+                                <strong>{referralStatus ?? "لا توجد"}</strong>
+                            </Link>
+                        </section>
+                    </aside>
+                </div>
+
+                {showFab ? (
+                    <div className="sme-fab d-print-none">
+                        <QuickRecordButton variant="fab" />
+                    </div>
+                ) : null}
             </div>
         </AppLayout>
     );

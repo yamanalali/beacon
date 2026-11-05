@@ -44,4 +44,9 @@ class TransactionPolicy
     {
         return $this->correct($user, $transaction);
     }
+
+    public function export(User $user, Enterprise $enterprise): bool
+    {
+        return $user->permission('export', true) && $this->viewAny($user, $enterprise);
+    }
 }

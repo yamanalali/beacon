@@ -66,15 +66,15 @@ class ReferralController extends Controller
         }
 
         $referral = DB::transaction(function () use ($data, $enterprise, $actor) {
-            $referral = Referral::query()->create([
+            $referral = new Referral([
                 'enterprise_id' => $enterprise->id,
                 'mfi_institution_id' => $data['mfi_institution_id'],
                 'readiness_assessment_id' => $data['readiness_assessment_id'] ?? null,
                 'purpose_ar' => $data['purpose_ar'],
                 'disclosed_items' => array_values(array_unique($data['disclosed_items'])),
-                'status' => Referral::STATUS_DRAFT,
                 'created_by' => $actor->id,
             ]);
+            $referral->forceFill(['status' => Referral::STATUS_DRAFT])->save();
             $this->logStatus($referral, null, Referral::STATUS_DRAFT, $actor->id, null);
             $this->audit->record($actor, 'referral.created', $referral, ['enterprise' => $enterprise->public_id, 'institution_id' => $referral->mfi_institution_id, 'disclosed_items' => $referral->disclosed_items]);
 
@@ -242,7 +242,7 @@ class ReferralController extends Controller
     {
         DB::transaction(function () use ($referral, $to, $actorId, $note, $extra) {
             $from = $referral->status;
-            $referral->update(['status' => $to] + $extra);
+            $referral->forceFill(['status' => $to] + $extra)->save();
             $this->logStatus($referral, $from, $to, $actorId, $note);
         });
     }

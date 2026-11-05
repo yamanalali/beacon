@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Private SME documents must never be served via signed /storage URLs.
+            // Preview/download go through DocumentController after authorization.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

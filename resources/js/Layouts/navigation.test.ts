@@ -50,12 +50,13 @@ test("unknown groups go last without a heading", () => {
     expect(g.map((x) => [x.key, x.label])).toEqual([["account", "الحساب"], ["future", null]]);
 });
 
-test("mobile: up to 3 tabs by key priority, everything else in More", () => {
-    const { tabs, more } = splitMobile(sme);
-    expect(tabs.map((i) => i.key)).toEqual(["transactions", "reports", "documents"]);
-    expect(more.map((i) => i.key)).toEqual(["readiness", "ai.assistant", "notifications", "account"]);
-    const t = splitMobile(technical);
-    expect(t.tabs.map((i) => i.key)).toEqual(["operations.security", "operations.backups", "operations.data-control"]);
+test("mobile: 4-tab bar — home priorities leave docs/readiness in More", () => {
+    const { tabs, more } = splitMobile(sme, 2);
+    expect(tabs.map((i) => i.key)).toEqual(["transactions", "reports"]);
+    expect(more.map((i) => i.key)).toEqual(["documents", "readiness", "ai.assistant", "notifications", "account"]);
+    const t = splitMobile(technical, 2);
+    expect(t.tabs.map((i) => i.key)).toEqual(["operations.security", "operations.backups"]);
+    expect(t.more.map((i) => i.key)).toContain("operations.data-control");
 });
 
 test("fallback when the prop is missing", () => {

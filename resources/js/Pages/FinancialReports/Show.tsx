@@ -106,9 +106,13 @@ export default function Show({
                         <i className="bi bi-filetype-csv me-2" aria-hidden="true" />
                         تنزيل CSV
                     </a>}
+                    {local ? <button type="button" className="btn btn-outline-primary" disabled>PDF متاح عند الاتصال</button> : <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/pdf?${query}`}>
+                        <i className="bi bi-filetype-pdf me-2" aria-hidden="true" />
+                        تنزيل PDF
+                    </a>}
                     <button type="button" className="btn btn-outline-primary" style={{ minHeight: "48px" }} onClick={() => window.print()}>
                         <i className="bi bi-printer me-2" aria-hidden="true" />
-                        طباعة / حفظ PDF
+                        طباعة
                     </button>
                     </> : null}
                     <Link href={`/enterprises/${enterprise.public_id}/transactions`} className="btn btn-link" style={{ minHeight: "48px" }}>

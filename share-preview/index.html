@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>بيكون — معاينة لوحة التحكم</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --app-surface: #ffffff;
+      --app-primary: #176b60;
+      --app-primary-soft: #e9f4ef;
+      --app-border: #e0e9e9;
+      --app-text-muted: #64787c;
+      --app-text: #203b41;
+      --app-success: #217152;
+      --app-warning: #916019;
+      --app-danger: #b42318;
+      --app-background: #e5efea;
+      --app-amber-soft: #fff8eb;
+      --nav-h: 64px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans Arabic", system-ui, sans-serif;
+      background: var(--app-background);
+      color: var(--app-text);
+      font-size: 16px;
+    }
+    .shell { min-height: 100dvh; display: flex; flex-direction: column; }
+    .topbar {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: var(--app-surface);
+      border-bottom: 1px solid var(--app-border);
+    }
+    .topbar__user { font-weight: 700; font-size: 15px; }
+    .topbar__icon {
+      width: 44px; height: 44px; border: 0; border-radius: 12px;
+      background: transparent; color: var(--app-text-muted); font-size: 1.2rem;
+    }
+    .sme-home {
+      width: auto; max-width: 1040px; margin: 0 auto;
+      padding: 16px 16px calc(var(--nav-h) + 24px);
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .sme-home__grid { display: flex; flex-direction: column; gap: 20px; }
+    .sme-hero {
+      display: flex; flex-direction: column; gap: 10px;
+      padding: 16px; border-radius: 18px; border: 1px solid var(--app-border);
+      background: var(--app-surface);
+    }
+    .sme-currency-toggle {
+      display: inline-flex; align-self: center; gap: 4px; padding: 4px;
+      border-radius: 999px; background: color-mix(in srgb, var(--app-primary) 6%, var(--app-surface));
+    }
+    .sme-currency-toggle button {
+      min-width: 48px; min-height: 40px; padding: 6px 14px; border: 0;
+      border-radius: 999px; background: transparent; color: var(--app-text-muted);
+      font: inherit; font-weight: 700; cursor: pointer;
+    }
+    .sme-currency-toggle button.is-active {
+      background: var(--app-surface); color: var(--app-primary);
+      box-shadow: 0 1px 2px color-mix(in srgb, var(--app-text) 8%, transparent);
+    }
+    .sme-hero__label { margin: 0; text-align: center; font-size: 14px; font-weight: 600; color: var(--app-text-muted); }
+    .sme-hero__net {
+      margin: 0; text-align: center; font-size: clamp(2.1rem, 8vw, 2.5rem); font-weight: 800;
+      letter-spacing: -0.03em; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--app-success);
+    }
+    .sme-hero__meta { margin: 0; text-align: center; font-size: 14px; color: var(--app-text-muted); }
+    .sme-hero__split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+    .sme-hero__stat {
+      display: flex; flex-direction: column; gap: 4px; padding: 12px;
+      border-radius: 14px; border: 1px solid var(--app-border); background: #fbfdfc;
+    }
+    .sme-hero__stat span { font-size: 14px; color: var(--app-text-muted); font-weight: 600; }
+    .sme-hero__stat strong { font-size: clamp(1.2rem, 4.2vw, 1.4rem); font-variant-numeric: tabular-nums; }
+    .sme-hero__stat.is-in strong { color: var(--app-success); }
+    .sme-hero__stat.is-out strong { color: var(--app-warning); }
+    .sme-primary__btn {
+      width: 100%; min-height: 56px; border: 0; border-radius: 16px;
+      background: var(--app-primary); color: #fff; font: inherit; font-size: 18px; font-weight: 700;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+    }
+    .sme-primary--panel { display: flex; flex-direction: column; gap: 10px; }
+    .sme-primary__hint { display: none; margin: 0; font-size: 14px; color: var(--app-text-muted); font-weight: 600; }
+    .sme-block__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .sme-block__head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+    .sme-block__link { font-size: 14px; font-weight: 600; color: var(--app-primary); text-decoration: none; min-height: 48px; display: inline-flex; align-items: center; }
+    .sme-tx-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--app-border); border-radius: 16px; background: var(--app-surface); overflow: hidden; }
+    .sme-tx { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px; border-bottom: 1px solid var(--app-border); }
+    .sme-tx-list li:last-child .sme-tx { border-bottom: 0; }
+    .sme-tx__icon {
+      width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0;
+      background: var(--app-primary-soft); color: var(--app-success);
+    }
+    .sme-tx__icon.is-out { background: var(--app-amber-soft); color: var(--app-warning); }
+    .sme-tx__copy { flex: 1; min-width: 0; }
+    .sme-tx__title { display: block; font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sme-tx__meta { display: block; font-size: 14px; color: var(--app-text-muted); }
+    .sme-tx__amount { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .sme-tx__amount.is-in { color: var(--app-success); }
+    .sme-tx__amount.is-out { color: var(--app-warning); }
+    .sme-status { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .sme-status__chip {
+      display: flex; flex-direction: column; justify-content: center; gap: 2px;
+      min-height: 48px; padding: 10px 8px; border: 1px solid var(--app-border);
+      border-radius: 14px; background: var(--app-surface); text-decoration: none; color: inherit;
+    }
+    .sme-status__chip-label { font-size: 12px; color: var(--app-text-muted); font-weight: 600; }
+    .sme-status__chip strong { font-size: 14px; }
+    .bottom-nav {
+      position: fixed; inset-inline: 0; bottom: 0; height: var(--nav-h);
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      background: var(--app-surface); border-top: 1px solid var(--app-border);
+      padding-bottom: env(safe-area-inset-bottom); z-index: 20;
+    }
+    .bottom-nav a {
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      text-decoration: none; color: var(--app-text-muted); font-size: 12px; font-weight: 600;
+    }
+    .bottom-nav a.is-active { color: var(--app-primary); }
+    .bottom-nav i { font-size: 1.25rem; }
+    .note {
+      margin: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--app-border);
+      background: color-mix(in srgb, var(--app-primary-soft) 70%, white);
+      color: var(--app-text-muted); font-size: 13px; text-align: center;
+    }
+    .desk-side { display: none; }
+    @media (min-width: 992px) {
+      .bottom-nav { display: none; }
+      .shell { flex-direction: row; }
+      .desk-side {
+        display: flex; flex-direction: column; gap: 8px; width: 220px; flex-shrink: 0;
+        padding: 20px 12px; background: #143d36; color: #dcebe2; min-height: 100dvh;
+      }
+      .desk-side .brand { font-weight: 800; font-size: 18px; padding: 8px 12px 20px; color: #fff; }
+      .desk-side a {
+        display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px;
+        border-radius: 12px; color: inherit; text-decoration: none; font-weight: 600; font-size: 14px;
+      }
+      .desk-side a.is-active { background: color-mix(in srgb, white 14%, transparent); color: #fff; }
+      .main { flex: 1; min-width: 0; }
+      .topbar { padding-inline: 24px; }
+      .sme-home { padding: 24px; padding-block-end: 40px; }
+      .sme-home__grid {
+        display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; align-items: start;
+      }
+      .sme-hero { grid-column: 1 / span 8; padding: 20px; }
+      .sme-primary--panel {
+        grid-column: 9 / span 4; justify-content: center; min-height: 100%;
+        padding: 20px 16px; border: 1px solid var(--app-border); border-radius: 18px; background: var(--app-surface);
+      }
+      .sme-primary__hint { display: block; }
+      .sme-primary__btn { min-height: 64px; }
+      .sme-feed { grid-column: 1 / span 8; }
+      .sme-home__side { grid-column: 9 / span 4; }
+      .sme-status { display: flex; flex-direction: column; gap: 10px; }
+      .sme-status__chip {
+        min-height: 56px; padding: 12px 14px; flex-direction: row;
+        align-items: center; justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="desk-side" aria-label="التنقل">
+      <div class="brand">بيكون</div>
+      <a class="is-active" href="#"><i class="bi bi-house"></i> الرئيسية</a>
+      <a href="#"><i class="bi bi-cash-stack"></i> المعاملات</a>
+      <a href="#"><i class="bi bi-bar-chart"></i> التقارير</a>
+      <a href="#"><i class="bi bi-grid"></i> المزيد</a>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <button class="topbar__icon" type="button" aria-label="القائمة"><i class="bi bi-bell"></i></button>
+        <div class="topbar__user">متجر النور</div>
+      </header>
+      <main class="sme-home">
+        <p class="note">معاينة واجهة فقط — بدون تسجيل دخول أو بيانات حقيقية</p>
+        <div class="sme-home__grid">
+          <section class="sme-hero">
+            <div class="sme-currency-toggle" role="tablist" aria-label="العملة">
+              <button type="button" class="is-active" role="tab" aria-selected="true">ل.س</button>
+              <button type="button" role="tab" aria-selected="false">$</button>
+            </div>
+            <p class="sme-hero__label">صافي هذا الشهر</p>
+            <p class="sme-hero__net"><bdi>215,000 ل.س</bdi></p>
+            <p class="sme-hero__meta">↑ 12% عن الشهر السابق · <bdi dir="ltr">9</bdi> معاملة</p>
+            <div class="sme-hero__split">
+              <div class="sme-hero__stat is-in"><span>دخل</span><strong><bdi>250,000 ل.س</bdi></strong></div>
+              <div class="sme-hero__stat is-out"><span>مصروف</span><strong><bdi>35,000 ل.س</bdi></strong></div>
+            </div>
+          </section>
+          <div class="sme-primary sme-primary--panel">
+            <p class="sme-primary__hint">سجّل مبيعاً أو مصروفاً بسرعة</p>
+            <button class="sme-primary__btn" type="button"><i class="bi bi-plus-circle"></i> سجّل معاملة</button>
+          </div>
+          <section class="sme-block sme-feed">
+            <div class="sme-block__head">
+              <h2>آخر الحركات</h2>
+              <a class="sme-block__link" href="#">عرض الكل</a>
+            </div>
+            <ul class="sme-tx-list">
+              <li><div class="sme-tx"><span class="sme-tx__icon"><i class="bi bi-arrow-down-left"></i></span><span class="sme-tx__copy"><span class="sme-tx__title">بيع بضاعة نقداً</span><span class="sme-tx__meta">مبيع · 2026-11-05</span></span><span class="sme-tx__amount is-in">+40.00 $</span></div></li>
+              <li><div class="sme-tx"><span class="sme-tx__icon is-out"><i class="bi bi-arrow-up-right"></i></span><span class="sme-tx__copy"><span class="sme-tx__title">فاتورة كهرباء</span><span class="sme-tx__meta">مصروف · 2026-11-05</span></span><span class="sme-tx__amount is-out">−35,000 ل.س</span></div></li>
+              <li><div class="sme-tx"><span class="sme-tx__icon"><i class="bi bi-arrow-down-left"></i></span><span class="sme-tx__copy"><span class="sme-tx__title">دخل إضافي</span><span class="sme-tx__meta">دخل · 2026-11-05</span></span><span class="sme-tx__amount is-in">+50,000 ل.س</span></div></li>
+              <li><div class="sme-tx"><span class="sme-tx__icon"><i class="bi bi-arrow-down-left"></i></span><span class="sme-tx__copy"><span class="sme-tx__title">مبيعات عامة</span><span class="sme-tx__meta">مبيع · أم خالد · 2026-11-04</span></span><span class="sme-tx__amount is-in">+200,000 ل.س</span></div></li>
+              <li><div class="sme-tx"><span class="sme-tx__icon"><i class="bi bi-arrow-down-left"></i></span><span class="sme-tx__copy"><span class="sme-tx__title">مبيعات عامة</span><span class="sme-tx__meta">مبيع · بوتيك النور · 2026-11-03</span></span><span class="sme-tx__amount is-in">+15,000 ل.س</span></div></li>
+            </ul>
+          </section>
+          <aside class="sme-home__side">
+            <section class="sme-status">
+              <a class="sme-status__chip" href="#"><span class="sme-status__chip-label">الامتثال</span><strong>لا مواعيد</strong></a>
+              <a class="sme-status__chip" href="#"><span class="sme-status__chip-label">الجاهزية</span><strong><bdi dir="ltr">72</bdi></strong></a>
+              <a class="sme-status__chip" href="#"><span class="sme-status__chip-label">الإحالة</span><strong>لا توجد</strong></a>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+  <nav class="bottom-nav" aria-label="التنقل السفلي">
+    <a class="is-active" href="#"><i class="bi bi-house"></i> الرئيسية</a>
+    <a href="#"><i class="bi bi-cash-stack"></i> المعاملات</a>
+    <a href="#"><i class="bi bi-bar-chart"></i> التقارير</a>
+    <a href="#"><i class="bi bi-grid"></i> المزيد</a>
+  </nav>
+  <script>
+    document.querySelectorAll(".sme-currency-toggle button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".sme-currency-toggle button").forEach((b) => {
+          b.classList.toggle("is-active", b === btn);
+          b.setAttribute("aria-selected", b === btn ? "true" : "false");
+        });
+        const usd = btn.textContent.trim() === "$";
+        document.querySelector(".sme-hero__net bdi").textContent = usd ? "40.00 $" : "215,000 ل.س";
+        document.querySelector(".sme-hero__stat.is-in strong bdi").textContent = usd ? "40.00 $" : "250,000 ل.س";
+        document.querySelector(".sme-hero__stat.is-out strong bdi").textContent = usd ? "0.00 $" : "35,000 ل.س";
+      });
+    });
+  </script>
+</body>
+</html>

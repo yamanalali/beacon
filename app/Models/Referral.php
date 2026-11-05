@@ -35,8 +35,9 @@ class Referral extends Model
         'info_requested' => ['under_review', 'decided'],
     ];
 
+    // status is intentionally not fillable — set only via forceFill in controlled transitions.
     protected $fillable = [
-        'public_id', 'enterprise_id', 'mfi_institution_id', 'readiness_assessment_id', 'status',
+        'public_id', 'enterprise_id', 'mfi_institution_id', 'readiness_assessment_id',
         'purpose_ar', 'disclosed_items', 'info_request_note', 'decision_note', 'outcome_note',
         'created_by', 'shared_at',
     ];

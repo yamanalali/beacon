@@ -58,6 +58,12 @@ class EnterprisePolicy
         return $this->view($user, $enterprise);
     }
 
+    /** Directory CSV/XLSX for Beacon staff (same scope as viewAny). */
+    public function exportAny(User $user): bool
+    {
+        return $user->permission('export', true) && $this->viewAny($user);
+    }
+
     public function assignMembers(User $user, Enterprise $enterprise): bool
     {
         return $this->isActive($user, UserRole::BeaconAdmin);

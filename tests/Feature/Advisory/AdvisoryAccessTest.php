@@ -166,4 +166,37 @@ class AdvisoryAccessTest extends TestCase
         $this->assertDatabaseCount('follow_up_actions', 1);
         $this->assertNotNull(FollowUpAction::query()->find($followUp->id));
     }
+
+    public function test_former_responsible_member_cannot_complete_after_losing_enterprise_access(): void
+    {
+        $enterprise = Enterprise::query()->create([
+            'business_name' => 'ورشة النور',
+            'location' => 'damascus',
+        ]);
+        $advisor = User::factory()->create(['role' => UserRole::BeaconAdvisor]);
+        $sme = User::factory()->create(['role' => UserRole::SmeUser]);
+        $enterprise->advisors()->attach($advisor->id);
+        $enterprise->members()->attach($sme->id);
+
+        $this->actingAs($advisor)
+            ->post(route('enterprises.follow-ups.store', $enterprise), [
+                'description' => 'إكمال الملف',
+                'responsible_user_id' => $sme->id,
+            ])
+            ->assertRedirect();
+
+        $followUp = FollowUpAction::query()->firstOrFail();
+        $this->assertSame($sme->id, (int) $followUp->responsible_user_id);
+
+        $enterprise->members()->detach($sme->id);
+
+        $this->actingAs($sme)
+            ->post(route('follow-ups.complete', $followUp))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('follow_up_actions', [
+            'id' => $followUp->id,
+            'status' => 'open',
+        ]);
+    }
 }

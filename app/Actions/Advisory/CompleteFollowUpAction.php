@@ -48,7 +48,11 @@ class CompleteFollowUpAction
             return true;
         }
 
+        // Responsible user may complete only while they still have enterprise view access
+        // (membership/advisor assignment). Stale responsible_user_id after removal must not work.
         return $followUp->responsible_user_id !== null
-            && (int) $followUp->responsible_user_id === (int) $actor->id;
+            && (int) $followUp->responsible_user_id === (int) $actor->id
+            && $enterprise !== null
+            && $actor->can('view', $enterprise);
     }
 }

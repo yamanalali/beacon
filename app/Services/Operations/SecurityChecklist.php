@@ -43,10 +43,9 @@ class SecurityChecklist
     }
 
     /**
-     * Admin MFA (TOTP, config/mfa.php). Reports only whether it is switched on and how many
-     * admins have confirmed enrollment (a count; never secrets). The policy is still open, so the
-     * status stays pending_decision. TODO: BUSINESS DECISION REQUIRED - mandatory roles, factor
-     * types, grace period, lost-device recovery.
+     * Admin MFA (TOTP, config/mfa.php). Reports whether it is on, whether enrollment is enforced,
+     * and how many admins have confirmed enrollment (counts only; never secrets).
+     * TODO: BUSINESS DECISION REQUIRED - lost-device recovery (today recovery codes only).
      */
     private function adminMfaItem(): array
     {
@@ -54,17 +53,33 @@ class SecurityChecklist
         $admins = User::query()->whereIn('role', $roles);
         $total = (clone $admins)->count();
         $enrolled = (clone $admins)->whereNotNull('two_factor_secret')->whereNotNull('two_factor_confirmed_at')->count();
+        $enabled = (bool) config('mfa.enabled');
+        $enforceDays = config('mfa.enforce_after_days');
+        $enforced = $enabled && $enforceDays !== null;
 
-        $state = config('mfa.enabled')
-            ? "مفعّلة (BEACON_ADMIN_MFA=true). المسجّلون: {$enrolled} من {$total} مسؤول."
-            : 'غير مفعّلة (BEACON_ADMIN_MFA=false)، وتسجيل الدخول يعمل بدونها.';
+        if (! $enabled) {
+            $state = 'غير مفعّلة (BEACON_ADMIN_MFA=false)، وتسجيل الدخول يعمل بدونها.';
+            $status = app()->environment('production') ? 'warning' : 'pending_decision';
+        } elseif (! $enforced) {
+            $state = "مفعّلة (BEACON_ADMIN_MFA=true) دون إلزام. المسجّلون: {$enrolled} من {$total} مسؤول.";
+            $status = 'warning';
+        } elseif ($total > 0 && $enrolled < $total) {
+            $state = "مفعّلة وملزمة بعد {$enforceDays} يوماً. المسجّلون: {$enrolled} من {$total} مسؤول.";
+            $status = 'warning';
+        } else {
+            $state = "مفعّلة وملزمة بعد {$enforceDays} يوماً. المسجّلون: {$enrolled} من {$total} مسؤول.";
+            $status = 'ok';
+        }
+
+        $state .= ' استرداد الجهاز المفقود: رموز الاسترداد فقط حالياً (بانتظار قرار بيكون).';
 
         return [
             'key' => 'admin_mfa',
             'label_ar' => 'المصادقة الثنائية للمسؤولين',
-            'status' => 'pending_decision',
-            'detail_ar' => $state.' بانتظار قرار السياسة: الأدوار الإلزامية، نوع العامل، فترة السماح، واسترداد الجهاز المفقود.',
-            'mfa_enabled' => (bool) config('mfa.enabled'),
+            'status' => $status,
+            'detail_ar' => $state,
+            'mfa_enabled' => $enabled,
+            'mfa_enforced' => $enforced,
             'mfa_enrolled_admins' => $enrolled,
             'mfa_total_admins' => $total,
         ];

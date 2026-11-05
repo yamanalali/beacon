@@ -97,13 +97,8 @@ class AdvisoryController extends Controller
     ): RedirectResponse {
         $followUp->loadMissing('enterprise');
         $actor = $request->user();
-        $isResponsible = $actor !== null
-            && $followUp->responsible_user_id !== null
-            && (int) $followUp->responsible_user_id === (int) $actor->id;
 
-        if (! $isResponsible) {
-            Gate::authorize('view', $followUp->enterprise);
-        }
+        Gate::authorize('view', $followUp->enterprise);
 
         abort_unless($actor !== null && $completeFollowUpAction->canComplete($actor, $followUp), 403);
 

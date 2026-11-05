@@ -79,17 +79,23 @@ class SmeDashboardData
         $referral = Referral::query()->where('enterprise_id', $enterprise->id)
             ->orderByDesc('id')->first();
 
-        $recentRows = $recent->map(fn (FinancialTransaction $t) => [
-            'public_id' => $t->public_id,
-            'type' => $t->type->value,
-            'direction' => in_array($t->type, self::INCOME_TYPES, true) ? 'income' : 'expense',
-            'transaction_date' => $t->transaction_date->toDateString(),
-            'amount' => (string) $t->amount,
-            'currency' => $t->currency,
-            'category' => $t->category,
-            'counterparty' => $t->counterparty,
-            'url' => route('transactions.show', $t),
-        ])->values()->all();
+        $recentRows = $recent->map(function (FinancialTransaction $t) {
+            $labels = config('bookkeeping.categories.'.$t->type->value, []);
+
+            return [
+                'public_id' => $t->public_id,
+                'type' => $t->type->value,
+                'direction' => in_array($t->type, self::INCOME_TYPES, true) ? 'income' : 'expense',
+                'transaction_date' => $t->transaction_date->toDateString(),
+                'amount' => (string) $t->amount,
+                'currency' => $t->currency,
+                'category' => $t->category,
+                'category_label' => $labels[$t->category] ?? $t->category,
+                'description' => $t->description,
+                'counterparty' => $t->counterparty,
+                'url' => route('transactions.show', $t),
+            ];
+        })->values()->all();
 
         $deadlineRow = fn (EnterpriseComplianceRecord $r) => [
             'id' => $r->id,
@@ -142,7 +148,10 @@ class SmeDashboardData
             // Existing props (kept for the current page UI).
             'recentActivity' => array_map(fn ($r) => [
                 'id' => $r['public_id'],
-                'title' => $r['category'].($r['counterparty'] ? ' - '.$r['counterparty'] : ''),
+                'title' => (trim((string) ($r['description'] ?? '')) !== ''
+                    ? (string) $r['description']
+                    : (string) ($r['category_label'] ?? $r['category']))
+                    .($r['counterparty'] ? ' - '.$r['counterparty'] : ''),
                 'meta' => $r['amount'].' '.$r['currency'].' · '.$r['transaction_date'],
             ], $recentRows),
             'outstandingActions' => array_map(fn ($a) => [

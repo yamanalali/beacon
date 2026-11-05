@@ -48,6 +48,8 @@ export type SmeRecentTransaction = {
     amount: MoneyString;
     currency: string;
     category: string;
+    category_label?: string | null;
+    description?: string | null;
     counterparty: string | null;
     url: string;
 };

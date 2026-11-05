@@ -106,7 +106,7 @@ class FinancialReportTest extends TestCase
         $this->assertSame([['SYP', '50.00']], $this->report('receivables')[0]['rows']);
     }
 
-    public function test_exports_download_csv_and_xlsx_and_are_audited(): void
+    public function test_exports_download_csv_xlsx_and_pdf_and_are_audited(): void
     {
         $this->seedScenario();
         $params = ['enterprise' => $this->enterprise, 'report' => 'sales', 'from' => '2026-09-01', 'to' => '2026-09-30'];
@@ -118,6 +118,11 @@ class FinancialReportTest extends TestCase
         $xlsx = $this->actingAs($this->sme)->get(route('enterprises.reports.export', $params + ['format' => 'xlsx']));
         $xlsx->assertOk();
         $this->assertStringStartsWith('PK', $xlsx->streamedContent());
+
+        $pdf = $this->actingAs($this->sme)->get(route('enterprises.reports.export', $params + ['format' => 'pdf']));
+        $pdf->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $pdf->headers->get('content-type'));
+        $this->assertStringStartsWith('%PDF', $pdf->streamedContent());
 
         $this->actingAs($this->sme)->get(route('enterprises.reports.export', $params + ['format' => 'exe']))->assertNotFound();
         $this->assertDatabaseHas('audit_logs', ['action' => 'report.exported']);

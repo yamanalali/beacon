@@ -3,7 +3,6 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { NavigationItem } from "../types/shared";
 import { homeItem } from "./navigation";
-import { QuickRecordButton, useQuickRecord } from "../Components/QuickRecord/QuickRecord";
 import { homeLink, iconFor, navigationOrFallback, splitMobile } from "./navigationModel";
 
 function NavLink({ item, className, onClick }: { item: NavigationItem; className: string; onClick?: () => void }) {
@@ -23,11 +22,9 @@ function NavLink({ item, className, onClick }: { item: NavigationItem; className
 export function MobileBottomNavigation() {
     const { url, props } = usePage();
     // Links come from the server (`auth.navigation`); no role logic in the UI.
+    // Four tabs max: الرئيسية + up to 2 priorities (معاملات/تقارير) + المزيد. Record CTA lives on the home hero/FAB.
     const items = navigationOrFallback(props.auth.navigation, url, props.auth.can);
-    const quick = useQuickRecord();
-    // Centre «سجّل معاملة» tab takes one slot when available.
-    const { tabs, more: moreItems } = splitMobile(items, quick ? 2 : 3);
-    const primaryItems = tabs;
+    const { tabs: primaryItems, more: moreItems } = splitMobile(items, 2);
     const home = homeLink(items, url);
     const homeActive = home.active;
     const moreActive = moreItems.some((item) => item.active);
@@ -118,17 +115,7 @@ export function MobileBottomNavigation() {
                         <span className="app-tab__label">{homeItem.label}</span>
                     </Link>
                 </li>
-                {primaryItems.slice(0, quick ? 1 : primaryItems.length).map((item) => (
-                    <li key={item.key} className="app-bottom-nav__item">
-                        <NavLink item={item} className="app-tab" />
-                    </li>
-                ))}
-                {quick && (
-                    <li className="app-bottom-nav__item">
-                        <QuickRecordButton variant="tab" />
-                    </li>
-                )}
-                {primaryItems.slice(quick ? 1 : primaryItems.length).map((item) => (
+                {primaryItems.map((item) => (
                     <li key={item.key} className="app-bottom-nav__item">
                         <NavLink item={item} className="app-tab" />
                     </li>

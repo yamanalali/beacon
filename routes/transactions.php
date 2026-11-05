@@ -8,6 +8,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/enterprises/{enterprise:public_id}/transactions', [TransactionController::class, 'index'])
         ->name('enterprises.transactions.index');
+    Route::get('/enterprises/{enterprise:public_id}/transactions/export/{format}', [TransactionController::class, 'export'])
+        ->whereIn('format', ['csv', 'xlsx'])
+        ->name('enterprises.transactions.export');
     Route::get('/enterprises/{enterprise:public_id}/transactions/create', [TransactionController::class, 'create'])
         ->name('enterprises.transactions.create');
     Route::post('/enterprises/{enterprise:public_id}/transactions', [TransactionController::class, 'store'])

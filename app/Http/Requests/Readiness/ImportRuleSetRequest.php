@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Readiness;
 
+use App\Support\ReadinessExampleTemplate;
 use App\Support\ReadinessRuleSetValidator;
 use Illuminate\Validation\Validator;
+use InvalidArgumentException;
+use Throwable;
 
-/** Accepts the export JSON either as an uploaded file ("file") or inline ("definition"). Always creates a draft. */
+/** Accepts export JSON, the Excel template, or an inline definition. Always creates a draft. */
 class ImportRuleSetRequest extends ReadinessAdminRequest
 {
     private ?array $parsed = null;
@@ -13,7 +16,7 @@ class ImportRuleSetRequest extends ReadinessAdminRequest
     public function rules(): array
     {
         return [
-            'file' => ['required_without:definition', 'file', 'max:1024'],
+            'file' => ['required_without:definition', 'file', 'max:2048'],
             'definition' => ['required_without:file', 'array'],
             'name_ar' => ['nullable', 'string', 'max:255'],
         ];
@@ -25,9 +28,7 @@ class ImportRuleSetRequest extends ReadinessAdminRequest
             return $this->parsed;
         }
         if ($this->hasFile('file')) {
-            $decoded = json_decode((string) file_get_contents($this->file('file')->getRealPath()), true);
-
-            return $this->parsed = is_array($decoded) ? $decoded : [];
+            return $this->parsed = $this->definitionFromUpload();
         }
 
         return $this->parsed = (array) $this->input('definition', []);
@@ -39,7 +40,17 @@ class ImportRuleSetRequest extends ReadinessAdminRequest
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
-            $def = $this->definition();
+            try {
+                $def = $this->definition();
+            } catch (InvalidArgumentException $e) {
+                $validator->errors()->add('file', $e->getMessage());
+
+                return;
+            } catch (Throwable) {
+                $validator->errors()->add('file', 'تعذر قراءة الملف. استخدم قالب Excel أو ملف JSON من بيكون.');
+
+                return;
+            }
             if (($def['format'] ?? null) !== ReadinessRuleSetValidator::FORMAT) {
                 $validator->errors()->add('definition', 'الملف ليس تعريف قواعد جاهزية من بيكون.');
 
@@ -58,8 +69,24 @@ class ImportRuleSetRequest extends ReadinessAdminRequest
     public function messages(): array
     {
         return parent::messages() + [
-            'file.required_without' => 'يرجى إرفاق ملف JSON.',
-            'definition.required_without' => 'يرجى إرفاق ملف JSON.',
+            'file.required_without' => 'يرجى إرفاق ملف JSON أو Excel.',
+            'definition.required_without' => 'يرجى إرفاق ملف JSON أو Excel.',
         ];
+    }
+
+    private function definitionFromUpload(): array
+    {
+        $file = $this->file('file');
+        $path = $file->getRealPath();
+        $ext = strtolower($file->getClientOriginalExtension());
+        $mime = (string) $file->getMimeType();
+
+        if (in_array($ext, ['xlsx', 'xlsm'], true) || str_contains($mime, 'spreadsheetml')) {
+            return ReadinessExampleTemplate::definitionFromExcel($path);
+        }
+
+        $decoded = json_decode((string) file_get_contents($path), true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 }

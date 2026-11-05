@@ -16,17 +16,22 @@ describe("CurrencyCards", () => {
         const cards = screen.getAllByTestId("currency-card");
         expect(cards).toHaveLength(2);
         expect(cards[0].textContent).toContain("ل.س");
+        expect(cards[0].textContent).not.toContain("الليرة السورية");
+        expect(cards[1].textContent).toContain("$");
+        expect(cards[1].textContent).not.toContain("الدولار");
         expect(within(cards[0]).getByTestId("cc-income").textContent).toContain("200,000");
         expect(within(cards[1]).getByTestId("cc-income").textContent).toContain("100.00");
-        expect(within(cards[0]).getByTestId("cc-net").getAttribute("style")).toContain("var(--app-success)");
-        expect(within(cards[1]).getByTestId("cc-net").getAttribute("style")).toContain("var(--app-danger)");
+        expect(within(cards[0]).getByTestId("cc-net").closest(".sme-cc__net")?.className).toContain("is-net-up");
+        expect(within(cards[1]).getByTestId("cc-net").closest(".sme-cc__net")?.className).toContain("is-net-down");
         expect(cards[0].textContent).toContain("5");
         expect(screen.queryByTestId("unposted-line")).toBeNull();
     });
 
-    it("shows change vs last month per currency", () => {
+    it("shows change vs last month on net only when previous data exists", () => {
         render(<CurrencyCards kpis={{ unposted_count: 0, by_currency: { current_month: [t("SYP", "200000", "50000", "150000", 5)], previous_month: [t("SYP", "100000", "50000", "50000", 3)] } }} />);
-        expect(screen.getByTestId("currency-card").textContent).toMatch(/100/); // +100% income
+        // net 50k → 150k = +200%
+        expect(screen.getByTestId("currency-card").textContent).toMatch(/200%/);
+        expect(screen.queryByText("لا توجد بيانات للشهر السابق")).toBeNull();
     });
 
     it("shows the unposted line only when > 0", () => {

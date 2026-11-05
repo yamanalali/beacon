@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
+import { StatCard } from "../../Components/Common/StatCard";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
@@ -47,15 +48,84 @@ function NewDraftForm({ hasDraft }: { hasDraft: boolean }) {
     );
 }
 
+function TemplatesCard({ hasDraft }: { hasDraft: boolean }) {
+    const fileRef = useRef<HTMLInputElement>(null);
+    const [busy, setBusy] = useState(false);
+    const [message, setMessage] = useState<string | null>(null);
+
+    async function importFile(file: File) {
+        setBusy(true);
+        setMessage(null);
+        const form = new FormData();
+        form.append("file", file);
+        const r = await mutate("POST", R.import(), form);
+        setBusy(false);
+        if (!r.ok) setMessage(Object.values(r.errors)[0] ?? r.message);
+    }
+
+    return (
+        <SectionCard title="قوالب وأمثلة">
+            <p className="small text-body-secondary">
+                نزّل مثالاً جاهزاً أو قالباً فارغاً في Excel، عدّله مع فريقك، ثم ارفعه هنا ليصبح مسودة. المثال تعليمي فقط وليس قواعد معتمدة من بيكون.
+            </p>
+            <div className="d-flex flex-wrap gap-2 mb-3">
+                <a className="btn btn-outline-primary" href="/admin/readiness/templates/excel-example" download>
+                    <i className="bi bi-file-earmark-excel me-1" aria-hidden="true" />
+                    مثال Excel معبأ
+                </a>
+                <a className="btn btn-outline-primary" href="/admin/readiness/templates/excel-blank" download>
+                    <i className="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true" />
+                    قالب Excel فارغ
+                </a>
+                <a className="btn btn-outline-primary" href="/admin/readiness/templates/json-example" download>
+                    <i className="bi bi-filetype-json me-1" aria-hidden="true" />
+                    مثال JSON للاستيراد
+                </a>
+            </div>
+            {hasDraft ? (
+                <div className="alert alert-info py-2 mb-0" role="status">انشر المسودة الحالية أو احذفها قبل استيراد ملف جديد.</div>
+            ) : (
+                <>
+                    <input
+                        ref={fileRef}
+                        type="file"
+                        className="d-none"
+                        accept=".xlsx,.xlsm,application/json,.json"
+                        aria-label="ملف قواعد Excel أو JSON"
+                        onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) void importFile(f);
+                            e.target.value = "";
+                        }}
+                    />
+                    <button type="button" className="btn btn-primary" style={{ minHeight: "44px" }} disabled={busy} onClick={() => fileRef.current?.click()}>
+                        {busy ? <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" /> : <i className="bi bi-upload me-1" aria-hidden="true" />}
+                        استيراد Excel أو JSON
+                    </button>
+                    {message ? <div className="alert alert-danger py-2 mt-3 mb-0" role="alert">{message}</div> : null}
+                </>
+            )}
+        </SectionCard>
+    );
+}
+
 export default function Admin({ ruleSets }: Props) {
     const initial = ruleSets.find((s) => s.status === "draft") ?? ruleSets.find((s) => s.status === "published") ?? ruleSets[0];
     const [selectedId, setSelectedId] = useState<number | null>(initial?.id ?? null);
     const selected = ruleSets.find((s) => s.id === selectedId) ?? initial ?? null;
     const hasDraft = ruleSets.some((s) => s.status === "draft");
 
+    const published = ruleSets.filter((s) => s.status === "published").length;
+
     return (
         <AppLayout title="قواعد الجاهزية">
-            <PageHeader title="قواعد الجاهزية" description="محاور ومعايير وأوزان وشرائح تقييم جاهزية المنشآت. النسخ المعتمدة مجمّدة." />
+            <div className="app-page d-flex flex-column gap-3">
+            <PageHeader title="قواعد الجاهزية" description="ابنِ المسودة، راجع المعاينة، ثم اعتمد النسخة. النسخ المعتمدة تبقى مجمّدة، والتقييمات السابقة تحتفظ بنسختها." />
+            <div className="row g-3">
+                <div className="col-6 col-md-3"><StatCard label="النسخ" value={String(ruleSets.length)} icon="bi-layers" /></div>
+                <div className="col-6 col-md-3"><StatCard label="معتمدة" value={String(published)} hint="مجمّدة" icon="bi-shield-check" tone="blue" /></div>
+                <div className="col-12 col-md-6"><StatCard label="الخطوة التالية" value={hasDraft ? "مراجعة المسودة" : "إنشاء مسودة"} hint={hasDraft ? "انشرها أو احذفها قبل مسودة جديدة" : "ابدأ من القواعد المعتمدة الحالية"} icon="bi-signpost" tone="amber" /></div>
+            </div>
             <div className="row g-3">
                 <div className="col-12 col-lg-3 d-flex flex-column gap-3">
                     <SectionCard title="النسخ">
@@ -78,10 +148,12 @@ export default function Admin({ ruleSets }: Props) {
                         )}
                     </SectionCard>
                     <SectionCard title="مسودة جديدة"><NewDraftForm hasDraft={hasDraft} /></SectionCard>
+                    <TemplatesCard hasDraft={hasDraft} />
                 </div>
                 <div className="col-12 col-lg-9">
                     {selected ? <RuleSetBuilder key={selected.id} ruleSet={selected} /> : null}
                 </div>
+            </div>
             </div>
         </AppLayout>
     );

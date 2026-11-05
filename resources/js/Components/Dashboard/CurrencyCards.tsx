@@ -1,55 +1,78 @@
 import type { CurrencyTotals, SmeDashboardKpis } from "../../types/dashboard";
-import { changeLabel, currencyName, currencySymbol, formatMoneyIsolated } from "../../lib/money";
+import { changeLabel, currencyName, currencySymbol, formatMoneyIsolated, NO_PREVIOUS } from "../../lib/money";
 
 /** Server order is kept (default currency first); SYP is pinned first as well. Never converted between currencies. */
 export function orderCurrencies(items: CurrencyTotals[]): CurrencyTotals[] {
     return [...items].sort((a, b) => (a.currency === b.currency ? 0 : a.currency === "SYP" ? -1 : b.currency === "SYP" ? 1 : 0));
 }
 
-const netColor = (net: string) => (Number(net) > 0 ? "var(--app-success)" : Number(net) < 0 ? "var(--app-danger)" : undefined);
+/** Hide the noisy “no previous month” line; only show real % changes. */
+export function trendLabel(current: string | number | null | undefined, previous: string | number | null | undefined): string | null {
+    const label = changeLabel(current, previous);
+    return label === NO_PREVIOUS ? null : label;
+}
 
 function CurrencyCard({ cur, prev }: { cur: CurrencyTotals; prev: CurrencyTotals | undefined }) {
     const c = cur.currency;
-    const line = (label: string, value: string, previous: string | undefined, testId: string, color?: string) => (
-        <div className="app-record-line">
-            <span>{label}</span>
-            <span className="text-end">
-                <bdi dir="ltr" data-testid={testId} style={color ? { color, fontWeight: 600 } : undefined}>{formatMoneyIsolated(value, c)}</bdi>
-                <span className="d-block small text-body-secondary">{changeLabel(value, previous ?? "0")}</span>
-            </span>
-        </div>
-    );
+    const symbol = currencySymbol(c);
+    const netTone = Number(cur.net) > 0 ? "is-net-up" : Number(cur.net) < 0 ? "is-net-down" : "";
+    const trend = trendLabel(cur.net, prev?.net);
+
     return (
-        <article className="app-mobile-record h-100" data-testid="currency-card" aria-label={currencyName(c)}>
-            <div className="d-flex justify-content-between align-items-center mb-1">
-                <span className="fw-semibold">{currencyName(c)}</span>
-                <bdi className="text-body-secondary">{currencySymbol(c)}</bdi>
+        <article className="sme-cc" data-testid="currency-card" aria-label={`${currencyName(c)} (${symbol})`}>
+            <div className="sme-cc__top">
+                <span className="sme-cc__badge" aria-hidden="true">
+                    {symbol}
+                </span>
+                <span className="sme-cc__name">
+                    <bdi dir="ltr">{symbol}</bdi>
+                </span>
+                <span className="sme-cc__count">
+                    <bdi dir="ltr">{cur.transaction_count}</bdi> معاملة
+                </span>
             </div>
-            {line("الدخل", cur.income_total, prev?.income_total, "cc-income")}
-            {line("المصروف", cur.expense_total, prev?.expense_total, "cc-expense")}
-            {line("الصافي", cur.net, prev?.net, "cc-net", netColor(cur.net))}
-            <div className="app-record-line"><span>عدد المعاملات</span><bdi dir="ltr">{cur.transaction_count}</bdi></div>
+
+            <p className={`sme-cc__net ${netTone}`}>
+                <span className="sme-cc__net-label">الصافي</span>
+                <strong data-testid="cc-net">
+                    <bdi dir="ltr">{formatMoneyIsolated(cur.net, c)}</bdi>
+                </strong>
+            </p>
+            {trend ? <span className="sme-cc__trend">{trend}</span> : null}
+
+            <div className="sme-cc__split" role="group" aria-label="الدخل والمصروف">
+                <div className="sme-cc__side is-in">
+                    <span>دخل</span>
+                    <strong data-testid="cc-income">
+                        <bdi dir="ltr">{formatMoneyIsolated(cur.income_total, c)}</bdi>
+                    </strong>
+                </div>
+                <div className="sme-cc__side is-out">
+                    <span>مصروف</span>
+                    <strong data-testid="cc-expense">
+                        <bdi dir="ltr">{formatMoneyIsolated(cur.expense_total, c)}</bdi>
+                    </strong>
+                </div>
+            </div>
         </article>
     );
 }
 
-/** Per-currency KPI cards: this month vs last month, plus the unposted transactions line (hidden when 0). */
+/** Per-currency wallet cards: net first, income|expense in one row. No previous-month spam. */
 export function CurrencyCards({ kpis }: { kpis: Pick<SmeDashboardKpis, "by_currency" | "unposted_count"> }) {
     const current = orderCurrencies(kpis.by_currency?.current_month ?? []);
     const previous = kpis.by_currency?.previous_month ?? [];
     const unposted = kpis.unposted_count ?? 0;
     return (
         <section aria-label="مؤشرات هذا الشهر حسب العملة" data-testid="currency-cards">
-            <div className="row g-3">
+            <div className="sme-cc-list">
                 {current.map((cur) => (
-                    <div key={cur.currency} className="col-12 col-md-6 col-xl-4">
-                        <CurrencyCard cur={cur} prev={previous.find((p) => p.currency === cur.currency)} />
-                    </div>
+                    <CurrencyCard key={cur.currency} cur={cur} prev={previous.find((p) => p.currency === cur.currency)} />
                 ))}
             </div>
             {unposted > 0 ? (
-                <p className="small text-body-secondary mt-2 mb-0" data-testid="unposted-line">
-                    <i className="bi bi-hourglass-split me-1" aria-hidden="true" />
+                <p className="sme-cc__unposted" data-testid="unposted-line">
+                    <i className="bi bi-hourglass-split" aria-hidden="true" />
                     <bdi>{unposted}</bdi> فواتير ناطرة مراجعة
                 </p>
             ) : null}

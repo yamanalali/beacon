@@ -4,8 +4,11 @@
  * Beacon sections 53, 54 and 56. Placeholders only; nothing here is an approved business rule.
  */
 return [
-    // Section 53: encrypted transmission. Turn on in every non-local environment that has TLS.
-    'force_https' => (bool) env('BEACON_FORCE_HTTPS', false),
+    // Section 53: encrypted transmission. Production defaults on; set BEACON_FORCE_HTTPS=false only for emergency local TLS bypass.
+    'force_https' => filter_var(
+        env('BEACON_FORCE_HTTPS', env('APP_ENV') === 'production' ? true : false),
+        FILTER_VALIDATE_BOOLEAN
+    ),
     'hsts_max_age' => (int) env('BEACON_HSTS_MAX_AGE', 31536000),
 
     // Section 56: daily backups must be configurable.

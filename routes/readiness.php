@@ -36,6 +36,9 @@ Route::middleware('auth')->group(function () {
 
         // Scoring matrix v2: pillars, typed criteria, score bands (draft only), duplicate, export/import, preview.
         Route::get('/criteria-library', [ReadinessMatrixController::class, 'criteriaLibrary'])->name('criteria.library');
+        Route::get('/templates/excel-example', [ReadinessMatrixController::class, 'excelExample'])->name('templates.excel-example');
+        Route::get('/templates/excel-blank', [ReadinessMatrixController::class, 'excelBlank'])->name('templates.excel-blank');
+        Route::get('/templates/json-example', [ReadinessMatrixController::class, 'jsonExample'])->name('templates.json-example');
         Route::post('/import', [ReadinessMatrixController::class, 'import'])->name('import');
         Route::put('/criteria/{criterion}', [ReadinessMatrixController::class, 'updateCriterion'])->name('criteria.update');
         Route::post('/{ruleSet}/criteria/reorder', [ReadinessMatrixController::class, 'reorderCriteria'])->name('criteria.reorder');

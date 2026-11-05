@@ -39,7 +39,7 @@ describe("SME dashboard", () => {
                     { key: "pending_reviews", severity: "warning", count: 2, title: "فواتير بانتظار المراجعة", href: "/enterprises/E1/extractions/pending" },
                     { key: "open_escalations", severity: "info", count: 1, title: "استفسارات مفتوحة", href: null },
                 ]}
-                recent_transactions={[{ public_id: "T1", type: "sale", direction: "income", transaction_date: "2026-10-10", amount: "50.00", currency: "SYP", category: "مبيعات", counterparty: null, url: "/transactions/T1" }]}
+                recent_transactions={[{ public_id: "T1", type: "sale", direction: "income", transaction_date: "2026-10-10", amount: "50.00", currency: "SYP", category: "general_sales", category_label: "مبيعات عامة", description: "مبيعات", counterparty: null, url: "/transactions/T1" }]}
                 compliance={{ overdue: [{ id: 1, title: "تجديد الرخصة", due_date: "2026-10-01", status: "pending", overdue: true }], upcoming: [] }}
             />,
         );
@@ -49,8 +49,11 @@ describe("SME dashboard", () => {
         expect(screen.getByText("\u20661,000 ل.س\u2069")).toBeTruthy();
         // previous 500 → current 1000 = +100%
         expect(screen.getByText("↑ \u2066100%\u2069 عن الشهر السابق")).toBeTruthy();
-        expect(screen.getByTestId("currency-note").textContent).toContain("الدولار الأمريكي");
-        expect(screen.getByTestId("currency-note").textContent).toContain("الليرة السورية");
+        const currencyToggle = screen.getByTestId("currency-toggle");
+        expect(currencyToggle.textContent).toContain("$");
+        expect(currencyToggle.textContent).toContain("ل.س");
+        expect(currencyToggle.textContent).not.toContain("الدولار");
+        expect(currencyToggle.textContent).not.toContain("الليرة");
         expect(screen.getByText("مبيعات").closest("a")?.querySelector("[data-money]")?.textContent).toBe("+50 ل.س");
         expect(screen.getByText("مبيعات").closest("a")?.getAttribute("href")).toBe("/transactions/T1");
         expect(screen.getByText("متأخر")).toBeTruthy();
@@ -103,9 +106,9 @@ describe("Beacon dashboard", () => {
 });
 
 describe("SME previous month", () => {
-    it("shows 'no data' when the previous month is zero", () => {
-        const zero = { ...kpis, previous_month: { ...kpis.previous_month, income: "0.00", expense: "0.00" } };
+    it("hides the noisy 'no data' line when the previous month is zero", () => {
+        const zero = { ...kpis, previous_month: { ...kpis.previous_month, income: "0.00", expense: "0.00", net: "0.00" } };
         render(<Sme enterprise={{ public_id: "E1", business_name: "x" }} kpis={zero} />);
-        expect(screen.getAllByText("لا توجد بيانات للشهر السابق").length).toBe(2);
+        expect(screen.queryByText("لا توجد بيانات للشهر السابق")).toBeNull();
     });
 });

@@ -1,5 +1,6 @@
 import { Link, router } from "@inertiajs/react";
 import { useState, type FormEvent } from "react";
+import { ExportButton } from "../../Components/Data/ExportButton";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
@@ -26,9 +27,11 @@ const locationLabels: Record<string, string> = {
 export default function Index({
     enterprises,
     filters,
+    can_export = false,
 }: {
     enterprises: Paginator;
     filters: { search: string };
+    can_export?: boolean;
 }) {
     const [search, setSearch] = useState(filters.search ?? "");
 
@@ -49,13 +52,18 @@ export default function Index({
                         title="المنشآت"
                         description="ملفات المنشآت، ومتابعة الأعمال والتقدّم في مكان واحد."
                     />
-                    <Link
-                        href="/enterprises/create"
-                        className="btn btn-primary"
-                    >
-                        <i className="bi bi-plus-lg me-2" aria-hidden="true" />
-                        إضافة منشأة
-                    </Link>
+                    <div className="d-flex flex-wrap gap-2">
+                        {can_export ? (
+                            <ExportButton baseUrl="/enterprises/export" formats={["csv", "xlsx"]} />
+                        ) : null}
+                        <Link
+                            href="/enterprises/create"
+                            className="btn btn-primary"
+                        >
+                            <i className="bi bi-plus-lg me-2" aria-hidden="true" />
+                            إضافة منشأة
+                        </Link>
+                    </div>
                 </div>
                 <form onSubmit={submitSearch} className="app-search-toolbar">
                     <div className="app-search-toolbar__field">

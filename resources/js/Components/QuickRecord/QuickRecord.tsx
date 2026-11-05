@@ -91,8 +91,8 @@ export function QuickRecordSheet({ qr, onClose }: { qr: QuickRecordProps; onClos
     );
 }
 
-/** The «سجّل معاملة» trigger. `variant="hero"`: big dashboard button; `variant="tab"`: bottom-bar centre tab. */
-export function QuickRecordButton({ variant = "hero" }: { variant?: "hero" | "tab" }) {
+/** The «سجّل معاملة» trigger. `hero`: full-width CTA; `fab`: floating circle; `tab`: bottom-bar centre (legacy). */
+export function QuickRecordButton({ variant = "hero" }: { variant?: "hero" | "tab" | "fab" }) {
     const qr = useQuickRecord();
     const [open, setOpen] = useState(false);
     const btn = useRef<HTMLButtonElement>(null);
@@ -107,8 +107,21 @@ export function QuickRecordButton({ variant = "hero" }: { variant?: "hero" | "ta
                     </span>
                     <span className="app-tab__label">سجّل معاملة</span>
                 </button>
+            ) : variant === "fab" ? (
+                <button
+                    ref={btn}
+                    type="button"
+                    className="sme-fab__btn"
+                    aria-label="سجّل معاملة"
+                    aria-haspopup="dialog"
+                    aria-expanded={open}
+                    onClick={() => setOpen(true)}
+                >
+                    <i className="bi bi-plus-lg" aria-hidden="true" />
+                    <span>سجّل معاملة</span>
+                </button>
             ) : (
-                <button ref={btn} type="button" className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2" style={{ minHeight: 64, fontSize: 18 }}
+                <button ref={btn} type="button" className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2 sme-primary__btn"
                     aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
                     <i className="bi bi-plus-circle" aria-hidden="true" />
                     سجّل معاملة

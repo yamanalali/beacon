@@ -19,7 +19,11 @@ class StoreUserRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        $actor = $this->user();
+
+        return $actor !== null
+            && $actor->isActive()
+            && $actor->role === UserRole::BeaconAdmin;
     }
 
     /**

@@ -151,6 +151,9 @@ class DashboardDataTest extends TestCase
         $this->actingAs($admin)->get('/dashboard/beacon')->assertOk()
             ->assertInertia(fn (Assert $p) => $p->component('Dashboard/Beacon')
                 ->where('indicators', [])
+                ->where('exportUrl', '/dashboard/beacon/export')
+                ->has('filterOptions.regions')
+                ->has('filterOptions.genders', 4)
                 ->where('programme.scope', 'all')
                 ->where('programme.kpis.enterprises_count', 2)
                 ->where('programme.kpis.active_enterprises_count', null)
@@ -186,7 +189,43 @@ class DashboardDataTest extends TestCase
             $u = User::factory()->create(['role' => $role]);
             $this->actingAs($u)->get('/dashboard/sme')->assertForbidden();
             $this->actingAs($u)->get('/dashboard/beacon')->assertForbidden();
+            $this->actingAs($u)->get('/dashboard/beacon/export/csv')->assertForbidden();
         }
+    }
+
+    public function test_beacon_dashboard_filters_and_csv_export_respect_scope(): void
+    {
+        $this->mine->update(['sector' => 'تجارة', 'location' => 'damascus', 'female_employee_count' => 3, 'male_employee_count' => 0]);
+        $this->other->update(['sector' => 'خدمات', 'location' => 'daraa', 'female_employee_count' => 1, 'male_employee_count' => 2]);
+        $this->referral($this->mine, 'shared');
+        $this->referral($this->other, 'decided');
+
+        $admin = User::factory()->create(['role' => UserRole::BeaconAdmin]);
+        $this->actingAs($admin)->get('/dashboard/beacon?sector=تجارة')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p
+                ->where('programme.kpis.enterprises_count', 1)
+                ->has('filterOptions.sectors', 2)
+                ->where('programme.kpis.referrals_by_status.1.count', 1)
+                ->where('programme.kpis.referrals_by_status.4.count', 0));
+
+        $this->actingAs($admin)->get('/dashboard/beacon?gender=female')->assertOk()
+            ->assertInertia(fn (Assert $p) => $p->where('programme.kpis.enterprises_count', 1));
+
+        $csv = $this->actingAs($admin)->get('/dashboard/beacon/export/csv?sector=تجارة');
+        $csv->assertOk();
+        $body = $csv->streamedContent();
+        $this->assertStringContainsString('عدد المنشآت', $body);
+        $this->assertStringContainsString('منشأتي', $body);
+        $this->assertStringNotContainsString('غيري', $body);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'dashboard.beacon.exported']);
+
+        $advisor = User::factory()->create(['role' => UserRole::BeaconAdvisor]);
+        $this->mine->advisors()->attach($advisor->id);
+        $advisorCsv = $this->actingAs($advisor)->get('/dashboard/beacon/export/csv')->streamedContent();
+        $this->assertStringContainsString('منشأتي', $advisorCsv);
+        $this->assertStringNotContainsString('غيري', $advisorCsv);
+
+        $this->actingAs($admin)->get('/dashboard/beacon/export/xlsx')->assertNotFound();
     }
 
     public function test_sme_alert_hrefs_are_reachable(): void

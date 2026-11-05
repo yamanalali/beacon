@@ -32,6 +32,8 @@ class TwoFactorSettingsController extends Controller
                 'qr_svg' => $pending ? $this->twoFactor->qrCodeSvg($user, $user->two_factor_secret) : null,
                 'setup_key' => $pending ? $user->two_factor_secret : null,
                 'recovery_codes_remaining' => $this->twoFactor->remainingRecoveryCodes($user),
+                'can_disable' => $this->twoFactor->mayDisable($user),
+                'enrollment_required' => $this->twoFactor->enrollmentRequired($user),
             ],
             'recovery_codes' => $request->session()->get('mfa_new_recovery_codes'),
         ]);
@@ -97,6 +99,13 @@ class TwoFactorSettingsController extends Controller
     {
         $this->ensurePassword($request);
         $user = $request->user();
+
+        if (! $this->twoFactor->mayDisable($user)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'لا يمكن إيقاف التحقق بخطوتين بينما هو إلزامي لهذا الدور.',
+            ]);
+        }
+
         $wasConfirmed = $user->hasConfirmedTwoFactor();
 
         $this->twoFactor->disable($user);

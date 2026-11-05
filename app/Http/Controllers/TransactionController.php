@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Audit\RecordAuditLog;
 use App\Actions\Bookkeeping\ApproveTransactionAction;
 use App\Actions\Bookkeeping\CorrectTransactionAction;
 use App\Actions\Bookkeeping\CreateTransactionAction;
@@ -21,12 +22,15 @@ use App\Models\TransactionSettlement;
 use App\Navigation\PageAccess;
 use App\Support\Currencies;
 use App\Support\Money;
+use App\Support\TabularListExporter;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionController extends Controller
 {
@@ -57,7 +61,91 @@ class TransactionController extends Controller
 
         $search = trim((string) ($filters['search'] ?? ''));
 
-        $transactions = FinancialTransaction::query()
+        $transactions = $this->filteredTransactions($enterprise, $filters)
+            ->with('settlements')
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (FinancialTransaction $t): array => $this->row($t));
+
+        return Inertia::render('Transactions/Index', [
+            'enterprise' => $this->enterpriseProps($enterprise),
+            'transactions' => PaginatedProps::from($transactions),
+            'summary' => $this->summary($enterprise, $filters),
+            'filters' => [
+                'search' => $search,
+                'type' => $filters['type'] ?? '',
+                'payment_status' => $filters['payment_status'] ?? '',
+                'from' => $filters['from'] ?? '',
+                'to' => $filters['to'] ?? '',
+                'show_corrected' => (bool) ($filters['show_corrected'] ?? false),
+            ],
+            'options' => $this->options(),
+            'can_create' => $request->user()->can('create', [FinancialTransaction::class, $enterprise]),
+            'can_export' => $request->user()->can('export', [FinancialTransaction::class, $enterprise]),
+        ]);
+    }
+
+    public function export(Request $request, Enterprise $enterprise, string $format, TabularListExporter $exporter, RecordAuditLog $audit): StreamedResponse
+    {
+        Gate::authorize('export', [FinancialTransaction::class, $enterprise]);
+        abort_unless(in_array($format, ['csv', 'xlsx'], true), 404);
+
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'type' => ['nullable', Rule::enum(TransactionType::class)],
+            'payment_status' => ['nullable', Rule::enum(PaymentStatus::class)],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'show_corrected' => ['nullable', 'boolean'],
+        ]);
+
+        $headers = ['المعرف', 'التاريخ', 'النوع', 'التصنيف', 'المبلغ', 'العملة', 'الجهة', 'حالة الدفع', 'الحالة'];
+        $rows = $this->filteredTransactions($enterprise, $filters)
+            ->with('settlements')
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
+            ->limit(10000)
+            ->get()
+            ->map(function (FinancialTransaction $t): array {
+                $row = $this->row($t);
+
+                return [
+                    $row['public_id'],
+                    $row['transaction_date'],
+                    $row['type_label'],
+                    $row['category_label'],
+                    $row['amount'],
+                    $row['currency'],
+                    $row['counterparty'] ?? '',
+                    $row['payment_status_label'],
+                    $row['status_label'],
+                ];
+            })
+            ->all();
+
+        $audit->record($request->user(), 'transactions.list.exported', $enterprise, [
+            'format' => $format,
+            'filters' => $filters,
+            'row_count' => count($rows),
+        ]);
+
+        $filename = 'transactions-'.$enterprise->public_id.'-'.now()->format('Ymd');
+
+        return $format === 'csv'
+            ? $exporter->csv($headers, $rows, $filename)
+            : $exporter->xlsx($headers, $rows, $filename, 'المعاملات');
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function filteredTransactions(Enterprise $enterprise, array $filters): Builder
+    {
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        return FinancialTransaction::query()
             ->where('enterprise_id', $enterprise->id)
             ->when(! ($filters['show_corrected'] ?? false), fn ($q) => $q->whereIn('status', [TransactionStatus::Posted, TransactionStatus::PendingApproval]))
             ->when($filters['type'] ?? null, fn ($q, $type) => $q->where('type', $type))
@@ -69,28 +157,69 @@ class TransactionController extends Controller
                     $inner->where('counterparty', 'like', '%'.$search.'%')
                         ->orWhere('description', 'like', '%'.$search.'%');
                 });
-            })
-            ->with('settlements')
-            ->orderByDesc('transaction_date')
-            ->orderByDesc('id')
-            ->paginate(20)
-            ->withQueryString()
-            ->through(fn (FinancialTransaction $t): array => $this->row($t));
+            });
+    }
 
-        return Inertia::render('Transactions/Index', [
-            'enterprise' => $this->enterpriseProps($enterprise),
-            'transactions' => PaginatedProps::from($transactions),
-            'filters' => [
-                'search' => $search,
-                'type' => $filters['type'] ?? '',
-                'payment_status' => $filters['payment_status'] ?? '',
-                'from' => $filters['from'] ?? '',
-                'to' => $filters['to'] ?? '',
-                'show_corrected' => (bool) ($filters['show_corrected'] ?? false),
-            ],
-            'options' => $this->options(),
-            'can_create' => $request->user()->can('create', [FinancialTransaction::class, $enterprise]),
-        ]);
+    /**
+     * Income / expense / remaining for the current filters.
+     * Posted rows only (authoritative). Never converts between currencies.
+     *
+     * @return array{currency: string, income: string, expense: string, remaining: string, count: int, by_currency: list<array{currency: string, income: string, expense: string, remaining: string, count: int}>}
+     */
+    private function summary(Enterprise $enterprise, array $filters): array
+    {
+        $default = app(Currencies::class)->default();
+        $rows = $this->filteredTransactions($enterprise, $filters)
+            ->where('status', TransactionStatus::Posted)
+            ->groupBy('currency', 'type')
+            ->selectRaw('currency, type, COUNT(*) as row_count, SUM(amount) as total')
+            ->toBase()
+            ->get();
+
+        $totals = [];
+        foreach ($rows as $row) {
+            $bucket = &$totals[$row->currency];
+            $bucket ??= ['income' => 0, 'expense' => 0, 'count' => 0];
+            $type = TransactionType::tryFrom((string) $row->type);
+            $minor = Money::toMinor(is_string($row->total) ? $row->total : number_format((float) $row->total, 2, '.', ''));
+            if ($type?->isInflow()) {
+                $bucket['income'] += $minor;
+            } elseif ($type !== null) {
+                $bucket['expense'] += $minor;
+            }
+            $bucket['count'] += (int) $row->row_count;
+            unset($bucket);
+        }
+
+        $currencies = array_values(array_unique(array_merge([$default], array_keys($totals))));
+        $byCurrency = [];
+        foreach ($currencies as $currency) {
+            $t = $totals[$currency] ?? ['income' => 0, 'expense' => 0, 'count' => 0];
+            if ($t['count'] === 0 && $currency !== $default && ! isset($totals[$currency])) {
+                continue;
+            }
+            $byCurrency[] = [
+                'currency' => $currency,
+                'income' => Money::fromMinor($t['income']),
+                'expense' => Money::fromMinor($t['expense']),
+                'remaining' => Money::fromMinor($t['income'] - $t['expense']),
+                'count' => $t['count'],
+            ];
+        }
+
+        // Prefer the default currency card; if it has no rows, use the first currency that does.
+        $primary = collect($byCurrency)->first(fn (array $c) => $c['currency'] === $default && $c['count'] > 0)
+            ?? collect($byCurrency)->first(fn (array $c) => $c['count'] > 0)
+            ?? ['currency' => $default, 'income' => Money::fromMinor(0), 'expense' => Money::fromMinor(0), 'remaining' => Money::fromMinor(0), 'count' => 0];
+
+        return [
+            'currency' => $primary['currency'],
+            'income' => $primary['income'],
+            'expense' => $primary['expense'],
+            'remaining' => $primary['remaining'],
+            'count' => $primary['count'],
+            'by_currency' => $byCurrency,
+        ];
     }
 
     public function create(Request $request, Enterprise $enterprise): Response

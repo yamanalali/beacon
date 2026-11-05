@@ -17,7 +17,8 @@ class PrivateStorageServeTest extends TestCase
         Storage::disk('local')->put('documents/tenant-b/receipt.jpg', 'secret');
         $sme = $this->smeOf($this->enterprise());
 
-        $this->actingAs($sme)->get('/storage/documents/tenant-b/receipt.jpg')->assertForbidden();
+        // serve=false on the private disk: route is absent (404) rather than a signed 403.
+        $this->actingAs($sme)->get('/storage/documents/tenant-b/receipt.jpg')->assertNotFound();
 
         Storage::disk('local')->delete('documents/tenant-b/receipt.jpg');
     }

@@ -13,6 +13,8 @@ type Props = {
         qr_svg: string | null;
         setup_key: string | null;
         recovery_codes_remaining: number;
+        can_disable?: boolean;
+        enrollment_required?: boolean;
     };
     recovery_codes?: string[] | null;
 };
@@ -55,12 +57,25 @@ export default function TwoFactor({ mfa, recovery_codes }: Props) {
                                 </div>
                             )}
 
+                            {mfa.enrollment_required && !mfa.confirmed && (
+                                <div className="alert alert-warning">
+                                    التحقق بخطوتين إلزامي لهذا الحساب. أكمل
+                                    الإعداد للمتابعة.
+                                </div>
+                            )}
+
                             {mfa.confirmed ? (
                                 <section>
                                     <p>
                                         التحقق بخطوتين مفعّل. رموز الاسترداد
                                         المتبقية: {mfa.recovery_codes_remaining}
                                     </p>
+                                    {!mfa.can_disable && (
+                                        <p className="text-muted small">
+                                            الإيقاف غير متاح لأن التحقق بخطوتين
+                                            إلزامي لهذا الدور.
+                                        </p>
+                                    )}
                                     <TextInput
                                         id="current_password"
                                         name="current_password"
@@ -90,19 +105,21 @@ export default function TwoFactor({ mfa, recovery_codes }: Props) {
                                         >
                                             توليد رموز استرداد جديدة
                                         </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline-danger"
-                                            disabled={secured.processing}
-                                            onClick={() =>
-                                                secured.delete(
-                                                    "/account/two-factor",
-                                                    { onFinish: () => secured.reset("current_password") },
-                                                )
-                                            }
-                                        >
-                                            إيقاف التحقق بخطوتين
-                                        </button>
+                                        {mfa.can_disable !== false && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-danger"
+                                                disabled={secured.processing}
+                                                onClick={() =>
+                                                    secured.delete(
+                                                        "/account/two-factor",
+                                                        { onFinish: () => secured.reset("current_password") },
+                                                    )
+                                                }
+                                            >
+                                                إيقاف التحقق بخطوتين
+                                            </button>
+                                        )}
                                     </div>
                                 </section>
                             ) : mfa.pending ? (

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Audit\RecordAuditLog;
 use App\Actions\Enterprises\AssignAdvisorAction;
 use App\Actions\Enterprises\AttachSmeUserAction;
 use App\Actions\Enterprises\CreateEnterpriseAction;
@@ -12,12 +13,14 @@ use App\Http\Requests\Enterprises\StoreEnterpriseRequest;
 use App\Http\Requests\Enterprises\UpdateEnterpriseProfileRequest;
 use App\Models\Enterprise;
 use App\Models\User;
+use App\Support\TabularListExporter;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EnterpriseController extends Controller
 {
@@ -64,7 +67,56 @@ class EnterpriseController extends Controller
             'filters' => [
                 'search' => $search,
             ],
+            'can_export' => $user->can('exportAny', Enterprise::class),
         ]);
+    }
+
+    public function export(Request $request, string $format, TabularListExporter $exporter, RecordAuditLog $audit): StreamedResponse
+    {
+        $this->authorize('exportAny', Enterprise::class);
+        abort_unless(in_array($format, ['csv', 'xlsx'], true), 404);
+
+        $user = $request->user();
+        $search = $request->string('search')->trim()->toString();
+
+        $locationLabels = [
+            'damascus' => 'دمشق',
+            'rural_damascus' => 'ريف دمشق',
+            'daraa' => 'درعا',
+        ];
+
+        $rows = Enterprise::query()
+            ->when($user->role === UserRole::BeaconAdvisor, function ($query) use ($user) {
+                $query->whereHas('advisors', fn ($advisors) => $advisors->whereKey($user->id));
+            })
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where('business_name', 'like', '%'.$search.'%');
+            })
+            ->orderBy('business_name')
+            ->limit(10000)
+            ->get()
+            ->map(fn (Enterprise $enterprise) => [
+                $enterprise->public_id,
+                $enterprise->business_name,
+                $enterprise->sector ?? '',
+                $locationLabels[$enterprise->location] ?? ($enterprise->location ?? ''),
+            ])
+            ->all();
+
+        $headers = ['المعرف', 'اسم المنشأة', 'القطاع', 'الموقع'];
+
+        $audit->record($user, 'enterprises.list.exported', $user, [
+            'format' => $format,
+            'search' => $search,
+            'row_count' => count($rows),
+            'scope' => 'enterprise_directory',
+        ]);
+
+        $filename = 'enterprises-'.now()->format('Ymd');
+
+        return $format === 'csv'
+            ? $exporter->csv($headers, $rows, $filename)
+            : $exporter->xlsx($headers, $rows, $filename, 'المنشآت');
     }
 
     public function create(): Response

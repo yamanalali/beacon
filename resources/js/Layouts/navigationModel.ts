@@ -97,8 +97,9 @@ export function homeLink(items: NavigationItem[] | null | undefined, url: string
 }
 
 /** Mobile bottom tabs: up to 3 by key priority among the items the server sent; the rest go to "More". */
+/** Bottom tabs (with Home + More): prefer المعاملات then التقارير; docs/readiness/compliance/referrals stay in More. */
 export const MOBILE_TAB_PRIORITY = [
-    "transactions", "reports", "enterprises", "mfi.referrals", "documents",
+    "transactions", "reports", "enterprises", "mfi.referrals",
     "operations.security", "operations.backups", "operations.data-control", "ai.assistant",
 ];
 export function splitMobile(items: NavigationItem[] | null | undefined, max = 3): { tabs: NavigationItem[]; more: NavigationItem[] } {

@@ -16,11 +16,13 @@ use App\Models\ReadinessRuleSet;
 use App\Models\ReadinessScoreBand;
 use App\Models\User;
 use App\Support\ReadinessAccess;
+use App\Support\ReadinessExampleTemplate;
 use App\Support\ReadinessRuleSetValidator;
 use App\Support\ReadinessScorer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -160,6 +162,41 @@ class ReadinessMatrixController extends Controller
 
         return response()->json(ReadinessRuleSetValidator::definition($ruleSet), 200, [
             'Content-Disposition' => 'attachment; filename="readiness-rules-v'.$ruleSet->version_number.'.json"',
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    }
+
+    /** Downloadable Excel workbook with a filled example for offline planning. */
+    public function excelExample(Request $request): Response
+    {
+        abort_unless($request->user()->permission('export', true), 403);
+        $this->admin($request);
+
+        return response(ReadinessExampleTemplate::excelBytes(), 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="beacon-readiness-example.xlsx"',
+        ]);
+    }
+
+    /** Empty Excel template (headers + sample score bands) for teams that prefer a blank sheet. */
+    public function excelBlank(Request $request): Response
+    {
+        abort_unless($request->user()->permission('export', true), 403);
+        $this->admin($request);
+
+        return response(ReadinessExampleTemplate::blankExcelBytes(), 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="beacon-readiness-template.xlsx"',
+        ]);
+    }
+
+    /** Matching JSON of the Excel example — imports via the existing JSON upload flow. */
+    public function jsonExample(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->permission('export', true), 403);
+        $this->admin($request);
+
+        return response()->json(ReadinessExampleTemplate::definition(), 200, [
+            'Content-Disposition' => 'attachment; filename="beacon-readiness-example.json"',
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 
