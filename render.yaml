@@ -1,0 +1,62 @@
+# Beacon SME platform — Render Blueprint (staging/demo share)
+# Dashboard: New → Blueprint → connect this repo → Deploy Blueprint
+services:
+  - type: web
+    name: beacon-sme
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    healthCheckPath: /up
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_NAME
+        value: Beacon
+      - key: APP_ENV
+        value: staging
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_LOCALE
+        value: ar
+      - key: APP_FALLBACK_LOCALE
+        value: en
+      - key: APP_URL
+        value: https://beacon-sme.onrender.com
+      - key: APP_KEY
+        generateValue: true
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: info
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: beacon-db
+          property: connectionString
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: CACHE_STORE
+        value: database
+      - key: FILESYSTEM_DISK
+        value: local
+      - key: BEACON_FORCE_HTTPS
+        value: "true"
+      - key: BEACON_ADMIN_MFA
+        value: "false"
+      - key: SEED_DEMO
+        value: "true"
+      # Set once in the Render Dashboard (Blueprint prompts on first deploy).
+      - key: DEMO_PASSWORD
+        sync: false
+
+databases:
+  - name: beacon-db
+    plan: free
+    databaseName: beacon
+    user: beacon
+    region: frankfurt
