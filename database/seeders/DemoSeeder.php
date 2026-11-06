@@ -32,8 +32,11 @@ class DemoSeeder extends Seeder
             DemoEnterpriseSeeder::class,
             DemoFinanceSeeder::class,
             DemoProgrammeSeeder::class,
+            DemoReadinessSeeder::class,
             DemoMfiSeeder::class,
             AiDemoSeeder::class,
         ]);
+
+        DemoEnterpriseSeeder::assignDemoAdvisorToAll();
     }
 }

@@ -47,18 +47,17 @@ class KnowledgeAssistantService
     }
 
     /**
-     * Simple keyword retrieval over currently approved articles.
+     * Keyword retrieval over currently approved articles, with bilingual aliases
+     * for common platform-use questions (record/voice/تسجيل/صوت…).
      * Only id/title/body are sent to the provider — no user or enterprise data.
      *
      * @return list<array{id:int,title:string,body:string}>
      */
     public function retrieve(string $question): array
     {
-        $terms = collect(preg_split('/[\s\p{P}]+/u', mb_strtolower($question)) ?: [])
-            ->filter(fn ($t) => mb_strlen($t) >= 3)
-            ->unique()->take(10)->values();
+        $terms = $this->searchTerms($question);
 
-        if ($terms->isEmpty()) {
+        if ($terms === []) {
             return [];
         }
 
@@ -74,6 +73,53 @@ class KnowledgeAssistantService
             ->get(['id', 'public_id', 'title', 'body'])
             ->map(fn ($a) => ['id' => $a->id, 'public_id' => $a->public_id, 'title' => $a->title, 'body' => $a->body])
             ->all();
+    }
+
+    /**
+     * Expand the user question into searchable tokens (Arabic + English aliases).
+     *
+     * @return list<string>
+     */
+    public function searchTerms(string $question): array
+    {
+        $raw = collect(preg_split('/[\s\p{P}]+/u', mb_strtolower($question)) ?: [])
+            ->filter(fn ($t) => mb_strlen($t) >= 3)
+            ->unique()
+            ->values();
+
+        // Map common English/Arabic product words onto knowledge vocabulary.
+        $aliases = [
+            'record' => ['تسجيل', 'معاملة', 'صوت', 'voice', 'recording', 'transaction'],
+            'recording' => ['تسجيل', 'صوت', 'voice', 'record'],
+            'voice' => ['صوت', 'تسجيل', 'ميكروفون', 'microphone', 'audio', 'speech'],
+            'audio' => ['صوت', 'تسجيل', 'voice'],
+            'features' => ['منصة', 'تطبيق', 'platform', 'سجّل', 'معاملة'],
+            'feature' => ['منصة', 'تطبيق', 'platform'],
+            'create' => ['إنشاء', 'إضافة', 'تسجيل', 'حفظ'],
+            'transaction' => ['معاملة', 'مصروف', 'دخل', 'تسجيل'],
+            'receipt' => ['إيصال', 'فاتورة', 'رفع', 'تصوير'],
+            'invoice' => ['فاتورة', 'إيصال', 'تصوير'],
+            'photo' => ['صورة', 'تصوير', 'فاتورة', 'كاميرا'],
+            'microphone' => ['ميكروفون', 'صوت', 'تسجيل', 'voice'],
+            'speech' => ['كلام', 'صوت', 'تعرّف', 'voice'],
+            'platform' => ['منصة', 'تطبيق', 'features'],
+            'how' => ['كيف'],
+            'can' => [],
+            'using' => [],
+            'here' => [],
+            'تسجيل' => ['record', 'recording', 'voice', 'معاملة', 'صوت'],
+            'صوت' => ['voice', 'audio', 'record', 'تسجيل', 'ميكروفون'],
+            'معاملة' => ['transaction', 'record', 'تسجيل'],
+            'فاتورة' => ['invoice', 'receipt', 'تصوير'],
+            'إيصال' => ['receipt', 'invoice', 'رفع'],
+            'كيف' => ['how'],
+        ];
+
+        $expanded = $raw->flatMap(function (string $term) use ($aliases) {
+            return array_merge([$term], $aliases[$term] ?? []);
+        })->filter(fn ($t) => mb_strlen((string) $t) >= 2)->unique()->take(20)->values()->all();
+
+        return array_values(array_map('strval', $expanded));
     }
 
     private function answer(string $question, array $articles): array

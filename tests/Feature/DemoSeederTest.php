@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Enums\UserRole;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
+use App\Models\ReadinessAssessment;
 use App\Models\User;
+use Database\Seeders\DemoEnterpriseSeeder;
 use Database\Seeders\DemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -44,12 +46,32 @@ class DemoSeederTest extends TestCase
         $sme = User::query()->where('email', 'sme@beacon.test')->sole();
         $this->assertTrue(Hash::check('test-demo-pass', $sme->password));
 
-        $enterprise = Enterprise::query()->sole();
+        $expectedNames = array_merge(
+            [DemoEnterpriseSeeder::NAME],
+            array_column(DemoEnterpriseSeeder::ADDITIONAL, 'business_name'),
+        );
+        $this->assertSame(count($expectedNames), Enterprise::query()->count());
+        foreach ($expectedNames as $name) {
+            $this->assertTrue(Enterprise::query()->where('business_name', $name)->exists(), $name);
+        }
+
+        $enterprise = DemoEnterpriseSeeder::enterprise();
         $this->assertTrue($enterprise->members()->whereKey($sme->id)->exists());
-        $this->assertTrue($enterprise->advisors()->where('email', 'advisor@beacon.test')->exists());
+        $advisor = User::query()->where('email', 'advisor@beacon.test')->sole();
+        foreach (Enterprise::query()->cursor() as $row) {
+            $this->assertTrue($row->advisors()->whereKey($advisor->id)->exists(), $row->business_name);
+        }
         $this->assertGreaterThan(5, FinancialTransaction::query()->count());
+        $this->assertTrue(
+            ReadinessAssessment::query()
+                ->where('enterprise_id', $enterprise->id)
+                ->where('status', ReadinessAssessment::STATUS_FINALIZED)
+                ->exists(),
+        );
 
         $this->actingAs($sme)->get(route('enterprises.reports.show', $enterprise))->assertOk();
+        $this->actingAs($sme)->get(route('enterprises.readiness.index', $enterprise))->assertOk();
+        $this->actingAs($advisor)->get(route('enterprises.index'))->assertOk();
     }
 
     public function test_seeder_refuses_outside_local(): void

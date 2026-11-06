@@ -34,24 +34,24 @@ class DemoProgrammeSeeder extends Seeder
                 'code' => 'DEMO-REG-001',
                 'category' => 'business_registration',
                 'title' => 'السجل التجاري (تجريبي)',
-                'guidance' => 'محتوى تجريبي للعرض فقط. المتطلبات الفعلية تعتمدها بيكون.',
-                'status' => 'in_progress',
+                'guidance' => 'ارفع صورة أو PDF للسجل. المستشار يراجع الوثيقة قبل الاعتماد.',
+                'status' => EnterpriseComplianceRecord::STATUS_NOT_STARTED,
                 'due' => now()->addDays(20)->toDateString(),
             ],
             [
                 'code' => 'DEMO-TAX-001',
                 'category' => 'tax_documentation',
                 'title' => 'وثيقة ضريبية أساسية (تجريبي)',
-                'guidance' => 'موعد تجريبي قريب لعرض التذكيرات في لوحة التحكم.',
-                'status' => 'not_started',
+                'guidance' => 'موعد تجريبي قريب — ارفع الوثيقة للمراجعة.',
+                'status' => EnterpriseComplianceRecord::STATUS_IN_PROGRESS,
                 'due' => now()->addDays(5)->toDateString(),
             ],
             [
                 'code' => 'DEMO-LIC-001',
                 'category' => 'licensing',
                 'title' => 'ترخيص نشاط (تجريبي)',
-                'guidance' => 'موعد متأخر تجريبي لعرض حالة الامتثال.',
-                'status' => 'not_started',
+                'guidance' => 'موعد متأخر تجريبي. ارفع الرخصة ليعيد المستشار مراجعتها.',
+                'status' => EnterpriseComplianceRecord::STATUS_NEEDS_RESUBMISSION,
                 'due' => now()->subDays(3)->toDateString(),
             ],
         ];
@@ -70,6 +70,7 @@ class DemoProgrammeSeeder extends Seeder
                 [
                     'title_ar' => $spec['title'],
                     'guidance_ar' => $spec['guidance'],
+                    'requires_document' => true,
                     'status' => ComplianceRequirementVersion::STATUS_PUBLISHED,
                     'effective_from' => now()->subMonth()->toDateString(),
                     'published_at' => now()->subMonth(),
@@ -77,7 +78,16 @@ class DemoProgrammeSeeder extends Seeder
                 ],
             );
 
-            EnterpriseComplianceRecord::query()->firstOrCreate(
+            // Existing published demo rows cannot be rewritten via Eloquent; patch the flag directly.
+            if (! $version->requires_document) {
+                ComplianceRequirementVersion::query()->whereKey($version->id)->update([
+                    'requires_document' => true,
+                    'guidance_ar' => $spec['guidance'],
+                ]);
+                $version->refresh();
+            }
+
+            $record = EnterpriseComplianceRecord::query()->firstOrCreate(
                 [
                     'enterprise_id' => $enterprise->id,
                     'compliance_requirement_id' => $requirement->id,
@@ -90,6 +100,15 @@ class DemoProgrammeSeeder extends Seeder
                     'updated_by' => $adminId,
                 ],
             );
+
+            // Refresh status/due if an older thin demo row exists.
+            if ($record->wasRecentlyCreated === false) {
+                $record->forceFill([
+                    'compliance_requirement_version_id' => $version->id,
+                    'status' => $spec['status'],
+                    'due_date' => $spec['due'],
+                ])->save();
+            }
         }
     }
 
@@ -98,7 +117,7 @@ class DemoProgrammeSeeder extends Seeder
         $activity = AdvisoryActivity::query()->firstOrCreate(
             [
                 'enterprise_id' => $enterprise->id,
-                'notes' => 'زيارة تجريبية: مراجعة تسجيل المبيعات اليومية وشرح زر «سجّل معاملة».',
+                'notes' => 'زيارة تجريبية: مراجعة تسجيل المبيعات اليومية وشرح رفع وثائق الامتثال.',
             ],
             [
                 'activity_date' => now()->subDays(4)->toDateString(),
@@ -112,7 +131,7 @@ class DemoProgrammeSeeder extends Seeder
         FollowUpAction::query()->firstOrCreate(
             [
                 'enterprise_id' => $enterprise->id,
-                'description' => 'إكمال بيانات الملف وإرفاق صورة الرخصة (تجريبي)',
+                'description' => 'رفع وثيقة السجل التجاري للمراجعة (تجريبي)',
             ],
             [
                 'advisory_activity_id' => $activity->id,

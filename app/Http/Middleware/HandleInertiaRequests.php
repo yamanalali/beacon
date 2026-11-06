@@ -57,6 +57,8 @@ class HandleInertiaRequests extends Middleware
                 ],
                 'quick_record' => fn () => $this->quickRecord($request),
                 'navigation' => fn () => app(NavigationBuilder::class)->build($request->user(), $request),
+                // System-wide in-app inbox preview for header badge/menu (all notification types).
+                'notifications' => fn () => $this->sharedNotifications($request),
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
@@ -136,6 +138,29 @@ class HandleInertiaRequests extends Middleware
             'draft_scope' => hash_hmac('sha256', 'offline-user:'.$user->id, (string) config('app.key')),
             'name' => (string) data_get($user, 'name', ''),
             'role' => $this->sharedRole(data_get($user, 'role')),
+        ];
+    }
+
+    /**
+     * Unread count + latest rows for the shell badge/menu. Own notifications only.
+     *
+     * @return array{unread_count: int, recent: list<array{id: string, data: array<string, mixed>, read_at: ?string, created_at: ?string}>}|null
+     */
+    private function sharedNotifications(Request $request): ?array
+    {
+        $user = $request->user();
+        if ($user === null || ! $user->isActive()) {
+            return null;
+        }
+
+        return [
+            'unread_count' => $user->unreadNotifications()->count(),
+            'recent' => $user->notifications()->latest()->limit(5)->get()->map(fn ($n) => [
+                'id' => (string) $n->id,
+                'data' => $n->data,
+                'read_at' => $n->read_at?->toIso8601String(),
+                'created_at' => $n->created_at?->toIso8601String(),
+            ])->all(),
         ];
     }
 

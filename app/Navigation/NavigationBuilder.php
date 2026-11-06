@@ -54,7 +54,8 @@ class NavigationBuilder
 
             ['key' => 'mfi.referrals', 'route' => 'mfi.referrals.index', 'label' => 'الإحالات الواردة', 'icon' => 'inbox', 'group' => 'mfi', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::MFI_REFERRAL_INBOX), 'active' => ['mfi.referrals.*', 'referrals.*']],
 
-            ['key' => 'ai.assistant', 'route' => 'ai.pages.assistant', 'label' => 'المساعد الذكي', 'icon' => 'sparkles', 'group' => 'ai', 'ability' => null],
+            // Advisors handle human escalations; the SME-facing AI assistant stays out of their shell.
+            ['key' => 'ai.assistant', 'route' => 'ai.pages.assistant', 'label' => 'المساعد الذكي', 'icon' => 'sparkles', 'group' => 'ai', 'ability' => fn (User $u) => $u->role !== UserRole::BeaconAdvisor],
             ['key' => 'ai.escalations', 'route' => 'ai.pages.escalations.index', 'label' => 'التصعيدات', 'icon' => 'life-buoy', 'group' => 'ai', 'ability' => null, 'active' => ['ai.pages.escalations.*']],
             ['key' => 'ai.knowledge', 'route' => 'ai.pages.knowledge.published', 'label' => 'قاعدة المعرفة', 'icon' => 'book-open', 'group' => 'ai', 'ability' => null],
             ['key' => 'notifications', 'route' => 'notifications.page', 'label' => 'الإشعارات', 'icon' => 'bell', 'group' => 'account', 'ability' => null],

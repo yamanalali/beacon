@@ -18,7 +18,7 @@ RUN composer install \
     --prefer-dist \
     --ignore-platform-reqs
 
-FROM php:8.3-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 RUN apk add --no-cache bash nginx supervisor libpq libzip icu-libs freetype libjpeg-turbo libpng \
  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS postgresql-dev libzip-dev icu-dev \
@@ -42,6 +42,7 @@ COPY . .
 COPY --from=vendor /app/vendor ./vendor
 COPY --from=frontend /app/public/build ./public/build
 
+# Match runtime PHP to composer.lock (Symfony 8 needs >= 8.4.1).
 RUN composer dump-autoload --optimize --no-dev \
  && chown -R www-data:www-data storage bootstrap/cache \
  && mkdir -p storage/framework/{cache,sessions,views} storage/logs storage/app/public \

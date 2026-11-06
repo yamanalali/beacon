@@ -5,6 +5,7 @@ namespace App\Ai;
 use App\Ai\Contracts\AiProvider;
 use App\Ai\Drivers\FakeAiProvider;
 use App\Ai\Drivers\NullAiProvider;
+use App\Ai\Drivers\OpenRouterAiProvider;
 use App\Ai\Finance\AiReceiptExtractor;
 use App\Ai\Finance\AiTransactionCategorizer;
 use App\Ai\Models\AiEscalation;
@@ -31,10 +32,23 @@ class AiServiceProvider extends ServiceProvider
     {
         $this->registerVoice();
 
-        $this->app->singleton(AiProvider::class, fn () => match (config('ai.driver')) {
-            'fake' => new FakeAiProvider,
-            // TODO: BUSINESS DECISION REQUIRED — add the approved vendor adapter here.
-            default => new NullAiProvider,
+        $this->app->singleton(AiProvider::class, function () {
+            return match (config('ai.driver')) {
+                'fake' => new FakeAiProvider,
+                'openrouter' => new OpenRouterAiProvider(
+                    apiKey: (string) config('ai.openrouter.api_key', ''),
+                    baseUrl: (string) config('ai.openrouter.base_url', 'https://openrouter.ai/api/v1'),
+                    chatModel: (string) config('ai.openrouter.chat_model', 'nvidia/nemotron-3.5-lightning:free'),
+                    visionModel: (string) config('ai.openrouter.vision_model', 'google/gemma-4-26b-a4b-it:free'),
+                    transcriptionModel: (string) config('ai.openrouter.transcription_model', 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'),
+                    transcriptionMode: (string) config('ai.openrouter.transcription_mode', 'chat'),
+                    timeout: (int) config('ai.openrouter.timeout', 90),
+                    httpReferer: config('ai.openrouter.http_referer'),
+                    appTitle: config('ai.openrouter.app_title'),
+                    verifySsl: config('ai.openrouter.ca_bundle') ?: true,
+                ),
+                default => new NullAiProvider,
+            };
         });
 
         // Replace Finance's manual defaults only when an AI driver is enabled,

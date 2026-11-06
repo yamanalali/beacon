@@ -42,8 +42,15 @@ class AiDemoSeederTest extends TestCase
         $this->seed(AiDemoSeeder::class);
         $this->seed(AiDemoSeeder::class);
 
-        $this->assertSame(count(AiDemoSeeder::ARTICLES), KnowledgeArticle::query()->count());
-        $this->assertSame(3, KnowledgeArticle::query()->currentlyApproved()->count());
+        $titles = collect(AiDemoSeeder::ARTICLES)->pluck('title');
+        $this->assertSame(
+            count(AiDemoSeeder::ARTICLES),
+            KnowledgeArticle::query()->whereIn('title', $titles)->count(),
+        );
+        $published = collect(AiDemoSeeder::ARTICLES)->where('status', 'published')->count();
+        $this->assertSame($published, KnowledgeArticle::query()->currentlyApproved()->count());
+        $this->assertGreaterThanOrEqual(1, KnowledgeArticle::query()->where('topic', 'financial_readiness')->currentlyApproved()->count());
+        $this->assertGreaterThanOrEqual(1, KnowledgeArticle::query()->where('topic', 'business_planning')->currentlyApproved()->count());
         $this->assertSame(1, AiEscalation::query()->count());
         $sme = User::query()->where('email', 'sme@beacon.test')->sole();
         $this->assertSame(1, $sme->notifications()->count());
@@ -54,7 +61,7 @@ class AiDemoSeederTest extends TestCase
             $this->actingAs(User::query()->where('email', $email)->sole())
                 ->getJson(route('ai.escalations.show', $esc->public_id))->assertStatus($code);
         }
-        $this->actingAs($sme)->getJson(route('ai.knowledge.published'))->assertOk()->assertJsonCount(3);
+        $this->actingAs($sme)->getJson(route('ai.knowledge.published'))->assertOk()->assertJsonCount($published);
         $this->assertSame(UserRole::SmeUser, $sme->role);
     }
 }

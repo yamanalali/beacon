@@ -1,24 +1,44 @@
-import { Link, usePage } from "@inertiajs/react";
+import { Link, useForm, usePage } from "@inertiajs/react";
 import AppLayout from "../../../Layouts/AppLayout";
 import { PageHeader } from "../../../Components/Common/PageHeader";
 import { SectionCard } from "../../../Components/Common/SectionCard";
 import { EscalationStatus, shortDate } from "../../../Components/Ai/aiShared";
 
-type Props = { escalation: { id: string; question: string; status: string; created_at: string | null; enterprise_id?: string | null } };
+type Escalation = {
+    id: string;
+    question: string;
+    status: string;
+    created_at: string | null;
+    enterprise_id?: string | null;
+    staff_reply?: string | null;
+    replied_at?: string | null;
+    can_reply?: boolean;
+};
 
-const STAFF = new Set(["beacon_advisor", "beacon_admin"]);
+type Props = { escalation: Escalation };
 
 export default function Show({ escalation }: Props) {
-    const role = usePage().props.auth.user?.role ?? "";
-    const staff = STAFF.has(role);
+    const flash = (usePage().props as { flash?: { success?: string } }).flash;
+    const form = useForm({ staff_reply: "" });
+    const canReply = escalation.can_reply === true;
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        form.post(`/ai/pages/escalations/${escalation.id}/reply`, { preserveScroll: true });
+    };
 
     return (
         <AppLayout title="تفاصيل الاستفسار">
             <div className="app-page d-flex flex-column gap-3">
                 <PageHeader
                     title="تفاصيل الاستفسار"
-                    description={staff ? "سؤال وصل إلى فريق بيكون ويحتاج مراجعة بشرية." : "سؤال أرسلته إلى فريق بيكون."}
+                    description={canReply || escalation.staff_reply ? "سؤال وصل إلى فريق بيكون." : "سؤال أرسلته إلى فريق بيكون."}
                 />
+                {flash?.success ? (
+                    <div className="alert alert-success mb-0" role="status">
+                        {flash.success}
+                    </div>
+                ) : null}
                 <div>
                     <Link href="/ai/pages/escalations" className="btn btn-link px-0">
                         <i className="bi bi-arrow-right me-1" aria-hidden="true" />
@@ -33,6 +53,61 @@ export default function Show({ escalation }: Props) {
                                 {escalation.question}
                             </p>
                         </SectionCard>
+
+                        {escalation.staff_reply ? (
+                            <div className="mt-3">
+                                <SectionCard title="رد فريق بيكون">
+                                    <p className="mb-2" style={{ whiteSpace: "pre-line" }}>
+                                        {escalation.staff_reply}
+                                    </p>
+                                    {escalation.replied_at ? (
+                                        <p className="small text-body-secondary mb-0">
+                                            تاريخ الرد: <bdi dir="ltr">{shortDate(escalation.replied_at)}</bdi>
+                                        </p>
+                                    ) : null}
+                                </SectionCard>
+                            </div>
+                        ) : null}
+
+                        {canReply ? (
+                            <div className="mt-3">
+                                <SectionCard title="إرسال الرد">
+                                    <form onSubmit={submit} className="d-flex flex-column gap-3">
+                                        <div>
+                                            <label htmlFor="staff_reply" className="form-label">
+                                                نص الرد
+                                            </label>
+                                            <textarea
+                                                id="staff_reply"
+                                                name="staff_reply"
+                                                rows={5}
+                                                className={`form-control${form.errors.staff_reply ? " is-invalid" : ""}`}
+                                                value={form.data.staff_reply}
+                                                onChange={(e) => form.setData("staff_reply", e.target.value)}
+                                                aria-invalid={form.errors.staff_reply ? true : undefined}
+                                                aria-describedby={form.errors.staff_reply ? "staff_reply-error" : undefined}
+                                                required
+                                                minLength={3}
+                                                maxLength={5000}
+                                                disabled={form.processing}
+                                            />
+                                            {form.errors.staff_reply ? (
+                                                <div id="staff_reply-error" className="invalid-feedback d-block" role="alert">
+                                                    {form.errors.staff_reply}
+                                                </div>
+                                            ) : (
+                                                <div className="form-text">سيظهر الرد لصاحب السؤال وتُحدَّث حالة الاستفسار إلى «تم الرد».</div>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <button type="submit" className="btn btn-primary" disabled={form.processing}>
+                                                {form.processing ? "جارٍ الحفظ…" : "حفظ الرد"}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </SectionCard>
+                            </div>
+                        ) : null}
                     </div>
                     <div className="col-12 col-lg-4 d-flex flex-column gap-3">
                         <SectionCard title="المتابعة">
@@ -55,18 +130,13 @@ export default function Show({ escalation }: Props) {
                                 ) : null}
                             </dl>
                         </SectionCard>
-                        {staff ? (
-                            <SectionCard title="رد الموظف">
-                                <p className="mb-2">هذا هو مكان مراجعة السؤال. يصل المستشار ومدير بيكون إليه من قائمة الاستفسارات.</p>
+                        {!canReply && !escalation.staff_reply ? (
+                            <SectionCard title="الرد">
                                 <p className="small text-body-secondary mb-0">
-                                    حفظ رد مكتوب داخل المنصة غير مفعّل بعد. بانتظار قرار بيكون: من يستلم الاستفسار، حالات المتابعة، وهل يصل الرد للمستخدم داخل التطبيق.
+                                    سيظهر رد فريق بيكون هنا عند توفره، ويمكنك متابعة الحالة من قائمة الاستفسارات.
                                 </p>
                             </SectionCard>
-                        ) : (
-                            <SectionCard title="الرد">
-                                <p className="small text-body-secondary mb-0">سيتواصل معك فريق بيكون عبر الإشعارات عند توفر الرد.</p>
-                            </SectionCard>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>

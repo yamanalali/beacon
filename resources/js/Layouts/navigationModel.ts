@@ -71,8 +71,11 @@ function rank(key: string): number {
 /** Items that are the "home" for the user (rendered as the Home link, not repeated in lists). */
 export const isHomeItem = (item: NavigationItem) => item.group === "main";
 
+/** Account links (notifications / profile / sessions) live in the topbar menus only. */
+export const isShellAccountItem = (item: NavigationItem) => item.group === "account";
+
 export function groupNavigation(items: NavigationItem[] | null | undefined): NavGroupView[] {
-    const list = (items ?? []).filter((i) => !isHomeItem(i));
+    const list = (items ?? []).filter((i) => !isHomeItem(i) && !isShellAccountItem(i));
     const keys = [...new Set(list.map((i) => i.group))].sort((a, b) => {
         const ia = (GROUP_ORDER as readonly string[]).indexOf(a);
         const ib = (GROUP_ORDER as readonly string[]).indexOf(b);
@@ -100,19 +103,18 @@ export function homeLink(items: NavigationItem[] | null | undefined, url: string
 /** Bottom tabs (with Home + More): prefer المعاملات then التقارير; docs/readiness/compliance/referrals stay in More. */
 export const MOBILE_TAB_PRIORITY = [
     "transactions", "reports", "enterprises", "mfi.referrals",
-    "operations.security", "operations.backups", "operations.data-control", "ai.assistant",
+    "operations.security", "operations.backups", "operations.data-control",
+    "ai.escalations", "ai.assistant",
 ];
 export function splitMobile(items: NavigationItem[] | null | undefined, max = 3): { tabs: NavigationItem[]; more: NavigationItem[] } {
-    const list = (items ?? []).filter((i) => !isHomeItem(i));
+    const list = (items ?? []).filter((i) => !isHomeItem(i) && !isShellAccountItem(i));
     const tabs = MOBILE_TAB_PRIORITY.map((k) => list.find((i) => i.key === k)).filter((i): i is NavigationItem => !!i).slice(0, max);
     const more = groupNavigation(list).flatMap((g) => g.items).filter((i) => !tabs.includes(i));
     return { tabs, more };
 }
 
-/** Fallback when the prop is missing (e.g. guest-shared layout): only links every signed-in user has. */
-export const FALLBACK_NAVIGATION: NavigationItem[] = [
-    { key: "account", label: "حسابي", href: "/account", icon: "user", group: "account", active: false },
-];
+/** Fallback when the prop is missing (e.g. guest-shared layout): empty — account links stay in the topbar menus. */
+export const FALLBACK_NAVIGATION: NavigationItem[] = [];
 export function navigationOrFallback(
     items: NavigationItem[] | null | undefined,
     url: string,

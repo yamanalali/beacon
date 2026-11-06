@@ -6,7 +6,14 @@ const reload = vi.fn();
 const get = vi.fn();
 vi.mock("@inertiajs/react", () => ({
     Link: ({ href, children, preserveScroll: _p, ...rest }: { href: string; children: ReactNode; preserveScroll?: boolean }) => <a href={href} {...rest}>{children}</a>,
-    usePage: () => ({ props: { auth: {} } }),
+    usePage: () => ({ props: { auth: {}, flash: {} } }),
+    useForm: (initial: Record<string, unknown>) => ({
+        data: initial,
+        setData: vi.fn(),
+        post: vi.fn(),
+        processing: false,
+        errors: {},
+    }),
     router: { reload: (...a: unknown[]) => reload(...a), get: (...a: unknown[]) => get(...a), visit: vi.fn() },
 }));
 vi.mock("../../Layouts/AppLayout", () => ({ default: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
@@ -93,6 +100,30 @@ describe("Escalations", () => {
         render(<EscShow escalation={{ id: "E1", question: "س", status: "open", created_at: null, enterprise_id: null }} />);
         expect(screen.queryByRole("link", { name: "عرض المنشأة" })).toBeNull();
     });
+
+    it("show offers a reply form when can_reply and displays an existing staff reply", () => {
+        const { unmount } = render(
+            <EscShow escalation={{ id: "E1", question: "س", status: "open", created_at: null, can_reply: true }} />,
+        );
+        expect(screen.getByLabelText("نص الرد")).toBeTruthy();
+        expect(screen.getByRole("button", { name: "حفظ الرد" })).toBeTruthy();
+        unmount();
+        render(
+            <EscShow
+                escalation={{
+                    id: "E1",
+                    question: "س",
+                    status: "answered",
+                    created_at: null,
+                    staff_reply: "صنّفه كمصروف إيجار.",
+                    replied_at: "2026-11-06T12:00:00+03:00",
+                    can_reply: false,
+                }}
+            />,
+        );
+        expect(screen.getByText("صنّفه كمصروف إيجار.")).toBeTruthy();
+        expect(screen.queryByLabelText("نص الرد")).toBeNull();
+    });
 });
 
 describe("Knowledge", () => {
@@ -150,5 +181,34 @@ describe("Notifications", () => {
     it("empty state for unread filter", () => {
         render(<Notifications notifications={page([])} unread_count={0} filters={{ filter: "unread" }} />);
         expect(screen.getByText("لا توجد إشعارات غير مقروءة", { selector: "h2" })).toBeTruthy();
+    });
+
+    it("links escalation notifications to the escalation page", () => {
+        const opened = {
+            id: "22222222-2222-2222-2222-222222222222",
+            data: {
+                type: "escalation_opened",
+                title: "استفسار جديد يحتاج رداً",
+                message: "سؤال",
+                escalation_public_id: "ESC1",
+            },
+            read_at: null,
+            created_at: null,
+        };
+        const replied = {
+            ...opened,
+            id: "33333333-3333-3333-3333-333333333333",
+            data: {
+                type: "escalation_replied",
+                title: "رد على استفسارك",
+                message: "رد",
+                escalation_public_id: "ESC2",
+            },
+        };
+        const { unmount } = render(<Notifications notifications={page([opened])} unread_count={1} filters={{}} />);
+        expect(screen.getByRole("link", { name: "فتح" }).getAttribute("href")).toBe("/ai/pages/escalations/ESC1");
+        unmount();
+        render(<Notifications notifications={page([replied])} unread_count={1} filters={{}} />);
+        expect(screen.getByRole("link", { name: "فتح" }).getAttribute("href")).toBe("/ai/pages/escalations/ESC2");
     });
 });

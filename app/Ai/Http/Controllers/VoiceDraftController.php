@@ -141,6 +141,7 @@ class VoiceDraftController extends Controller
             'message' => match (true) {
                 $text !== null => 'هذه مسودة مقترحة من تسجيلك الصوتي. راجعها قبل الحفظ.',
                 ($stt->failureReason ?? null) === 'encoding' => 'تعذّرت قراءة النص العربي من التسجيل (مشكلة ترميز). أدخل العملية يدوياً، وأبلغ الدعم التقني.',
+                ($stt->failureReason ?? null) === 'credits' => 'تحويل الصوت غير متاح حالياً. استخدم التعرّف على الكلام من المتصفح أو الإدخال اليدوي.',
                 default => 'تحويل الصوت إلى نص غير متاح حالياً. يمكنك إدخال العملية يدوياً.',
             },
             'confirm' => ['method' => 'post', 'url' => route('enterprises.transactions.store', $enterprise)],

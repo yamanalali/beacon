@@ -27,4 +27,19 @@ class AiEscalationPolicy
             default => false,
         };
     }
+
+    /** Assigned advisor or Beacon admin may reply while the escalation is still open. */
+    public function reply(User $user, AiEscalation $e): bool
+    {
+        if (! $user->isActive() || ! $e->isOpen()) {
+            return false;
+        }
+
+        return match ($user->role) {
+            UserRole::BeaconAdmin => true,
+            UserRole::BeaconAdvisor => $e->enterprise_id !== null
+                && $e->enterprise?->advisors()->whereKey($user->id)->exists(),
+            default => false,
+        };
+    }
 }

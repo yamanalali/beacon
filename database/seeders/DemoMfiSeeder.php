@@ -23,10 +23,42 @@ class DemoMfiSeeder extends Seeder
         $admin = DemoUsersSeeder::user(UserRole::BeaconAdmin);
 
         $institution = MfiInstitution::query()->firstOrCreate(['name_ar' => self::NAME], [
-            'notes' => 'بيانات تجريبية للتطوير المحلي فقط.',
-            'is_active' => true,
             'created_by' => $admin->id,
+            'is_active' => true,
         ]);
+
+        $institution->fill([
+            'code' => 'MFI-DEMO',
+            'name_en' => 'Beacon Demo Microfinance Institution',
+            'contact_name' => 'مكتب الإحالات التجريبي',
+            'contact_phone' => '+963 11 000 0000',
+            'contact_email' => 'mfi@beacon.test',
+            'region_ar' => 'دمشق وريف دمشق',
+            'address_ar' => 'دمشق — بيانات تجريبية للتطوير المحلي فقط',
+            'website' => null,
+            'focus_ar' => 'تمويل رأس مال عامل للمنشآت الصغيرة والمتناهية الصغر، مع تركيز تجريبي على الحرف والخدمات.',
+            'loan_size_min' => 500000,
+            'loan_size_max' => 15000000,
+            'loan_currency' => 'SYP',
+            'notes' => 'بيانات تجريبية للتطوير المحلي فقط. لا تمثّل مؤسسة تمويل حقيقية.',
+            'is_active' => true,
+            'created_by' => $institution->created_by ?? $admin->id,
+        ])->save();
+
+        if (! $institution->eligibilityCriteria()->exists()) {
+            $institution->eligibilityCriteria()->create([
+                'label_ar' => 'حد أدنى لدرجة الجاهزية (تجريبي)',
+                'type' => 'min_readiness_score',
+                'parameters' => ['min_score' => 50],
+                'created_by' => $admin->id,
+            ]);
+            $institution->eligibilityCriteria()->create([
+                'label_ar' => 'مراجعة ميدانية من المؤسسة (تجريبي)',
+                'type' => 'manual_review',
+                'parameters' => null,
+                'created_by' => $admin->id,
+            ]);
+        }
 
         DemoUsersSeeder::user(UserRole::MfiUser)->forceFill(['mfi_institution_id' => $institution->id])->save();
 

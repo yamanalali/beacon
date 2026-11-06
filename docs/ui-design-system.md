@@ -6,13 +6,15 @@ The interface uses a single calm visual system across the application: a deep pe
 
 | Token | Value | Purpose |
 | --- | --- | --- |
-| Primary | `#176B60` | Primary actions and current module |
+| Primary | `#176B60` | Primary actions and selection accent |
 | Sidebar | `#122F35` | Persistent desktop navigation |
-| Background | `#F4F7F8` | Workspace canvas |
+| Background | `#F3F5F5` | Neutral workspace canvas (not green wash) |
 | Surface | `#FFFFFF` | Forms, tables and cards |
 | Text | `#203B41` | Main content |
 | Muted text | `#64787C` | Descriptions and supporting labels |
-| Border | `#E0E9E9` | Quiet separation |
+| Border | `#E0E9E9` | Quiet hairline separation |
+| Radius | `8 / 12 / 16` | Controls / cards / panels |
+| Shadow | hairline | Soft neutral depth, no glow |
 
 `resources/css/app.css` owns the design tokens and Bootstrap overrides. `PageHeader`, `SectionCard`, `StatCard`, `StatusBadge` and `EmptyState` provide the shared structure, including modules whose individual page markup does not need to change.
 

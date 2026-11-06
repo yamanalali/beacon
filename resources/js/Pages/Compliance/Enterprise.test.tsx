@@ -6,6 +6,15 @@ const { post, put } = vi.hoisted(() => ({ post: vi.fn(), put: vi.fn() }));
 vi.mock("@inertiajs/react", () => ({
     Link: ({ href, children, className }: { href: string; children: ReactNode; className?: string }) => <a href={href} className={className}>{children}</a>,
     usePage: () => ({ props: { errors: {} } }),
+    useForm: () => ({
+        data: { file: null, title: "" },
+        setData: vi.fn(),
+        post: post,
+        processing: false,
+        progress: null,
+        errors: {},
+        reset: vi.fn(),
+    }),
     router: { post, put },
 }));
 vi.mock("../../Layouts/AppLayout", () => ({ default: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
@@ -17,10 +26,12 @@ import Enterprise from "./Enterprise";
 const item = {
     requirement_public_id: "R1", category_label: "ضرائب",
     version: { version_number: 2, title_ar: "تسجيل ضريبي", guidance_ar: "قدّم الطلب", guidance_pending: false, deadline_note_ar: null },
-    status: "pending", status_label: "قيد التنفيذ", due_date: "2026-11-01", notes: null,
+    requires_document: false,
+    status: "in_progress", status_label: "قيد التنفيذ", due_date: "2026-11-01", notes: null,
     missing_document: true, overdue: true, approaching: false, action_needed: true,
+    can_upload: false, can_review: false, latest_submission: null,
 };
-const statuses = { pending: "قيد التنفيذ", completed: "مكتمل" };
+const statuses = { in_progress: "قيد التنفيذ", completed: "مكتمل", not_started: "لم يبدأ" };
 
 describe("Compliance/Enterprise restyle", () => {
     it("renders items as record cards inside a section card with a summary", () => {
@@ -45,6 +56,65 @@ describe("Compliance/Enterprise restyle", () => {
         fireEvent.change(screen.getByLabelText("الموعد"), { target: { value: "" } });
         fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
         expect(put).toHaveBeenCalledWith("/enterprises/E1/compliance/R1", { status: "completed", due_date: null, version_number: 2 }, expect.objectContaining({ preserveScroll: true }));
+    });
+
+    it("shows SME upload and advisor review actions", () => {
+        render(
+            <Enterprise
+                enterprise={enterprise}
+                items={[{
+                    ...item,
+                    requires_document: true,
+                    missing_document: true,
+                    can_upload: true,
+                    status: "not_started",
+                    status_label: "لم يبدأ",
+                }]}
+                statuses={statuses}
+                canUpdate={false}
+                canSubmit
+            />,
+        );
+        expect(screen.getByRole("button", { name: "رفع للمراجعة" })).toBeTruthy();
+
+        cleanup();
+        render(
+            <Enterprise
+                enterprise={enterprise}
+                items={[{
+                    ...item,
+                    requires_document: true,
+                    status: "awaiting_review",
+                    status_label: "بانتظار المراجعة",
+                    can_upload: false,
+                    can_review: true,
+                    missing_document: false,
+                    latest_submission: {
+                        id: 9,
+                        original_name: "r.pdf",
+                        title: "رخصة",
+                        submitted_at: "2026-11-01T10:00:00+00:00",
+                        review_status: "pending",
+                        review_status_label: "بانتظار المراجعة",
+                        review_note: null,
+                        document_public_id: "D1",
+                        document_url: "/documents/D1/download",
+                    },
+                }]}
+                statuses={statuses}
+                canUpdate
+                canReview
+            />,
+        );
+        expect(screen.getByRole("button", { name: "اعتماد" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "رفض" })).toBeTruthy();
+        expect(screen.getByRole("button", { name: "طلب وثيقة أخرى" })).toBeTruthy();
+        fireEvent.click(screen.getByRole("button", { name: "اعتماد" }));
+        expect(post).toHaveBeenCalledWith(
+            "/enterprises/E1/compliance/R1/submissions/9/review",
+            { decision: "approve", review_note: null },
+            expect.objectContaining({ preserveScroll: true }),
+        );
     });
 
     it("warns when an older completion needs review for the current version", () => {

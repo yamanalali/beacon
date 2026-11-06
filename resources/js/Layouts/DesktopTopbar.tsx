@@ -1,5 +1,6 @@
 import { Link } from "@inertiajs/react";
 import { ConnectionStatus } from "../Components/Feedback/ConnectionStatus";
+import { NotificationMenu } from "./NotificationMenu";
 import { UserMenu } from "./UserMenu";
 
 export function DesktopTopbar({ title }: { title: string }) {
@@ -13,11 +14,8 @@ export function DesktopTopbar({ title }: { title: string }) {
                 <span aria-current="page">{title}</span>
             </nav>
             <div className="app-topbar__actions">
-                <span className="app-workspace-label">
-                    <i className="bi bi-grid-1x2" aria-hidden="true" /> مساحة
-                    عمل بيكون
-                </span>
                 <ConnectionStatus />
+                <NotificationMenu />
                 <UserMenu />
             </div>
         </header>

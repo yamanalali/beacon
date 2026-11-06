@@ -18,12 +18,13 @@ class AiPagesTest extends TestCase
 
     public static function roles(): array
     {
+        // [role, can open escalations/knowledge, can manage knowledge, can open assistant page]
         return [
-            'sme' => [UserRole::SmeUser, true, false],
-            'advisor' => [UserRole::BeaconAdvisor, true, false],
-            'admin' => [UserRole::BeaconAdmin, true, true],
-            'mfi' => [UserRole::MfiUser, false, false],
-            'tech' => [UserRole::TechnicalAdmin, false, false],
+            'sme' => [UserRole::SmeUser, true, false, true],
+            'advisor' => [UserRole::BeaconAdvisor, true, false, false],
+            'admin' => [UserRole::BeaconAdmin, true, true, true],
+            'mfi' => [UserRole::MfiUser, false, false, false],
+            'tech' => [UserRole::TechnicalAdmin, false, false, false],
         ];
     }
 
@@ -42,12 +43,12 @@ class AiPagesTest extends TestCase
     }
 
     /** @dataProvider roles */
-    public function test_role_access(UserRole $role, bool $aiRole, bool $admin): void
+    public function test_role_access(UserRole $role, bool $aiRole, bool $admin, bool $assistant): void
     {
         $u = $this->userWithRole($role);
         $this->actingAs($u);
-        $codes = [route('ai.pages.assistant'), route('ai.pages.escalations.index'), route('ai.pages.knowledge.published')];
-        foreach ($codes as $url) {
+        $this->get(route('ai.pages.assistant'))->assertStatus($assistant ? 200 : 403);
+        foreach ([route('ai.pages.escalations.index'), route('ai.pages.knowledge.published')] as $url) {
             $this->get($url)->assertStatus($aiRole ? 200 : 403);
         }
         $this->get(route('ai.pages.knowledge.index'))->assertStatus($admin ? 200 : 403);

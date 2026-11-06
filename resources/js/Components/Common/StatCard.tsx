@@ -2,23 +2,19 @@ export function StatCard({
     label,
     value,
     hint,
-    icon = "bi-bar-chart",
     tone = "teal",
 }: {
     label: string;
     value: string;
     hint?: string;
+    /** Kept for call-site compatibility; decorative icons removed in full unslop. */
     icon?: string;
     tone?: "teal" | "blue" | "amber" | "violet";
 }) {
+    const warn = tone === "amber";
     return (
-        <article className={`app-stat app-stat--${tone}`}>
-            <div className="app-stat__top">
-                <p>{label}</p>
-                <span className="app-stat__icon">
-                    <i className={`bi ${icon}`} aria-hidden="true" />
-                </span>
-            </div>
+        <article className={`app-stat${warn ? " app-stat--amber" : ""}`}>
+            <p className="app-stat__label">{label}</p>
             <p className="app-stat__value">
                 <bdi>{value}</bdi>
             </p>

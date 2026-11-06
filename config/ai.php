@@ -1,12 +1,11 @@
 <?php
 
 /*
- * TODO: BUSINESS DECISION REQUIRED — AI provider, model, data-retention and
- * model-training terms are not approved (rules §0, §36). Options: (a) a hosted
- * LLM vendor under a no-training/zero-retention agreement, (b) a self-hosted
- * model, (c) keep AI disabled. Until decided the default driver is "null":
- * the assistant reports that AI is unavailable and offers escalation, and all
- * non-AI workflows keep working. Tests use the deterministic "fake" driver.
+ * AI provider driver. Default remains "null" until Beacon approves a vendor DPA
+ * (rules §0, §36, §54). Supported drivers: null | fake | openrouter.
+ * OpenRouter is OpenAI-compatible and replaceable without rewriting business
+ * modules (rules §71). Production still requires BEACON_DPA_*_APPROVED +
+ * allowed_data before any outbound call.
  */
 // Empty values in .env (e.g. `AI_OCR_DRIVER=` copied from .env.example) mean
 // "not set": fall back to the default instead of using ''. Explicit "false" stays false.
@@ -18,6 +17,34 @@ $env = static function (string $key, mixed $default = null): mixed {
 
 return [
     'driver' => $env('AI_DRIVER', 'null'),
+
+    /*
+     * OpenRouter (https://openrouter.ai) — set AI_DRIVER=openrouter and
+     * OPENROUTER_API_KEY. Defaults use :free model slugs (no token cost;
+     * OpenRouter still applies free-tier request rate limits).
+     * Voice STT defaults to chat+audio on a free multimodal model because
+     * dedicated Whisper transcription on OpenRouter is paid.
+     * TODO: BUSINESS DECISION REQUIRED — final production model choices,
+     * retention/training terms, and cost limits with Beacon.
+     */
+    'openrouter' => [
+        'api_key' => (string) $env('OPENROUTER_API_KEY', ''),
+        'base_url' => (string) $env('OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1'),
+        // Free text chat (assistant, categorization, insights).
+        'chat_model' => (string) $env('OPENROUTER_CHAT_MODEL', 'nvidia/nemotron-3.5-lightning:free'),
+        // Free vision (receipt image extraction when AI_OCR_DRIVER=ai).
+        'vision_model' => (string) $env('OPENROUTER_VISION_MODEL', 'google/gemma-4-26b-a4b-it:free'),
+        // Free multimodal audio model used when transcription_mode=chat.
+        'transcription_model' => (string) $env('OPENROUTER_TRANSCRIPTION_MODEL', 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free'),
+        // chat = free multimodal audio via /chat/completions; audio_api = paid /audio/transcriptions (Whisper).
+        'transcription_mode' => (string) $env('OPENROUTER_TRANSCRIPTION_MODE', 'chat'),
+        'timeout' => (int) $env('OPENROUTER_TIMEOUT', 90),
+        'http_referer' => $env('OPENROUTER_HTTP_REFERER', env('APP_URL')),
+        'app_title' => (string) $env('OPENROUTER_APP_TITLE', env('APP_NAME', 'Beacon')),
+        // Windows PHP often has empty curl.cainfo; ship/use a CA bundle so HTTPS works.
+        // Empty = auto-use storage/certs/cacert.pem when present, else system default.
+        'ca_bundle' => $env('OPENROUTER_CA_BUNDLE', is_file(storage_path('certs/cacert.pem')) ? storage_path('certs/cacert.pem') : null),
+    ],
 
     // Max assistant questions per user per minute (rules beacon-platform §75).
     // TODO: BUSINESS DECISION REQUIRED — approved rate/cost limit.

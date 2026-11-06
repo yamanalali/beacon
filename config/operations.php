@@ -46,37 +46,41 @@ return [
             'label_ar' => 'مزوّد التعرف الضوئي على الإيصالات (OCR)',
             'approved' => (bool) env('BEACON_DPA_OCR_APPROVED', false),
             'agreement_reference' => env('BEACON_DPA_OCR_REFERENCE'),
-            'allowed_data' => [],
+            // Comma-separated field names, e.g. receipt_image. Empty = nothing allowed.
+            'allowed_data' => array_values(array_filter(array_map('trim', explode(',', (string) env('BEACON_DPA_OCR_ALLOWED_DATA', ''))))),
         ],
         'ai_assistant' => [
             'label_ar' => 'مزوّد الذكاء الاصطناعي للمساعد والتصنيف',
             'approved' => (bool) env('BEACON_DPA_AI_APPROVED', false),
             'agreement_reference' => env('BEACON_DPA_AI_REFERENCE'),
-            'allowed_data' => [],
+            // e.g. transaction_type,transaction_description,counterparty,user_question,approved_knowledge
+            'allowed_data' => array_values(array_filter(array_map('trim', explode(',', (string) env('BEACON_DPA_AI_ALLOWED_DATA', ''))))),
         ],
         'insights' => [
             'label_ar' => 'مزوّد الذكاء الاصطناعي للملاحظات المالية',
             'approved' => (bool) env('BEACON_DPA_INSIGHTS_APPROVED', false),
             'agreement_reference' => env('BEACON_DPA_INSIGHTS_REFERENCE'),
-            'allowed_data' => [],
+            // e.g. aggregate_financial_figures
+            'allowed_data' => array_values(array_filter(array_map('trim', explode(',', (string) env('BEACON_DPA_INSIGHTS_ALLOWED_DATA', ''))))),
         ],
         'speech_to_text' => [
             'label_ar' => 'مزوّد تحويل الصوت إلى نص (خارجي)',
             'approved' => (bool) env('BEACON_DPA_STT_APPROVED', false),
             'agreement_reference' => env('BEACON_DPA_STT_REFERENCE'),
-            'allowed_data' => [],
+            // e.g. voice_recording
+            'allowed_data' => array_values(array_filter(array_map('trim', explode(',', (string) env('BEACON_DPA_STT_ALLOWED_DATA', ''))))),
         ],
         'email' => [
             'label_ar' => 'مزوّد البريد الإلكتروني للإشعارات',
             'approved' => (bool) env('BEACON_DPA_EMAIL_APPROVED', false),
             'agreement_reference' => env('BEACON_DPA_EMAIL_REFERENCE'),
-            'allowed_data' => [],
+            'allowed_data' => array_values(array_filter(array_map('trim', explode(',', (string) env('BEACON_DPA_EMAIL_ALLOWED_DATA', ''))))),
         ],
         'cloud_backup' => [
             'label_ar' => 'تخزين النسخ الاحتياطية خارج الخادم',
             'approved' => (bool) env('BEACON_DPA_BACKUP_APPROVED', false),
             'agreement_reference' => env('BEACON_DPA_BACKUP_REFERENCE'),
-            'allowed_data' => [],
+            'allowed_data' => array_values(array_filter(array_map('trim', explode(',', (string) env('BEACON_DPA_BACKUP_ALLOWED_DATA', ''))))),
         ],
     ],
 ];

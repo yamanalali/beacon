@@ -48,26 +48,26 @@ const REFERRAL_TONE: Record<ReferralStatus, StatusTone> = {
 /** Programme KPIs from the server; null KPIs (pending business decision) are hidden, never guessed. */
 export function ProgrammeOverview({ programme }: { programme: BeaconProgrammeData }) {
     const k = programme.kpis;
-    const stats: { label: string; value: number | null; icon: string; tone: "teal" | "blue" | "amber" | "violet" }[] = [
-        { label: programme.scope === "all" ? "كل المنشآت" : "المنشآت المسندة إليك", value: k.enterprises_count, icon: "bi-buildings", tone: "teal" },
-        { label: "منشآت نشطة", value: k.active_enterprises_count, icon: "bi-activity", tone: "blue" },
-        { label: "استفسارات مفتوحة", value: k.open_escalations_count, icon: "bi-chat-left-dots", tone: "violet" },
-        { label: "مواعيد امتثال متأخرة", value: k.overdue_compliance_count, icon: "bi-calendar-x", tone: "amber" },
+    const stats: { label: string; value: number | null; tone?: "amber" }[] = [
+        { label: programme.scope === "all" ? "كل المنشآت" : "المنشآت المسندة إليك", value: k.enterprises_count },
+        { label: "منشآت نشطة", value: k.active_enterprises_count },
+        { label: "استفسارات مفتوحة", value: k.open_escalations_count },
+        { label: "مواعيد امتثال متأخرة", value: k.overdue_compliance_count, tone: "amber" },
     ];
     const visible = stats.filter((s) => s.value !== null);
     return (
-        <>
+        <div className="d-flex flex-column gap-3">
             <section aria-label="مؤشرات البرنامج">
                 <div className="row g-3">
                     {visible.map((s) => (
-                        <div key={s.label} className="col-6 col-lg">
-                            <StatCard label={s.label} value={String(s.value)} icon={s.icon} tone={s.tone} />
+                        <div key={s.label} className="col-6 col-md-4 col-xl-3">
+                            <StatCard label={s.label} value={String(s.value)} tone={s.tone} />
                         </div>
                     ))}
                 </div>
             </section>
             <div className="row g-3">
-                <div className="col-12 col-lg-5">
+                <div className="col-12 col-lg-5 d-flex flex-column gap-3">
                     <SectionCard title="الإحالات حسب الحالة">
                         {k.referrals_by_status.every((r) => r.count === 0) ? (
                             <EmptyState title="لا توجد إحالات بعد" icon="bi-send" />
@@ -123,7 +123,7 @@ export function ProgrammeOverview({ programme }: { programme: BeaconProgrammeDat
                     </SectionCard>
                 </div>
             </div>
-        </>
+        </div>
     );
 }
 

@@ -8,6 +8,8 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Enterprise;
+use App\Models\User;
+use App\Notifications\EscalationOpenedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -53,11 +55,29 @@ class AssistantController extends Controller
             'context' => ['enterprise_id' => $enterprise?->id],
         ]);
 
+        $this->notifyAssignedAdvisors($escalation, $enterprise, $request->user());
+
         return response()->json([
             'id' => $escalation->public_id,
             'status' => $escalation->status,
             'message' => 'تم إرسال سؤالك إلى فريق بيكون.',
         ], 201);
+    }
+
+    /** Assigned active advisors for the enterprise receive an in-app notice (rules §35/§43). */
+    private function notifyAssignedAdvisors(AiEscalation $escalation, ?Enterprise $enterprise, User $asker): void
+    {
+        if ($enterprise === null) {
+            return;
+        }
+
+        $notice = EscalationOpenedNotification::fromEscalation($escalation);
+        $enterprise->advisors()
+            ->where('is_active', true)
+            ->where('role', UserRole::BeaconAdvisor->value)
+            ->whereKeyNot($asker->id)
+            ->get()
+            ->each(fn (User $advisor) => $advisor->notify($notice));
     }
 
     public function escalations(Request $request): JsonResponse

@@ -1,38 +1,30 @@
 import { router } from "@inertiajs/react";
 import { useState } from "react";
 import { ReviewForm as TransactionDraftReview, initialReviewData, withVoiceDefaultDate, reviewPayload, type ReviewFormData } from "../Transactions/ReviewForm";
-import { BrowserSpeechCapture, BrowserSpeechToggle, initialSpeechEnabled } from "./BrowserSpeechCapture";
+import { BrowserSpeechCapture } from "./BrowserSpeechCapture";
 import { getSpeechRecognition, type SpeechRecognitionCtor } from "./browserSpeech";
-import { MAX_SECONDS, useWavRecorder } from "./useWavRecorder";
-import { sendTranscript, sendVoice, type VoiceDraftResponse, type VoiceResult } from "./voiceApi";
+import { sendTranscript, type VoiceDraftResponse, type VoiceResult } from "./voiceApi";
 
 type Phase = { name: "record" } | { name: "sending" } | { name: "review"; res: VoiceDraftResponse; data: ReviewFormData } | { name: "error"; message: string; unavailable: boolean };
 
-/** Record → server draft → same review form as receipts → confirm to response.confirm.url. Reject = discard. */
-export function VoiceRecorder({ voiceUrl, manualUrl, onDone, send = sendVoice, sendText = sendTranscript, speechCtor = getSpeechRecognition() }: {
-    voiceUrl: string; manualUrl: string; onDone?: () => void; send?: typeof sendVoice; sendText?: typeof sendTranscript;
-    /** Web Speech API constructor; null (e.g. Firefox) hides the browser-speech option. */
+/**
+ * Voice draft via browser speech recognition only (always on; no user toggle).
+ * Transcript → server draft → same review form as receipts → confirm to response.confirm.url.
+ */
+export function VoiceRecorder({ voiceUrl, manualUrl, onDone, sendText = sendTranscript, speechCtor = getSpeechRecognition() }: {
+    voiceUrl: string; manualUrl: string; onDone?: () => void; sendText?: typeof sendTranscript;
+    /** Web Speech API constructor; null (e.g. Firefox) shows unsupported + manual entry. */
     speechCtor?: SpeechRecognitionCtor | null;
 }) {
-    const rec = useWavRecorder();
     const [phase, setPhase] = useState<Phase>({ name: "record" });
     const [errors, setErrors] = useState<Partial<Record<keyof ReviewFormData, string>>>({});
     const [saving, setSaving] = useState(false);
-    // TODO: BUSINESS DECISION REQUIRED - browser speech (audio to Google) stays off unless the user opts in.
-    const [speechOn, setSpeechOn] = useState(() => initialSpeechEnabled(speechCtor));
 
     const handle = (r: VoiceResult) => {
         if (!r.ok) { setPhase({ name: "error", message: r.message, unavailable: r.kind === "unavailable" }); return; }
         const d = r.data;
         const res = { ...d, draft: withVoiceDefaultDate({ source: "voice", ...d.draft }) };
         setPhase({ name: "review", res, data: initialReviewData(res.draft, d.type, d.options, d.category_suggestion, d.transaction_type_options) });
-    };
-
-    const finish = async () => {
-        const blob = await rec.stop();
-        if (!blob) { setPhase({ name: "error", message: "لم يُسجَّل أي صوت. حاول مرة أخرى.", unavailable: false }); return; }
-        setPhase({ name: "sending" });
-        handle(await send(voiceUrl, blob));
     };
 
     const submitText = async (text: string) => {
@@ -80,39 +72,29 @@ export function VoiceRecorder({ voiceUrl, manualUrl, onDone, send = sendVoice, s
             <div className="d-flex flex-column gap-2">
                 <div className={`alert ${phase.unavailable ? "alert-info" : "alert-danger"} mb-0`} role="alert">{phase.message}</div>
                 <div className="d-flex flex-wrap gap-2">
-                    {!phase.unavailable ? <button type="button" className="btn btn-primary" style={{ minHeight: 48 }} onClick={() => setPhase({ name: "record" })}>حاول مرة أخرى</button> : null}
+                    <button type="button" className="btn btn-primary" style={{ minHeight: 48 }} onClick={() => setPhase({ name: "record" })}>حاول مرة أخرى</button>
                     <a href={manualUrl} className="btn btn-outline-primary" style={{ minHeight: 48, display: "inline-flex", alignItems: "center" }}>إدخال يدوي</a>
                 </div>
             </div>
         );
     }
 
-    const recording = rec.state === "recording";
-    const useSpeech = speechCtor !== null && speechOn;
+    if (!speechCtor) {
+        return (
+            <div className="d-flex flex-column gap-2 text-center py-2">
+                <div className="alert alert-warning mb-0" role="alert">
+                    متصفحك لا يدعم التعرّف على الكلام. استخدم Chrome أو Edge، أو أدخل العملية يدوياً.
+                </div>
+                <a href={manualUrl} className="btn btn-outline-primary" style={{ minHeight: 48, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>إدخال يدوي</a>
+            </div>
+        );
+    }
+
     return (
         <div className="d-flex flex-column align-items-center gap-3 text-center py-2">
             <p className="mb-0 text-body-secondary">قل مثلاً: «دفعت خمسين ألف ليرة إيجار المحل اليوم».</p>
-            {speechCtor && !recording ? <BrowserSpeechToggle enabled={speechOn} onChange={setSpeechOn} /> : null}
-            {useSpeech ? (
-                <>
-                    <BrowserSpeechCapture Ctor={speechCtor} busy={phase.name === "sending"} onSubmit={(t) => void submitText(t)} />
-                    {phase.name === "sending" ? <div aria-live="polite" className="small">جارٍ تحويل النص إلى مسودة…</div> : null}
-                </>
-            ) : (
-                <>
-                    {rec.state === "denied" ? <div className="alert alert-warning mb-0" role="alert">لم يُسمح باستخدام الميكروفون. فعّله من إعدادات المتصفح ثم حاول مرة أخرى.</div> : null}
-                    {rec.state === "unsupported" ? <div className="alert alert-warning mb-0" role="alert">متصفحك لا يدعم التسجيل الصوتي. استخدم الإدخال اليدوي.</div> : null}
-                    <button type="button" className={`btn ${recording ? "btn-danger" : "btn-primary"} rounded-circle`} style={{ width: 88, height: 88, fontSize: 32 }}
-                        aria-pressed={recording} aria-label={recording ? "إيقاف التسجيل وإرساله" : "ابدأ التسجيل"}
-                        disabled={phase.name === "sending"} onClick={() => (recording ? void finish() : void rec.start())}>
-                        <i className={`bi ${recording ? "bi-stop-fill" : "bi-mic-fill"}`} aria-hidden="true" />
-                    </button>
-                    <div aria-live="polite" className="small">
-                        {phase.name === "sending" ? "جارٍ تحويل التسجيل إلى مسودة…" : recording ? <>جارٍ التسجيل… <bdi dir="ltr">{rec.seconds}s / {MAX_SECONDS}s</bdi></> : "اضغط للتسجيل، واضغط مرة أخرى للإيقاف."}
-                    </div>
-                    {recording ? <button type="button" className="btn btn-link" onClick={rec.cancel}>إلغاء</button> : null}
-                </>
-            )}
+            <BrowserSpeechCapture Ctor={speechCtor} busy={phase.name === "sending"} onSubmit={(t) => void submitText(t)} />
+            {phase.name === "sending" ? <div aria-live="polite" className="small">جارٍ تحويل النص إلى مسودة…</div> : null}
         </div>
     );
 }

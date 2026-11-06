@@ -6,7 +6,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "ext-bcmath": "*",
         "bacon/bacon-qr-code": "^3.0",
         "inertiajs/inertia-laravel": "^3.5",

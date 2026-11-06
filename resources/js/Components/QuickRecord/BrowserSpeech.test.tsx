@@ -2,10 +2,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@inertiajs/react", () => ({ router: { post: vi.fn() } }));
-vi.mock("./useWavRecorder", () => ({ MAX_SECONDS: 60, useWavRecorder: () => ({ state: "idle", seconds: 0, start: vi.fn(), stop: vi.fn(), cancel: vi.fn() }) }));
 
 import { VoiceRecorder } from "./VoiceRecorder";
-import { SPEECH_LANG, SPEECH_PREF_KEY, getSpeechRecognition, type SpeechEvent, type SpeechRecognitionLike } from "./browserSpeech";
+import { SPEECH_LANG, getSpeechRecognition, type SpeechEvent, type SpeechRecognitionLike } from "./browserSpeech";
 import { VOICE_TRANSCRIPT_MAX, sendTranscript, sendVoice, type VoiceResult } from "./voiceApi";
 
 class MockRecognition implements SpeechRecognitionLike {
@@ -39,47 +38,28 @@ afterEach(cleanup);
 const renderRec = (props: Partial<Parameters<typeof VoiceRecorder>[0]> = {}) =>
     render(<VoiceRecorder voiceUrl="/voice" manualUrl="/manual" speechCtor={MockRecognition} sendText={vi.fn().mockResolvedValue(draftRes)} {...props} />);
 
-describe("browser speech toggle", () => {
-    it("is hidden when the API is unsupported and the WAV recorder stays", () => {
-        renderRec({ speechCtor: null });
+describe("browser speech always on", () => {
+    it("shows capture immediately with no toggle", () => {
+        renderRec();
         expect(screen.queryByTestId("speech-toggle")).toBeNull();
-        expect(screen.getByRole("button", { name: "ابدأ التسجيل" })).toBeTruthy();
+        expect(screen.queryByRole("switch")).toBeNull();
+        expect(screen.getByTestId("browser-speech")).toBeTruthy();
+    });
+
+    it("shows unsupported when the API is missing", () => {
+        renderRec({ speechCtor: null });
+        expect(screen.queryByTestId("browser-speech")).toBeNull();
+        expect(screen.getByRole("alert").textContent).toContain("لا يدعم التعرّف على الكلام");
+        expect(screen.getByRole("link", { name: "إدخال يدوي" })).toBeTruthy();
     });
 
     it("detects webkitSpeechRecognition", () => {
         expect(getSpeechRecognition({ webkitSpeechRecognition: MockRecognition })).toBe(MockRecognition);
         expect(getSpeechRecognition({})).toBeNull();
     });
-
-    it("is off by default and needs the Google notice to be accepted", () => {
-        renderRec();
-        const sw = screen.getByRole("switch") as HTMLInputElement;
-        expect(sw.checked).toBe(false);
-        expect(screen.getByRole("button", { name: "ابدأ التسجيل" })).toBeTruthy();
-        fireEvent.click(sw);
-        expect(screen.getByTestId("speech-notice").textContent).toContain("Google");
-        fireEvent.click(screen.getByRole("button", { name: "إلغاء" }));
-        expect(localStorage.getItem(SPEECH_PREF_KEY)).toBeNull();
-        expect(screen.queryByTestId("browser-speech")).toBeNull();
-        fireEvent.click(screen.getByRole("switch"));
-        fireEvent.click(screen.getByRole("button", { name: "أوافق، فعّل" }));
-        expect(localStorage.getItem(SPEECH_PREF_KEY)).toBe("on");
-        expect(screen.getByTestId("browser-speech")).toBeTruthy();
-        fireEvent.click(screen.getByRole("switch"));
-        expect(localStorage.getItem(SPEECH_PREF_KEY)).toBeNull();
-        expect(screen.getByRole("button", { name: "ابدأ التسجيل" })).toBeTruthy();
-    });
-
-    it("remembers the choice", () => {
-        localStorage.setItem(SPEECH_PREF_KEY, "on");
-        renderRec();
-        expect(screen.getByTestId("browser-speech")).toBeTruthy();
-    });
 });
 
 describe("browser speech capture", () => {
-    beforeEach(() => localStorage.setItem(SPEECH_PREF_KEY, "on"));
-
     it("shows live interim text in an editable textarea and submits it to the voice flow", async () => {
         const sendText = vi.fn().mockResolvedValue(draftRes);
         renderRec({ sendText });
@@ -137,7 +117,12 @@ describe("sendTranscript", () => {
     const json = (status: number, body: unknown) => Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 
     it("posts a trimmed, capped transcript with source=browser_speech and no audio", async () => {
-        const f = vi.fn().mockReturnValue(json(200, { draft: { input_source: "browser_speech" }, confirm: { url: "/confirm" }, options: { types: [], currencies: [], categories: {}, payment_statuses: [] } }));
+        const f = vi.fn().mockReturnValue(json(200, {
+            draft: { input_source: "browser_speech" },
+            confirm: { url: "/confirm" },
+            options: { types: [], currencies: [], categories: {}, payment_statuses: [] },
+            ai_available: true,
+        }));
         const r = await sendTranscript("/voice", `  ${"أ".repeat(VOICE_TRANSCRIPT_MAX + 5)}  `, f as unknown as typeof fetch);
         expect(r.ok && r.data.draft.input_source).toBe("browser_speech");
         const body = f.mock.calls[0][1].body as FormData;

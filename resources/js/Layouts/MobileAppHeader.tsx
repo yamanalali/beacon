@@ -1,6 +1,7 @@
 import { Link, usePage } from "@inertiajs/react";
 import { Brand } from "../Components/Common/Brand";
 import { ConnectionStatus } from "../Components/Feedback/ConnectionStatus";
+import { NotificationMenu } from "./NotificationMenu";
 import { UserMenu } from "./UserMenu";
 
 export function MobileAppHeader({
@@ -35,8 +36,9 @@ export function MobileAppHeader({
                 </Link>
             )}
             <p className="app-mobile-header__title">{title}</p>
-            <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-1 gap-sm-2">
                 <ConnectionStatus />
+                <NotificationMenu />
                 <UserMenu compact />
             </div>
         </header>

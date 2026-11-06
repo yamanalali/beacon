@@ -56,10 +56,7 @@ export async function sendVoice(url: string, audio: Blob, fetchImpl: typeof fetc
     return readVoiceResponse(res);
 }
 
-/**
- * Browser speech: send the recognised (and user-edited) text instead of audio.
- * TODO: BUSINESS DECISION REQUIRED (see browserSpeech.ts) - not to be merged until Yaman approves.
- */
+/** Browser speech: send the recognised (and user-edited) text instead of audio. */
 export async function sendTranscript(url: string, transcript: string, fetchImpl: typeof fetch = fetch): Promise<VoiceResult> {
     const req: VoiceTranscriptRequest = { transcript: transcript.trim().slice(0, VOICE_TRANSCRIPT_MAX), source: "browser_speech" };
     const body = new FormData();
@@ -90,6 +87,14 @@ async function readVoiceResponse(res: Response): Promise<VoiceResult> {
     try {
         const data = await res.json() as VoiceDraftResponse;
         if (!data?.draft || !Array.isArray(data.options?.types) || !Array.isArray(data.options?.currencies) || !data.options?.categories || !Array.isArray(data.options?.payment_statuses) || typeof data.confirm?.url !== "string") throw new Error();
+        // STT failed: show the server message instead of an empty review form.
+        if (data.ai_available === false) {
+            return {
+                ok: false,
+                kind: "unavailable",
+                message: data.message || "تحويل الصوت إلى نص غير متاح حالياً. جرّب التعرّف من المتصفح أو الإدخال اليدوي.",
+            };
+        }
         return { ok: true, data };
     } catch {
         return { ok: false, kind: "error", message: "تعذرت قراءة رد الخادم. حدّث الصفحة وسجّل الدخول ثم حاول مجدداً، أو استخدم الإدخال اليدوي." };

@@ -29,8 +29,37 @@ class MfiAndReferralTest extends TestCase
             $this->actingAs($this->user($role))->post(route('admin.mfis.store'), ['name_ar' => 'س'])->assertForbidden();
         }
         $admin = $this->user(UserRole::BeaconAdmin);
-        $this->actingAs($admin)->post(route('admin.mfis.store'), ['name_ar' => 'مؤسسة'])->assertRedirect();
+        $this->actingAs($admin)->post(route('admin.mfis.store'), [
+            'name_ar' => 'مؤسسة الأمل للتمويل الأصغر',
+            'code' => 'MFI-AML',
+            'name_en' => 'Amal Microfinance',
+            'contact_name' => 'مكتب الإحالات',
+            'contact_phone' => '+963 11 1234567',
+            'contact_email' => 'referrals@amal.test',
+            'region_ar' => 'دمشق',
+            'address_ar' => 'دمشق — شارع تجريبي',
+            'focus_ar' => 'رأس مال عامل للمنشآت الصغيرة',
+            'loan_size_min' => 1000000,
+            'loan_size_max' => 10000000,
+            'loan_currency' => 'syp',
+            'notes' => 'ملف اختباري',
+        ])->assertRedirect();
         $institution = MfiInstitution::query()->firstOrFail();
+        $this->assertSame('MFI-AML', $institution->code);
+        $this->assertSame('SYP', $institution->loan_currency);
+        $this->assertSame('دمشق', $institution->region_ar);
+        $this->assertSame('1000000.00', (string) $institution->loan_size_min);
+
+        $this->actingAs($admin)->put(route('admin.mfis.update', $institution), [
+            'name_ar' => 'مؤسسة الأمل للتمويل الأصغر',
+            'code' => 'MFI-AML',
+            'contact_name' => 'مسؤول محدّث',
+            'region_ar' => 'ريف دمشق',
+            'is_active' => true,
+        ])->assertRedirect();
+        $this->assertSame('مسؤول محدّث', $institution->fresh()->contact_name);
+        $this->assertSame('ريف دمشق', $institution->fresh()->region_ar);
+
         $this->actingAs($admin)->post(route('admin.mfis.criteria.store', $institution), ['label_ar' => 'حد أدنى', 'type' => 'min_readiness_score', 'min_score' => 60])->assertRedirect();
         $this->assertEquals(['min_score' => 60], $institution->eligibilityCriteria()->first()->parameters);
 
@@ -40,6 +69,27 @@ class MfiAndReferralTest extends TestCase
         $sme = $this->user(UserRole::SmeUser);
         $this->actingAs($admin)->post(route('admin.mfis.users.attach', $institution), ['user_id' => $sme->id])->assertSessionHasErrors('user_id');
         $this->assertDatabaseHas('audit_logs', ['action' => 'mfi.criterion_added']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'mfi.institution_updated']);
+    }
+
+    public function test_admin_mfi_index_exposes_profile_fields(): void
+    {
+        $admin = $this->user(UserRole::BeaconAdmin);
+        $institution = $this->institution('مؤسسة تجريبية');
+        $institution->update([
+            'code' => 'MFI-TST',
+            'contact_email' => 'mfi@test.example',
+            'region_ar' => 'درعا',
+            'focus_ar' => 'تمويل نسائي',
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.mfis.index'))->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Mfi/Admin')
+                ->where('institutions.0.code', 'MFI-TST')
+                ->where('institutions.0.contact_email', 'mfi@test.example')
+                ->where('institutions.0.region_ar', 'درعا')
+                ->where('institutions.0.focus_ar', 'تمويل نسائي')
+                ->has('regionSuggestions'));
     }
 
     public function test_matching_distinguishes_met_not_met_and_needs_review(): void

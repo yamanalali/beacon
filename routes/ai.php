@@ -30,6 +30,9 @@ Route::middleware('auth')->prefix('ai')->name('ai.')->group(function () {
         Route::get('/pages/assistant', [AiPageController::class, 'assistant'])->name('pages.assistant');
         Route::get('/pages/escalations', [AiPageController::class, 'escalations'])->name('pages.escalations.index');
         Route::get('/pages/escalations/{escalation}', [AiPageController::class, 'showEscalation'])->name('pages.escalations.show');
+        Route::post('/pages/escalations/{escalation}/reply', [AiPageController::class, 'replyEscalation'])
+            ->middleware('role:beacon_advisor,beacon_admin')
+            ->name('pages.escalations.reply');
         Route::get('/pages/knowledge', [AiPageController::class, 'published'])->name('pages.knowledge.published');
     });
 

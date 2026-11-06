@@ -19,10 +19,10 @@ const sme: Item[] = [
 
 test("groups follow fixed group order and stable key order, regardless of server order", () => {
     const g = groupNavigation(sme);
-    expect(g.map((x) => x.key)).toEqual(["enterprise", "ai", "account"]);
+    expect(g.map((x) => x.key)).toEqual(["enterprise", "ai"]);
     expect(g[0].items.map((i) => i.key)).toEqual(["transactions", "documents", "reports", "readiness"]);
     expect(g[0].label).toBe("مساحة العمل");
-    expect(groupNavigation(technical).map((x) => x.key)).toEqual(["operations", "account"]);
+    expect(groupNavigation(technical).map((x) => x.key)).toEqual(["operations"]);
     expect(groupNavigation(technical)[0].items.map((i) => i.key)).toEqual(["operations.security", "operations.backups", "operations.data-control"]);
 });
 
@@ -45,22 +45,41 @@ test("icons by key, then server icon name, then fallback", () => {
     expect(iconFor({ key: "new.page", icon: "unknown" })).toBe("bi-circle");
 });
 
-test("unknown groups go last without a heading", () => {
-    const g = groupNavigation([item("x", "future"), item("account", "account")]);
-    expect(g.map((x) => [x.key, x.label])).toEqual([["account", "الحساب"], ["future", null]]);
+test("account group is omitted from sidebar/mobile (topbar menus only)", () => {
+    const g = groupNavigation([item("x", "future"), item("account", "account"), item("notifications", "account")]);
+    expect(g.map((x) => [x.key, x.label])).toEqual([["future", null]]);
+    expect(g.flatMap((x) => x.items.map((i) => i.key))).not.toContain("notifications");
 });
 
 test("mobile: 4-tab bar — home priorities leave docs/readiness in More", () => {
     const { tabs, more } = splitMobile(sme, 2);
     expect(tabs.map((i) => i.key)).toEqual(["transactions", "reports"]);
-    expect(more.map((i) => i.key)).toEqual(["documents", "readiness", "ai.assistant", "notifications", "account"]);
+    expect(more.map((i) => i.key)).toEqual(["documents", "readiness", "ai.assistant"]);
+    expect(more.map((i) => i.key)).not.toContain("notifications");
+    expect(more.map((i) => i.key)).not.toContain("account");
     const t = splitMobile(technical, 2);
     expect(t.tabs.map((i) => i.key)).toEqual(["operations.security", "operations.backups"]);
     expect(t.more.map((i) => i.key)).toContain("operations.data-control");
 });
 
+test("mobile: advisor shell prefers escalations over AI assistant", () => {
+    const advisor = [
+        item("dashboard.beacon", "main"),
+        item("enterprises", "enterprise"),
+        item("ai.escalations", "ai"),
+        item("ai.knowledge", "ai"),
+        item("notifications", "account"),
+        item("account", "account"),
+    ];
+    const { tabs, more } = splitMobile(advisor, 2);
+    expect(tabs.map((i) => i.key)).toEqual(["enterprises", "ai.escalations"]);
+    expect(more.map((i) => i.key)).not.toContain("ai.assistant");
+    expect(more.map((i) => i.key)).toContain("ai.knowledge");
+    expect(more.map((i) => i.key)).not.toContain("account");
+});
+
 test("fallback when the prop is missing", () => {
-    expect(navigationOrFallback(undefined, "/account").map((i) => [i.key, i.active])).toEqual([["account", true]]);
+    expect(navigationOrFallback(undefined, "/account")).toEqual([]);
     expect(navigationOrFallback([], "/").length).toBe(0);
 });
 

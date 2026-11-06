@@ -6,22 +6,16 @@ import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { FilterChips, Pager, shortDate, withQuery, type PaginatedProps } from "../../Components/Ai/aiShared";
 import { postJson } from "../../Components/Ai/http";
+import { notificationHref, notificationIcon, type NotificationData } from "../../Components/Notifications/notificationDisplay";
 
 export type NotificationRow = {
     id: string;
-    data: { type?: string; title?: string; message?: string; enterprise_public_id?: string | null; due_date?: string | null; [k: string]: unknown };
+    data: NotificationData;
     read_at: string | null;
     created_at: string | null;
 };
 
 type Props = { notifications: PaginatedProps<NotificationRow>; unread_count: number; filters: { filter?: string | null }; fetchImpl?: typeof fetch };
-
-const ICONS: Record<string, string> = { compliance_deadline: "bi-calendar-event" };
-
-function targetHref(n: NotificationRow): string | null {
-    if (n.data.type === "compliance_deadline" && n.data.enterprise_public_id) return `/enterprises/${n.data.enterprise_public_id}/compliance`;
-    return null;
-}
 
 export default function Index({ notifications, unread_count, filters, fetchImpl }: Props) {
     const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -64,11 +58,11 @@ export default function Index({ notifications, unread_count, filters, fetchImpl 
                         <ul className="list-group list-group-flush">
                             {notifications.data.map((n) => {
                                 const isRead = Boolean(n.read_at) || readIds.has(n.id);
-                                const href = targetHref(n);
+                                const href = notificationHref(n.data);
                                 return (
                                     <li key={n.id} className="list-group-item px-0 d-flex gap-3 align-items-start" data-unread={isRead ? undefined : "true"}>
                                         <span className="app-quick-link__icon flex-shrink-0" aria-hidden="true">
-                                            <i className={`bi ${ICONS[n.data.type ?? ""] ?? "bi-bell"}`} />
+                                            <i className={`bi ${notificationIcon(n.data.type)}`} />
                                         </span>
                                         <div className="flex-grow-1 min-w-0">
                                             <div className="d-flex flex-wrap justify-content-between gap-2">

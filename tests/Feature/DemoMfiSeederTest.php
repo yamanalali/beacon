@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
+use App\Models\MfiInstitution;
 use App\Models\Referral;
 use Database\Seeders\DemoMfiSeeder;
 use Database\Seeders\DemoSeeder;
@@ -29,6 +30,11 @@ class DemoMfiSeederTest extends TestCase
         $mfi = DemoUsersSeeder::user(UserRole::MfiUser);
 
         $this->assertNotNull($mfi->mfi_institution_id);
+        $institution = MfiInstitution::query()->findOrFail($mfi->mfi_institution_id);
+        $this->assertSame('MFI-DEMO', $institution->code);
+        $this->assertSame('دمشق وريف دمشق', $institution->region_ar);
+        $this->assertNotNull($institution->contact_email);
+        $this->assertTrue($institution->eligibilityCriteria()->where('is_active', true)->exists());
 
         $this->actingAs($mfi)->get('/mfi/referrals')
             ->assertOk()

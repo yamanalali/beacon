@@ -104,7 +104,8 @@ class ComplianceTest extends TestCase
     public function test_status_update_records_version_and_is_staff_only(): void
     {
         $enterprise = $this->enterprise();
-        $requirement = $this->publishedRequirement();
+        // Non-document requirement: staff may still mark completed directly.
+        $requirement = $this->publishedRequirement('REQ-STATUS', false);
         $sme = $this->smeOf($enterprise);
         $advisor = $this->advisorOf($enterprise);
 

@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Optional in-browser speech recognition (Web Speech API).
- *
- * TODO: BUSINESS DECISION REQUIRED - Chrome/Edge send the audio to Google's servers for recognition.
- * This is OFF by default, only enabled per device after the user accepts the notice, and must not be
- * merged until Yaman approves sending audio to a third party.
+ * In-browser speech recognition (Web Speech API) — the only voice-draft input path.
+ * Chrome/Edge typically send audio to Google for recognition (not through Beacon servers).
  */
 
 export const SPEECH_LANG = "ar-SY";
-export const SPEECH_PREF_KEY = "beacon.voice.browserSpeech";
 
 type Alt = { transcript: string };
 type Result = { isFinal: boolean; length: number; [i: number]: Alt };
@@ -32,18 +28,6 @@ export type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
 export function getSpeechRecognition(w: unknown = typeof window !== "undefined" ? window : undefined): SpeechRecognitionCtor | null {
     const win = w as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor } | undefined;
     return win?.SpeechRecognition ?? win?.webkitSpeechRecognition ?? null;
-}
-
-export function readSpeechPref(storage: Pick<Storage, "getItem"> | undefined = safeStorage()): boolean {
-    try { return storage?.getItem(SPEECH_PREF_KEY) === "on"; } catch { return false; }
-}
-
-export function writeSpeechPref(on: boolean, storage: Pick<Storage, "setItem" | "removeItem"> | undefined = safeStorage()): void {
-    try { if (on) storage?.setItem(SPEECH_PREF_KEY, "on"); else storage?.removeItem(SPEECH_PREF_KEY); } catch { /* private mode */ }
-}
-
-function safeStorage(): Storage | undefined {
-    try { return typeof window !== "undefined" ? window.localStorage : undefined; } catch { return undefined; }
 }
 
 export type SpeechState = "idle" | "listening" | "denied" | "error";

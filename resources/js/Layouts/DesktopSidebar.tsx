@@ -1,11 +1,10 @@
 import { Link, usePage } from "@inertiajs/react";
 import { Brand } from "../Components/Common/Brand";
-import { homeItem, roleLabels } from "./navigation";
+import { homeItem } from "./navigation";
 import { groupNavigation, homeLink, iconFor, navigationOrFallback } from "./navigationModel";
 
 export function DesktopSidebar() {
     const { url, props } = usePage();
-    const role = props.auth.user?.role;
     const dir = props.dir ?? "rtl";
     // Links come from the server (`auth.navigation`); no role logic in the UI.
     const items = navigationOrFallback(props.auth.navigation, url, props.auth.can);
@@ -17,15 +16,6 @@ export function DesktopSidebar() {
             <Link href="/" className="app-brand" aria-label="بيكون، الرئيسية">
                 <Brand />
             </Link>
-            <div className="app-workspace">
-                <span className="app-workspace__icon">
-                    <i className="bi bi-grid-1x2" aria-hidden="true" />
-                </span>
-                <span>
-                    <strong>مساحة عمل بيكون</strong>
-                    <small>{roleLabels[role ?? ""] ?? "المنصة"}</small>
-                </span>
-            </div>
             <nav aria-label="التنقل الرئيسي" className="app-sidebar__nav">
                 <ul className="app-nav-list">
                     <li>
@@ -68,13 +58,6 @@ export function DesktopSidebar() {
                     </section>
                 ))}
             </nav>
-            <div className="app-sidebar__footer">
-                <i className="bi bi-intersect" aria-hidden="true" />
-                <span>
-                    بيكون لإدارة وتطوير الأعمال
-                    <small lang="en">YOUR NEXT STEP FORWARD</small>
-                </span>
-            </div>
         </aside>
     );
 }

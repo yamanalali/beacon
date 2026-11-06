@@ -22,9 +22,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/versions/{version}/publish', [ComplianceAdminController::class, 'publish'])->name('versions.publish');
     });
 
-    // 22: enterprise compliance view
+    // 22: enterprise compliance view + document submission / advisor review
     Route::get('/enterprises/{enterprise:public_id}/compliance', [EnterpriseComplianceController::class, 'index'])->name('enterprises.compliance.index');
     Route::put('/enterprises/{enterprise:public_id}/compliance/{requirement:public_id}', [EnterpriseComplianceController::class, 'update'])->name('enterprises.compliance.update')->withoutScopedBindings();
+    Route::post('/enterprises/{enterprise:public_id}/compliance/{requirement:public_id}/submissions', [EnterpriseComplianceController::class, 'submit'])->name('enterprises.compliance.submissions.store')->withoutScopedBindings();
+    Route::post('/enterprises/{enterprise:public_id}/compliance/{requirement:public_id}/submissions/{submission}/review', [EnterpriseComplianceController::class, 'review'])->name('enterprises.compliance.submissions.review')->withoutScopedBindings();
 
     // 25-26: readiness rules (BEACON_ADMIN)
     Route::prefix('admin/readiness')->name('admin.readiness.')->group(function () {

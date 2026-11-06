@@ -2,12 +2,17 @@
 
 namespace App\Ai\Http\Controllers;
 
+use App\Actions\Audit\RecordAuditLog;
+use App\Ai\Http\Requests\ReplyAiEscalationRequest;
 use App\Ai\Models\AiEscalation;
 use App\Ai\Models\KnowledgeArticle;
 use App\Ai\Support\AiDataGuard;
 use App\Ai\Support\PaginatedProps;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Notifications\EscalationRepliedNotification;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -18,7 +23,10 @@ class AiPageController extends Controller
 {
     public function assistant(Request $request): Response
     {
-        abort_unless($request->user()->isActive(), 403);
+        $user = $request->user();
+        abort_unless($user->isActive(), 403);
+        // Advisors use the escalations inbox; the SME-facing assistant page is not their shell entry.
+        abort_if($user->role === UserRole::BeaconAdvisor, 403);
 
         return Inertia::render('Ai/Assistant', [
             'ai_available' => AiDataGuard::available(AiDataGuard::ASSISTANT),
@@ -51,12 +59,23 @@ class AiPageController extends Controller
 
     private function escalationProps(AiEscalation $escalation, bool $full = false): array
     {
-        return [
+        $base = [
             'id' => $escalation->public_id,
             'question' => $escalation->question,
             'status' => $escalation->status,
             'created_at' => $escalation->created_at?->toIso8601String(),
-        ] + ($full ? ['enterprise_id' => $escalation->context['enterprise_public_id'] ?? null] : []);
+        ];
+
+        if (! $full) {
+            return $base;
+        }
+
+        return $base + [
+            'enterprise_id' => $escalation->context['enterprise_public_id'] ?? null,
+            'staff_reply' => $escalation->staff_reply,
+            'replied_at' => $escalation->replied_at?->toIso8601String(),
+            'can_reply' => Gate::allows('reply', $escalation),
+        ];
     }
 
     public function showEscalation(AiEscalation $escalation): Response
@@ -64,6 +83,29 @@ class AiPageController extends Controller
         Gate::authorize('view', $escalation);
 
         return Inertia::render('Ai/Escalations/Show', ['escalation' => $this->escalationProps($escalation, true)]);
+    }
+
+    public function replyEscalation(ReplyAiEscalationRequest $request, AiEscalation $escalation, RecordAuditLog $audit): RedirectResponse
+    {
+        $escalation->update([
+            'staff_reply' => $request->validated('staff_reply'),
+            'replied_by' => $request->user()->id,
+            'replied_at' => now(),
+            'status' => AiEscalation::STATUS_ANSWERED,
+        ]);
+
+        $audit->record($request->user(), 'ai.escalation.replied', $escalation, [
+            'status' => AiEscalation::STATUS_ANSWERED,
+        ]);
+
+        $asker = User::query()->whereKey($escalation->user_id)->where('is_active', true)->first();
+        if ($asker !== null && $asker->id !== $request->user()->id) {
+            $asker->notify(EscalationRepliedNotification::fromEscalation($escalation->fresh()));
+        }
+
+        return redirect()
+            ->route('ai.pages.escalations.show', $escalation)
+            ->with('success', 'تم حفظ الرد وإشعار صاحب السؤال.');
     }
 
     public function published(Request $request): Response

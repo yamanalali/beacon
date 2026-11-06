@@ -51,6 +51,29 @@ class AssistantTest extends TestCase
         $this->assertSame([], $this->fakeAi->calls, 'Provider must not be called without approved knowledge');
     }
 
+    public function test_english_record_question_retrieves_platform_use_knowledge(): void
+    {
+        $this->article('published', [
+            'title' => 'كيف تسجّل معاملة من المنصة',
+            'topic' => 'platform_use',
+            'body' => 'اضغط سجّل معاملة ثم سجّل صوت. English keywords: how, record, voice, features.',
+        ]);
+
+        $service = app(KnowledgeAssistantService::class);
+        $terms = $service->searchTerms('how i can record using features here');
+        $this->assertContains('record', $terms);
+        $this->assertContains('تسجيل', $terms);
+
+        $hits = $service->retrieve('how i can record using features here');
+        $this->assertNotEmpty($hits);
+        $this->assertStringContainsString('سجّل', $hits[0]['body']);
+
+        $this->actingAs($this->userWithRole(UserRole::SmeUser))
+            ->postJson(route('ai.assistant.ask'), ['question' => 'how i can record using features here'])
+            ->assertOk()
+            ->assertJsonPath('supported', true);
+    }
+
     public function test_provider_failure_degrades_gracefully(): void
     {
         $this->article();

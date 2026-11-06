@@ -11,21 +11,35 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Escalation of an unsupported assistant question to Beacon staff (rules §35).
  *
- * TODO: BUSINESS DECISION REQUIRED — who receives escalations, the status set,
- * whether the user gets an in-app reply, and the response workflow. Only the
- * initial "open" status is implemented; no routing/assignment or reply flow.
+ * Interim reply workflow: assigned advisor / Beacon admin may post one staff reply;
+ * status moves from open → answered. Full routing policy still pending Beacon.
  */
 class AiEscalation extends Model
 {
     use HasPublicId;
 
-    protected $fillable = ['user_id', 'enterprise_id', 'question', 'context', 'status'];
+    public const STATUS_OPEN = 'open';
 
-    protected $hidden = ['id', 'user_id', 'enterprise_id'];
+    public const STATUS_ANSWERED = 'answered';
+
+    public const STATUSES = [
+        self::STATUS_OPEN => 'مفتوح',
+        self::STATUS_ANSWERED => 'تم الرد',
+    ];
+
+    protected $fillable = [
+        'user_id', 'enterprise_id', 'question', 'context', 'status',
+        'staff_reply', 'replied_by', 'replied_at',
+    ];
+
+    protected $hidden = ['id', 'user_id', 'enterprise_id', 'replied_by'];
 
     protected function casts(): array
     {
-        return ['context' => 'array'];
+        return [
+            'context' => 'array',
+            'replied_at' => 'datetime',
+        ];
     }
 
     public function user(): BelongsTo
@@ -36,5 +50,15 @@ class AiEscalation extends Model
     public function enterprise(): BelongsTo
     {
         return $this->belongsTo(Enterprise::class);
+    }
+
+    public function repliedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'replied_by');
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->status === self::STATUS_OPEN;
     }
 }

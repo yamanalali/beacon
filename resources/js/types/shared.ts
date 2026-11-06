@@ -87,6 +87,25 @@ export type AuthCan = {
     record_transaction: boolean;
 };
 
+export type SharedNotificationItem = {
+    id: string;
+    data: {
+        type?: string;
+        title?: string;
+        message?: string;
+        enterprise_public_id?: string | null;
+        escalation_public_id?: string | null;
+        [k: string]: unknown;
+    };
+    read_at: string | null;
+    created_at: string | null;
+};
+
+export type SharedNotifications = {
+    unread_count: number;
+    recent: SharedNotificationItem[];
+};
+
 export type BeaconSharedProps = PageProps & {
     offline?: { cached?: boolean; cached_at?: string; queued_id?: string; missing_page?: string };
     locale: string;
@@ -96,6 +115,7 @@ export type BeaconSharedProps = PageProps & {
         navigation: NavigationItem[];
         can: AuthCan;
         quick_record: QuickRecord | null;
+        notifications: SharedNotifications | null;
     };
     flash?: {
         success?: string | null;
