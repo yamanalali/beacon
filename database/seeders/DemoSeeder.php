@@ -31,7 +31,9 @@ class DemoSeeder extends Seeder
             DemoUsersSeeder::class,
             DemoEnterpriseSeeder::class,
             DemoFinanceSeeder::class,
+            DemoProgrammeSeeder::class,
             DemoMfiSeeder::class,
+            AiDemoSeeder::class,
         ]);
     }
 }

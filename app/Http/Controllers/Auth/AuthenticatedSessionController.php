@@ -18,8 +18,8 @@ class AuthenticatedSessionController extends Controller
 {
     public function create(): Response
     {
-        // Demo credentials are shown ONLY in local development, never in production.
-        $demo = app()->isLocal() && filled(config('demo.password'))
+        // Demo credentials: local + staging share only — never production.
+        $demo = app()->environment(['local', 'staging']) && filled(config('demo.password'))
             ? [
                 'password' => (string) config('demo.password'),
                 'accounts' => collect(config('demo.accounts'))

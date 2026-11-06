@@ -39,8 +39,8 @@ class AiDemoSeeder extends Seeder
 
     public function run(): void
     {
-        if (! app()->environment('local')) {
-            throw new RuntimeException('AiDemoSeeder runs only when APP_ENV=local.');
+        if (! app()->environment(['local', 'staging'])) {
+            throw new RuntimeException('AiDemoSeeder runs only when APP_ENV is local or staging.');
         }
 
         $emails = collect(config('demo.accounts', []))->pluck('email', 'role');
