@@ -22,8 +22,10 @@ services:
         value: en
       - key: APP_URL
         value: https://beacon-sme.onrender.com
+      # Must be a Laravel key: `php artisan key:generate --show` (starts with base64:).
+      # Render generateValue is NOT a valid AES-256 key and causes Encrypter failures.
       - key: APP_KEY
-        generateValue: true
+        sync: false
       - key: LOG_CHANNEL
         value: stderr
       - key: LOG_LEVEL
