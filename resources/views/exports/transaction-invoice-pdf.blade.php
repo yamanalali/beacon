@@ -4,6 +4,7 @@
     $alignStart = $isRtl ? 'right' : 'left';
     $money = static fn ($value): string => number_format((float) $value, 2).' '.$transaction->currency;
     $shortId = \Illuminate\Support\Str::of((string) $transaction->public_id)->substr(-8)->upper();
+    $brandName = $locale === 'en' ? 'Beacon' : 'بيكون';
 @endphp
 <!DOCTYPE html>
 <html lang="{{ $locale }}" dir="{{ $dir }}">
@@ -268,13 +269,13 @@
                     <tr>
                         <td width="48" style="vertical-align: middle;">
                             @if (! empty($logo))
-                                <img class="brand-logo" src="{{ $logo }}" alt="Beacon" width="42" height="23">
+                                <img class="brand-logo" src="{{ $logo }}" alt="{{ $brandName }}" width="42" height="23">
                             @else
-                                <span class="brand-fallback">Beacon</span>
+                                <span class="brand-fallback">{{ $brandName }}</span>
                             @endif
                         </td>
                         <td class="brand-meta" style="vertical-align: middle;">
-                            <div class="brand-name">Beacon</div>
+                            <div class="brand-name">{{ $brandName }}</div>
                             <div class="brand-tag">{{ $locale === 'en' ? 'Financial document' : 'مستند مالي' }}</div>
                         </td>
                     </tr>

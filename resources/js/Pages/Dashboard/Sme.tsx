@@ -206,7 +206,7 @@ export default function Sme({
                         <EmptyState
                             icon="bi-buildings"
                             title={t("dashboard.sme.no_enterprise_title", undefined, "لا توجد منشأة مرتبطة بحسابك بعد")}
-                            description={t("dashboard.sme.no_enterprise_desc", undefined, "تواصل مع فريق Beacon لربط حسابك بمنشأتك.")}
+                            description={t("dashboard.sme.no_enterprise_desc", undefined, "تواصل مع فريق بيكون لربط حسابك بمنشأتك.")}
                         />
                         <div className="sme-primary mt-3">
                             <QuickRecordButton />

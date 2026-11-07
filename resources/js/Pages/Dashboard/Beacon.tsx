@@ -204,7 +204,7 @@ export default function Beacon({
                 <div className="d-flex flex-wrap justify-content-between align-items-start gap-2">
                     <PageHeader
                         title={t("dashboard.beacon.title", undefined, "لوحة متابعة البرنامج")}
-                        description={t("dashboard.beacon.description", undefined, "مؤشرات المتابعة والتقييم لبرنامج Beacon.")}
+                        description={t("dashboard.beacon.description", undefined, "مؤشرات المتابعة والتقييم لبرنامج بيكون.")}
                     />
                     {exportUrl ? <ExportButton baseUrl={exportUrl} formats={["csv"]} /> : null}
                 </div>

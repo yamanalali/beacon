@@ -4,7 +4,8 @@ import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 import { createRoot } from "react-dom/client";
 
 createInertiaApp({
-    title: (title) => title || "بيكون",
+    title: (title) =>
+        title || (document.documentElement.lang === "en" ? "Beacon" : "بيكون"),
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.tsx`,

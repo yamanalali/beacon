@@ -1,6 +1,7 @@
 import { Link, usePage } from "@inertiajs/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { LanguageSwitcher } from "../Components/Common/LanguageSwitcher";
 import { useT } from "../Hooks/useT";
 import type { NavigationItem } from "../types/shared";
 import { homeItem } from "./navigation";
@@ -179,6 +180,10 @@ export function MobileBottomNavigation() {
                                       </li>
                                   ))}
                               </ul>
+                              <div className="app-sheet__language">
+                                  <p className="app-sheet__language-label mb-2">{t("common.language")}</p>
+                                  <LanguageSwitcher className="app-sheet__language-switcher" />
+                              </div>
                           </div>
                       </>,
                       document.body,

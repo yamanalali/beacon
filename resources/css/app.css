@@ -3162,6 +3162,26 @@ textarea.form-control {
     font-size: 16px;
     font-weight: 600;
 }
+.app-mobile-header__actions {
+    flex-shrink: 0;
+}
+.app-mobile-header__language .language-switcher__trigger {
+    min-height: 40px;
+    padding: 3px 8px 3px 4px;
+    gap: 6px;
+}
+.app-mobile-header__language .language-switcher__icon {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+}
+.app-mobile-header__language .language-switcher__name {
+    display: none;
+}
+.app-mobile-header__language .language-switcher__menu {
+    inset-inline-end: 0;
+    width: min(240px, calc(100vw - 24px));
+}
 .app-icon-button {
     display: inline-flex;
     align-items: center;
@@ -3305,6 +3325,29 @@ textarea.form-control {
 .app-sheet .app-soon {
     color: var(--app-text-muted);
     border-color: var(--app-border);
+}
+.app-sheet__language {
+    padding: 4px 16px calc(18px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--app-border);
+}
+.app-sheet__language-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--app-text-muted);
+}
+.app-sheet__language-switcher .language-switcher__trigger {
+    width: 100%;
+    justify-content: flex-start;
+    border-radius: 12px;
+    min-height: 48px;
+}
+.app-sheet__language-switcher .language-switcher__name {
+    display: inline;
+}
+.app-sheet__language-switcher .language-switcher__menu {
+    inset-inline: 0;
+    width: 100%;
 }
 
 /* Authentication */
