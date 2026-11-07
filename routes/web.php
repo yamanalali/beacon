@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\LocaleController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::middleware('auth')->group(function () {
-    Route::get('/', function (Illuminate\Http\Request $request) {
-        // Role-based landing. MFI goes to its referral inbox; technical admin goes to operations security.
+Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
+
+Route::get('/', function (Illuminate\Http\Request $request) {
+    if ($request->user()) {
+        // Role-based app home. MFI goes to its referral inbox; technical admin goes to operations security.
         return match ($request->user()->role) {
             App\Enums\UserRole::SmeUser => redirect()->route('dashboard.sme'),
             App\Enums\UserRole::BeaconAdmin, App\Enums\UserRole::BeaconAdvisor => redirect()->route('dashboard.beacon'),
@@ -13,8 +16,17 @@ Route::middleware('auth')->group(function () {
             App\Enums\UserRole::TechnicalAdmin => redirect()->route('operations.security'),
             default => Inertia::render('Dashboard/Index'),
         };
-    })->name('home');
-});
+    }
+
+    return Inertia::render('Landing/Home');
+})->name('home');
+
+Route::get('/about', fn () => Inertia::render('Landing/About'))->name('landing.about');
+Route::get('/case-studies', [\App\Http\Controllers\Landing\CaseStudyController::class, 'index'])->name('landing.case-studies');
+Route::get('/case-studies/{caseStudy}', [\App\Http\Controllers\Landing\CaseStudyController::class, 'show'])->name('landing.case-studies.show');
+Route::get('/knowledge', [\App\Http\Controllers\Landing\KnowledgeController::class, 'index'])->name('landing.knowledge');
+Route::get('/knowledge/{article}', [\App\Http\Controllers\Landing\KnowledgeController::class, 'show'])->name('landing.knowledge.show');
+Route::get('/contact', fn () => Inertia::render('Landing/Contact'))->name('landing.contact');
 
 foreach ([
     __DIR__.'/auth.php',

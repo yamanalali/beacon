@@ -1,18 +1,20 @@
+import { useT } from "../../Hooks/useT";
+
 export function Brand({ compact = false }: { compact?: boolean }) {
+    const t = useT();
+
     return (
         <span className="app-brand-lockup">
-            <span className="app-brand-symbol" aria-hidden="true">
-                <i className="bi bi-intersect" />
-            </span>
+            <img
+                className="app-brand-logo"
+                src="/images/brand/beacon-logo.png"
+                alt={t("common.app_name")}
+                width={compact ? 120 : 168}
+                height={compact ? 65 : 91}
+                decoding="async"
+            />
             {compact ? null : (
-                <span>
-                    <span className="app-brand-name">
-                        بيكون<span lang="en">BEACON</span>
-                    </span>
-                    <span className="app-brand-caption">
-                        خطوة أوضح. أعمال أقوى.
-                    </span>
-                </span>
+                <span className="visually-hidden">{t("common.brand_tagline_ar")}</span>
             )}
         </span>
     );

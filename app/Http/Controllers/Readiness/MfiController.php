@@ -135,7 +135,7 @@ class MfiController extends Controller
                         ],
                     ];
                 }),
-            'disclaimer' => 'نتيجة المطابقة استشارية وتحضيرية فقط، وليست موافقة على التمويل.',
+            'disclaimer' => ui('disclaimer.mfi_matching'),
         ]);
     }
 

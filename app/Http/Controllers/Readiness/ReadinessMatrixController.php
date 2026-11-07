@@ -152,7 +152,7 @@ class ReadinessMatrixController extends Controller
         $compliance = ReadinessRuleSetValidator::complianceIds($definition, $errors);
         $copy = $this->createDraft($definition, $compliance, $actor, 'readiness.rule_set_duplicated', ['from_version' => $ruleSet->version_number]);
 
-        return $this->back()->with('success', 'تم إنشاء مسودة جديدة (النسخة '.$copy->version_number.').');
+        return $this->back()->with('success', ui('flash.readiness_draft_created', ['version' => $copy->version_number]));
     }
 
     public function export(Request $request, ReadinessRuleSet $ruleSet): JsonResponse
@@ -213,7 +213,7 @@ class ReadinessMatrixController extends Controller
         $compliance = ReadinessRuleSetValidator::complianceIds($definition, $errors);
         $set = $this->createDraft($definition, $compliance, $request->user(), 'readiness.rule_set_imported', ['source_version_number' => $definition['source_version_number'] ?? null]);
 
-        return $this->back()->with('success', 'تم استيراد القواعد كمسودة (النسخة '.$set->version_number.').');
+        return $this->back()->with('success', ui('flash.readiness_rules_imported', ['version' => $set->version_number]));
     }
 
     /** Live preview: evaluates sample answers against the rule set. Runs the publish validation first; writes nothing. */

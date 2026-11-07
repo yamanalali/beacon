@@ -159,9 +159,25 @@ class AccountAccessTest extends TestCase
         $this->assertStringNotContainsString('Secret-Pass-99', $encoded);
     }
 
-    public function test_there_is_no_register_route(): void
+    public function test_guest_can_open_registration_application_form(): void
     {
-        $this->get('/register')->assertNotFound();
-        $this->post('/register')->assertNotFound();
+        $this->get('/register')->assertOk();
+    }
+
+    public function test_registration_application_does_not_create_a_login_account(): void
+    {
+        $this->post('/register', [
+            'name' => 'طالب انضمام',
+            'email' => 'applicant@example.test',
+            'business_name' => 'منشأة تجريبية',
+        ])->assertRedirect(route('register'));
+
+        $this->assertDatabaseHas('registration_applications', [
+            'email' => 'applicant@example.test',
+            'status' => 'pending',
+        ]);
+        $this->assertDatabaseMissing('users', [
+            'email' => 'applicant@example.test',
+        ]);
     }
 }

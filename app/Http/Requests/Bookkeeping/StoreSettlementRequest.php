@@ -42,10 +42,10 @@ class StoreSettlementRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'settlement_date.required' => 'تاريخ الدفعة مطلوب.',
-            'settlement_date.before_or_equal' => 'لا يمكن أن يكون التاريخ في المستقبل.',
-            'amount.required' => 'المبلغ مطلوب.',
-            'amount.regex' => 'اكتب المبلغ مثل 500 أو ٥٠٠، بخانتين عشريتين كحد أقصى.',
+            'settlement_date.required' => ui('validation.settlement_date_required'),
+            'settlement_date.before_or_equal' => ui('validation.date_not_future'),
+            'amount.required' => ui('validation.amount_required'),
+            'amount.regex' => ui('validation.amount_format'),
         ];
     }
 }

@@ -1,6 +1,7 @@
 import { Link, usePage } from "@inertiajs/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "../Hooks/useT";
 import type { NavigationItem } from "../types/shared";
 import { homeItem } from "./navigation";
 import { homeLink, iconFor, navigationOrFallback, splitMobile } from "./navigationModel";
@@ -21,6 +22,7 @@ function NavLink({ item, className, onClick }: { item: NavigationItem; className
 
 export function MobileBottomNavigation() {
     const { url, props } = usePage();
+    const t = useT();
     // Links come from the server (`auth.navigation`); no role logic in the UI.
     // Four tabs max: الرئيسية + up to 2 priorities (معاملات/تقارير) + المزيد. Record CTA lives on the home hero/FAB.
     const items = navigationOrFallback(props.auth.navigation, url, props.auth.can);
@@ -100,7 +102,7 @@ export function MobileBottomNavigation() {
     }, [url]);
 
     return (
-        <nav className="app-bottom-nav d-lg-none" aria-label="التنقل السفلي">
+        <nav className="app-bottom-nav d-lg-none" aria-label={t("shell.bottom_nav")}>
             <ul className="app-bottom-nav__list">
                 <li className="app-bottom-nav__item">
                     <Link
@@ -112,7 +114,7 @@ export function MobileBottomNavigation() {
                             className={`bi ${homeItem.icon}`}
                             aria-hidden="true"
                         />
-                        <span className="app-tab__label">{homeItem.label}</span>
+                        <span className="app-tab__label">{t("nav.mobile.home")}</span>
                     </Link>
                 </li>
                 {primaryItems.map((item) => (
@@ -132,7 +134,7 @@ export function MobileBottomNavigation() {
                         onClick={() => setOpen(true)}
                     >
                         <i className="bi bi-grid" aria-hidden="true" />
-                        <span className="app-tab__label">المزيد</span>
+                        <span className="app-tab__label">{t("nav.mobile.more")}</span>
                     </button>
                 </li>
             </ul>
@@ -155,13 +157,13 @@ export function MobileBottomNavigation() {
                           >
                               <div className="app-sheet__header">
                                   <h2 id={titleId} className="app-sheet__title">
-                                      المزيد
+                                      {t("nav.mobile.more")}
                                   </h2>
                                   <button
                                       ref={closeButtonRef}
                                       type="button"
                                       className="app-icon-button"
-                                      aria-label="إغلاق"
+                                      aria-label={t("common.close")}
                                       onClick={close}
                                   >
                                       <i

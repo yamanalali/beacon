@@ -40,41 +40,43 @@ class NavigationBuilder
         $smeEnterpriseParams = fn (User $u): ?array => ($e = $this->smeEnterprise($u)) ? ['enterprise' => $e] : null;
         $smeCanView = fn (User $u): bool => ($e = $this->smeEnterprise($u)) !== null && ReadinessAccess::canViewEnterprise($u, $e);
 
+        $label = fn (string $key): string => ui('nav.'.$key);
+
         return [
-            ['key' => 'dashboard.sme', 'route' => 'dashboard.sme', 'label' => 'لوحة التحكم', 'icon' => 'layout-dashboard', 'group' => 'main', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::DASHBOARD_SME)],
-            ['key' => 'dashboard.beacon', 'route' => 'dashboard.beacon', 'label' => 'لوحة البرنامج', 'icon' => 'layout-dashboard', 'group' => 'main', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::DASHBOARD_BEACON)],
+            ['key' => 'dashboard.sme', 'route' => 'dashboard.sme', 'label' => $label('dashboard.sme'), 'icon' => 'layout-dashboard', 'group' => 'main', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::DASHBOARD_SME)],
+            ['key' => 'dashboard.beacon', 'route' => 'dashboard.beacon', 'label' => $label('dashboard.beacon'), 'icon' => 'layout-dashboard', 'group' => 'main', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::DASHBOARD_BEACON)],
 
-            ['key' => 'enterprises', 'route' => 'enterprises.index', 'label' => 'المنشآت', 'icon' => 'building', 'group' => 'enterprise', 'ability' => $entry, 'active' => ['enterprises.index', 'enterprises.show', 'enterprises.create', 'enterprises.edit']],
-            ['key' => 'transactions', 'route' => 'transactions.entry', 'label' => 'المعاملات', 'icon' => 'receipt', 'group' => 'enterprise', 'ability' => $section(PageAccess::TRANSACTIONS_ENTRY), 'active' => ['transactions.*', 'enterprises.transactions.*']],
-            ['key' => 'documents', 'route' => 'documents.entry', 'label' => 'المستندات', 'icon' => 'file-text', 'group' => 'enterprise', 'ability' => $section(PageAccess::DOCUMENTS_ENTRY), 'active' => ['documents.*', 'enterprises.documents.*']],
-            ['key' => 'reports', 'route' => 'reports.entry', 'label' => 'التقارير المالية', 'icon' => 'bar-chart', 'group' => 'enterprise', 'ability' => $section(PageAccess::REPORTS_ENTRY), 'active' => ['reports.*', 'enterprises.reports.*']],
-            ['key' => 'readiness', 'route' => 'enterprises.readiness.index', 'label' => 'الجاهزية', 'icon' => 'gauge', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.readiness.*', 'readiness-assessments.*']],
-            ['key' => 'compliance', 'route' => 'enterprises.compliance.index', 'label' => 'الامتثال', 'icon' => 'shield-check', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.compliance.*']],
-            ['key' => 'referrals', 'route' => 'enterprises.referrals.index', 'label' => 'الإحالات', 'icon' => 'send', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.referrals.*', 'referrals.*']],
+            ['key' => 'enterprises', 'route' => 'enterprises.index', 'label' => $label('enterprises'), 'icon' => 'building', 'group' => 'enterprise', 'ability' => $entry, 'active' => ['enterprises.index', 'enterprises.show', 'enterprises.create', 'enterprises.edit']],
+            ['key' => 'transactions', 'route' => 'transactions.entry', 'label' => $label('transactions'), 'icon' => 'receipt', 'group' => 'enterprise', 'ability' => $section(PageAccess::TRANSACTIONS_ENTRY), 'active' => ['transactions.*', 'enterprises.transactions.*']],
+            ['key' => 'documents', 'route' => 'documents.entry', 'label' => $label('documents'), 'icon' => 'file-text', 'group' => 'enterprise', 'ability' => $section(PageAccess::DOCUMENTS_ENTRY), 'active' => ['documents.*', 'enterprises.documents.*']],
+            ['key' => 'reports', 'route' => 'reports.entry', 'label' => $label('reports'), 'icon' => 'bar-chart', 'group' => 'enterprise', 'ability' => $section(PageAccess::REPORTS_ENTRY), 'active' => ['reports.*', 'enterprises.reports.*']],
+            ['key' => 'readiness', 'route' => 'enterprises.readiness.index', 'label' => $label('readiness'), 'icon' => 'gauge', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.readiness.*', 'readiness-assessments.*']],
+            ['key' => 'compliance', 'route' => 'enterprises.compliance.index', 'label' => $label('compliance'), 'icon' => 'shield-check', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.compliance.*']],
+            ['key' => 'referrals', 'route' => 'enterprises.referrals.index', 'label' => $label('referrals'), 'icon' => 'send', 'group' => 'enterprise', 'ability' => $smeCanView, 'params' => $smeEnterpriseParams, 'active' => ['enterprises.referrals.*', 'referrals.*']],
 
-            ['key' => 'mfi.referrals', 'route' => 'mfi.referrals.index', 'label' => 'الإحالات الواردة', 'icon' => 'inbox', 'group' => 'mfi', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::MFI_REFERRAL_INBOX), 'active' => ['mfi.referrals.*', 'referrals.*']],
+            ['key' => 'mfi.referrals', 'route' => 'mfi.referrals.index', 'label' => $label('mfi.referrals'), 'icon' => 'inbox', 'group' => 'mfi', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::MFI_REFERRAL_INBOX), 'active' => ['mfi.referrals.*', 'referrals.*']],
 
             // Advisors handle human escalations; the SME-facing AI assistant stays out of their shell.
-            ['key' => 'ai.assistant', 'route' => 'ai.pages.assistant', 'label' => 'المساعد الذكي', 'icon' => 'sparkles', 'group' => 'ai', 'ability' => fn (User $u) => $u->role !== UserRole::BeaconAdvisor],
-            ['key' => 'ai.escalations', 'route' => 'ai.pages.escalations.index', 'label' => 'التصعيدات', 'icon' => 'life-buoy', 'group' => 'ai', 'ability' => null, 'active' => ['ai.pages.escalations.*']],
-            ['key' => 'ai.knowledge', 'route' => 'ai.pages.knowledge.published', 'label' => 'قاعدة المعرفة', 'icon' => 'book-open', 'group' => 'ai', 'ability' => null],
-            ['key' => 'notifications', 'route' => 'notifications.page', 'label' => 'الإشعارات', 'icon' => 'bell', 'group' => 'account', 'ability' => null],
+            ['key' => 'ai.assistant', 'route' => 'ai.pages.assistant', 'label' => $label('ai.assistant'), 'icon' => 'sparkles', 'group' => 'ai', 'ability' => fn (User $u) => $u->role !== UserRole::BeaconAdvisor],
+            ['key' => 'ai.escalations', 'route' => 'ai.pages.escalations.index', 'label' => $label('ai.escalations'), 'icon' => 'life-buoy', 'group' => 'ai', 'ability' => null, 'active' => ['ai.pages.escalations.*']],
+            ['key' => 'ai.knowledge', 'route' => 'ai.pages.knowledge.published', 'label' => $label('ai.knowledge'), 'icon' => 'book-open', 'group' => 'ai', 'ability' => null],
+            ['key' => 'notifications', 'route' => 'notifications.page', 'label' => $label('notifications'), 'icon' => 'bell', 'group' => 'account', 'ability' => null],
 
-            ['key' => 'admin', 'route' => 'admin.index', 'label' => 'لوحة الإدارة', 'icon' => 'settings', 'group' => 'admin', 'ability' => null],
-            ['key' => 'admin.users', 'route' => 'users.index', 'label' => 'المستخدمون', 'icon' => 'users', 'group' => 'admin', 'ability' => null, 'active' => ['users.*']],
-            ['key' => 'admin.audit-logs', 'route' => 'admin.audit-logs.index', 'label' => 'سجل التدقيق', 'icon' => 'scroll-text', 'group' => 'admin', 'ability' => fn (User $u) => $u->can('viewAny', AuditLog::class), 'active' => ['admin.audit-logs.*']],
-            ['key' => 'admin.compliance', 'route' => 'admin.compliance.index', 'label' => 'متطلبات الامتثال', 'icon' => 'shield-check', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
-            ['key' => 'admin.readiness', 'route' => 'admin.readiness.index', 'label' => 'قواعد الجاهزية', 'icon' => 'gauge', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
-            ['key' => 'admin.mfis', 'route' => 'admin.mfis.index', 'label' => 'مؤسسات التمويل الأصغر', 'icon' => 'landmark', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
-            ['key' => 'admin.knowledge', 'route' => 'ai.pages.knowledge.index', 'label' => 'إدارة قاعدة المعرفة', 'icon' => 'book-open', 'group' => 'admin', 'ability' => null],
+            ['key' => 'admin', 'route' => 'admin.index', 'label' => $label('admin'), 'icon' => 'settings', 'group' => 'admin', 'ability' => null],
+            ['key' => 'admin.users', 'route' => 'users.index', 'label' => $label('admin.users'), 'icon' => 'users', 'group' => 'admin', 'ability' => null, 'active' => ['users.*']],
+            ['key' => 'admin.audit-logs', 'route' => 'admin.audit-logs.index', 'label' => $label('admin.audit-logs'), 'icon' => 'scroll-text', 'group' => 'admin', 'ability' => fn (User $u) => $u->can('viewAny', AuditLog::class), 'active' => ['admin.audit-logs.*']],
+            ['key' => 'admin.compliance', 'route' => 'admin.compliance.index', 'label' => $label('admin.compliance'), 'icon' => 'shield-check', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
+            ['key' => 'admin.readiness', 'route' => 'admin.readiness.index', 'label' => $label('admin.readiness'), 'icon' => 'gauge', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
+            ['key' => 'admin.mfis', 'route' => 'admin.mfis.index', 'label' => $label('admin.mfis'), 'icon' => 'landmark', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
+            ['key' => 'admin.knowledge', 'route' => 'ai.pages.knowledge.index', 'label' => $label('admin.knowledge'), 'icon' => 'book-open', 'group' => 'admin', 'ability' => null],
 
-            ['key' => 'operations.security', 'route' => 'operations.security', 'label' => 'قائمة الأمان', 'icon' => 'shield', 'group' => 'operations', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::OPERATIONS_TECHNICAL)],
-            ['key' => 'operations.backups', 'route' => 'operations.backups', 'label' => 'النسخ الاحتياطي', 'icon' => 'database', 'group' => 'operations', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::OPERATIONS_TECHNICAL)],
-            ['key' => 'operations.data-control', 'route' => 'operations.data-control', 'label' => 'التحكم بالبيانات', 'icon' => 'lock', 'group' => 'operations', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::OPERATIONS_DATA_CONTROL)],
+            ['key' => 'operations.security', 'route' => 'operations.security', 'label' => $label('operations.security'), 'icon' => 'shield', 'group' => 'operations', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::OPERATIONS_TECHNICAL)],
+            ['key' => 'operations.backups', 'route' => 'operations.backups', 'label' => $label('operations.backups'), 'icon' => 'database', 'group' => 'operations', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::OPERATIONS_TECHNICAL)],
+            ['key' => 'operations.data-control', 'route' => 'operations.data-control', 'label' => $label('operations.data-control'), 'icon' => 'lock', 'group' => 'operations', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::OPERATIONS_DATA_CONTROL)],
 
-            ['key' => 'account', 'route' => 'account.show', 'label' => 'حسابي', 'icon' => 'user', 'group' => 'account', 'ability' => fn (User $u) => $u->isActive()],
-            ['key' => 'account.sessions', 'route' => 'account.sessions', 'label' => 'الجلسات', 'icon' => 'monitor', 'group' => 'account', 'ability' => fn (User $u) => $u->isActive()],
-            ['key' => 'account.two-factor', 'route' => 'two-factor.show', 'label' => 'التحقق بخطوتين', 'icon' => 'key-round', 'group' => 'account', 'ability' => null],
+            ['key' => 'account', 'route' => 'account.show', 'label' => $label('account'), 'icon' => 'user', 'group' => 'account', 'ability' => fn (User $u) => $u->isActive()],
+            ['key' => 'account.sessions', 'route' => 'account.sessions', 'label' => $label('account.sessions'), 'icon' => 'monitor', 'group' => 'account', 'ability' => fn (User $u) => $u->isActive()],
+            ['key' => 'account.two-factor', 'route' => 'two-factor.show', 'label' => $label('account.two-factor'), 'icon' => 'key-round', 'group' => 'account', 'ability' => null],
         ];
     }
 

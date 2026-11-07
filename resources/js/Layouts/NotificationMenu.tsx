@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { notificationHref, notificationIcon } from "../Components/Notifications/notificationDisplay";
 import { postJson } from "../Components/Ai/http";
 import { shortDate } from "../Components/Ai/aiShared";
+import { useT } from "../Hooks/useT";
 
 type RecentItem = {
     id: string;
@@ -23,10 +24,13 @@ export function NotificationMenu() {
         props: { auth },
         url,
     } = usePage();
+    const t = useT();
     const menu = useRef<HTMLDetailsElement>(null);
     const unread = auth.notifications?.unread_count ?? 0;
     const recent = auth.notifications?.recent ?? [];
     const badge = unread > 99 ? "99+" : String(unread);
+    const triggerAria =
+        unread > 0 ? t("shell.notifications_unread", { count: unread }) : t("shell.notifications");
 
     useEffect(() => {
         if (menu.current) menu.current.open = false;
@@ -65,7 +69,7 @@ export function NotificationMenu() {
         <details ref={menu} className="app-notification-menu">
             <summary
                 className="app-icon-button app-notification-menu__trigger"
-                aria-label={unread > 0 ? `الإشعارات، ${unread} غير مقروء` : "الإشعارات"}
+                aria-label={triggerAria}
             >
                 <i className="bi bi-bell" aria-hidden="true" />
                 {unread > 0 ? (
@@ -74,13 +78,17 @@ export function NotificationMenu() {
                     </span>
                 ) : null}
             </summary>
-            <div className="app-notification-menu__panel" role="menu" aria-label="قائمة الإشعارات">
+            <div className="app-notification-menu__panel" role="menu" aria-label={t("shell.notification_menu")}>
                 <div className="app-notification-menu__heading">
-                    <strong>الإشعارات</strong>
-                    {unread > 0 ? <span className="app-notification-menu__count">{unread} غير مقروء</span> : null}
+                    <strong>{t("shell.notifications")}</strong>
+                    {unread > 0 ? (
+                        <span className="app-notification-menu__count">
+                            {t("shell.unread_count", { count: unread })}
+                        </span>
+                    ) : null}
                 </div>
                 {recent.length === 0 ? (
-                    <p className="app-notification-menu__empty">لا توجد إشعارات بعد.</p>
+                    <p className="app-notification-menu__empty">{t("shell.no_notifications")}</p>
                 ) : (
                     <ul className="app-notification-menu__list">
                         {recent.map((item) => {
@@ -98,8 +106,10 @@ export function NotificationMenu() {
                                         </span>
                                         <span className="app-notification-menu__body">
                                             <span className="app-notification-menu__title">
-                                                {unreadItem ? <span className="visually-hidden">غير مقروء: </span> : null}
-                                                {item.data.title ?? "إشعار"}
+                                                {unreadItem ? (
+                                                    <span className="visually-hidden">{t("shell.notification_unread_prefix")}</span>
+                                                ) : null}
+                                                {item.data.title ?? t("shell.notification_default")}
                                             </span>
                                             {item.data.message ? (
                                                 <span className="app-notification-menu__message">{item.data.message}</span>
@@ -115,7 +125,7 @@ export function NotificationMenu() {
                     </ul>
                 )}
                 <Link href="/notifications/page" className="app-notification-menu__all">
-                    فتح صفحة الإشعارات
+                    {t("shell.view_all_notifications")}
                 </Link>
             </div>
         </details>

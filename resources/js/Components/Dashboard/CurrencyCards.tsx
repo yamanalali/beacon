@@ -1,4 +1,5 @@
 import type { CurrencyTotals, SmeDashboardKpis } from "../../types/dashboard";
+import { useT } from "../../Hooks/useT";
 import { changeLabel, currencyName, currencySymbol, formatMoneyIsolated, NO_PREVIOUS } from "../../lib/money";
 
 /** Server order is kept (default currency first); SYP is pinned first as well. Never converted between currencies. */
@@ -13,6 +14,7 @@ export function trendLabel(current: string | number | null | undefined, previous
 }
 
 function CurrencyCard({ cur, prev }: { cur: CurrencyTotals; prev: CurrencyTotals | undefined }) {
+    const t = useT();
     const c = cur.currency;
     const symbol = currencySymbol(c);
     const netTone = Number(cur.net) > 0 ? "is-net-up" : Number(cur.net) < 0 ? "is-net-down" : "";
@@ -28,27 +30,28 @@ function CurrencyCard({ cur, prev }: { cur: CurrencyTotals; prev: CurrencyTotals
                     <bdi dir="ltr">{symbol}</bdi>
                 </span>
                 <span className="sme-cc__count">
-                    <bdi dir="ltr">{cur.transaction_count}</bdi> معاملة
+                    <bdi dir="ltr">{cur.transaction_count}</bdi>{" "}
+                    {t("dashboard.sme.transactions_word", undefined, "معاملة")}
                 </span>
             </div>
 
             <p className={`sme-cc__net ${netTone}`}>
-                <span className="sme-cc__net-label">الصافي</span>
+                <span className="sme-cc__net-label">{t("dashboard.sme.net_label", undefined, "الصافي")}</span>
                 <strong data-testid="cc-net">
                     <bdi dir="ltr">{formatMoneyIsolated(cur.net, c)}</bdi>
                 </strong>
             </p>
             {trend ? <span className="sme-cc__trend">{trend}</span> : null}
 
-            <div className="sme-cc__split" role="group" aria-label="الدخل والمصروف">
+            <div className="sme-cc__split" role="group" aria-label={t("dashboard.sme.income_expense_aria", undefined, "الدخل والمصروف")}>
                 <div className="sme-cc__side is-in">
-                    <span>دخل</span>
+                    <span>{t("transactions.income", undefined, "دخل")}</span>
                     <strong data-testid="cc-income">
                         <bdi dir="ltr">{formatMoneyIsolated(cur.income_total, c)}</bdi>
                     </strong>
                 </div>
                 <div className="sme-cc__side is-out">
-                    <span>مصروف</span>
+                    <span>{t("transactions.expense", undefined, "مصروف")}</span>
                     <strong data-testid="cc-expense">
                         <bdi dir="ltr">{formatMoneyIsolated(cur.expense_total, c)}</bdi>
                     </strong>
@@ -60,11 +63,12 @@ function CurrencyCard({ cur, prev }: { cur: CurrencyTotals; prev: CurrencyTotals
 
 /** Per-currency wallet cards: net first, income|expense in one row. No previous-month spam. */
 export function CurrencyCards({ kpis }: { kpis: Pick<SmeDashboardKpis, "by_currency" | "unposted_count"> }) {
+    const t = useT();
     const current = orderCurrencies(kpis.by_currency?.current_month ?? []);
     const previous = kpis.by_currency?.previous_month ?? [];
     const unposted = kpis.unposted_count ?? 0;
     return (
-        <section aria-label="مؤشرات هذا الشهر حسب العملة" data-testid="currency-cards">
+        <section aria-label={t("dashboard.sme.currency_month_aria", undefined, "مؤشرات هذا الشهر حسب العملة")} data-testid="currency-cards">
             <div className="sme-cc-list">
                 {current.map((cur) => (
                     <CurrencyCard key={cur.currency} cur={cur} prev={previous.find((p) => p.currency === cur.currency)} />
@@ -73,7 +77,7 @@ export function CurrencyCards({ kpis }: { kpis: Pick<SmeDashboardKpis, "by_curre
             {unposted > 0 ? (
                 <p className="sme-cc__unposted" data-testid="unposted-line">
                     <i className="bi bi-hourglass-split" aria-hidden="true" />
-                    <bdi>{unposted}</bdi> فواتير ناطرة مراجعة
+                    <bdi>{unposted}</bdi> {t("dashboard.sme.unposted_review", undefined, "فواتير ناطرة مراجعة")}
                 </p>
             ) : null}
         </section>

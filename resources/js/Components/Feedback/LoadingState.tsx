@@ -1,4 +1,8 @@
-export function LoadingState({ label = 'جارٍ التحميل' }: { label?: string }) {
+import { useT } from "../../Hooks/useT";
+
+export function LoadingState({ label }: { label?: string }) {
+    const t = useT();
+    const text = label ?? t("common.loading", undefined, "جارٍ التحميل");
     return (
         <div className="d-flex align-items-center gap-2 py-3" role="status" aria-live="polite">
             <div
@@ -17,7 +21,7 @@ export function LoadingState({ label = 'جارٍ التحميل' }: { label?: st
                     color: 'var(--app-text, #1c1917)',
                 }}
             >
-                {label}
+                {text}
             </span>
         </div>
     );

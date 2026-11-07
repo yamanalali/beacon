@@ -1,6 +1,7 @@
 import { Head, usePage } from "@inertiajs/react";
 import { useEffect } from "react";
 import type React from "react";
+import { useT } from "../Hooks/useT";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { DesktopTopbar } from "./DesktopTopbar";
 import { MobileAppHeader } from "./MobileAppHeader";
@@ -14,6 +15,8 @@ export default function AppLayout({
     children: React.ReactNode;
 }) {
     const { locale, dir, flash } = usePage().props;
+    const t = useT();
+    const appName = t("common.app_name");
 
     useEffect(() => {
         document.documentElement.lang = locale;
@@ -22,9 +25,9 @@ export default function AppLayout({
 
     return (
         <div className="app-shell d-flex flex-column flex-lg-row min-vh-100" dir={dir} lang={locale}>
-            <Head title={`${title} | بيكون`} />
+            <Head title={`${title} | ${appName}`} />
             <a className="app-skip" href="#main-content">
-                تخطى إلى المحتوى
+                {t("common.skip_to_content")}
             </a>
             <DesktopSidebar />
             <div className="app-frame d-flex flex-column flex-grow-1">

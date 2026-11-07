@@ -42,9 +42,9 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'البريد الإلكتروني مطلوب.',
-            'email.email' => 'أدخل بريداً إلكترونياً صالحاً.',
-            'password.required' => 'كلمة المرور مطلوبة.',
+            'email.required' => ui('validation.email_required'),
+            'email.email' => ui('validation.email_invalid'),
+            'password.required' => ui('validation.password_required'),
         ];
     }
 
@@ -57,7 +57,7 @@ class LoginRequest extends FormRequest
         $credentials = ['email' => $canonical ?? '', 'password' => $this->input('password')];
         if (! Auth::attempt($credentials)) {
             RateLimiter::hit($this->throttleKey());
-            throw ValidationException::withMessages(['email' => 'بيانات الدخول غير صحيحة.']);
+            throw ValidationException::withMessages(['email' => ui('validation.login_failed')]);
         }
         $user = Auth::user();
 
@@ -66,7 +66,7 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => 'هذا الحساب موقوف',
+                'email' => ui('validation.account_suspended'),
             ]);
         }
 
@@ -86,7 +86,7 @@ class LoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => "تم تجاوز عدد محاولات الدخول. حاول مرة أخرى بعد {$seconds} ثانية.",
+            'email' => ui('validation.login_throttle', ['seconds' => $seconds]),
         ]);
     }
 

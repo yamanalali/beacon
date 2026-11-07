@@ -32,6 +32,6 @@ class AccessController extends Controller
             $audit->record($request->user(), 'user.permissions_updated', $locked, ['before' => $before, 'after' => $data['permissions']]);
         });
 
-        return back()->with('success', 'تم تحديث الصلاحيات وإنهاء الجلسات السابقة.');
+        return back()->with('success', ui('flash.access_permissions_updated'));
     }
 }

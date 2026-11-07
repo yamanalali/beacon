@@ -243,4 +243,43 @@ class TransactionTest extends TestCase
                 ->where('summary.remaining', '600.00')
                 ->where('summary.count', 2));
     }
+
+    public function test_show_page_exposes_invoice_pdf_url(): void
+    {
+        [$enterprise, $sme] = $this->enterpriseWithSme();
+        $this->actingAs($sme)->post(route('enterprises.transactions.store', $enterprise), $this->payload());
+        $t = FinancialTransaction::query()->sole();
+
+        $this->actingAs($sme)
+            ->get(route('transactions.show', $t))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Transactions/Show')
+                ->where('invoice_pdf_url', route('transactions.invoice.pdf', $t)));
+    }
+
+    public function test_sme_can_download_invoice_pdf(): void
+    {
+        [$enterprise, $sme] = $this->enterpriseWithSme();
+        $this->actingAs($sme)->post(route('enterprises.transactions.store', $enterprise), $this->payload());
+        $t = FinancialTransaction::query()->sole();
+
+        $this->actingAs($sme)
+            ->get(route('transactions.invoice.pdf', $t))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_other_sme_cannot_download_invoice_pdf(): void
+    {
+        [$enterprise, $sme] = $this->enterpriseWithSme();
+        $this->actingAs($sme)->post(route('enterprises.transactions.store', $enterprise), $this->payload());
+        $t = FinancialTransaction::query()->sole();
+
+        $other = User::factory()->create(['role' => UserRole::SmeUser]);
+
+        $this->actingAs($other)
+            ->get(route('transactions.invoice.pdf', $t))
+            ->assertForbidden();
+    }
 }

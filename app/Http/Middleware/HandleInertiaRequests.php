@@ -6,6 +6,8 @@ use App\Enums\UserRole;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Navigation\NavigationBuilder;
+use App\Support\Locale;
+use App\Support\UiTranslations;
 use BackedEnum;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -41,13 +43,14 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $locale = app()->getLocale();
+        $locale = Locale::normalize(app()->getLocale());
 
         return [
             ...parent::share($request),
             'locale' => $locale,
+            'dir' => Locale::direction($locale),
+            'translations' => fn () => UiTranslations::forLocale($locale),
             'offline_versions' => fn () => $request->user() ? \App\Support\OfflinePolicy::versions($request, true) : [],
-            'dir' => $locale === 'ar' ? 'rtl' : 'ltr',
             'auth' => [
                 'user' => $this->sharedUser($request),
                 // One boolean per sidebar key (NavigationBuilder: route middleware + policy/gate), plus record_transaction.

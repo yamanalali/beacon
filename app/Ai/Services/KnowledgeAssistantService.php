@@ -18,8 +18,6 @@ use Throwable;
  */
 class KnowledgeAssistantService
 {
-    public const AI_LABEL = 'اقتراح ذكي — يرجى مراجعته قبل الاعتماد';
-
     public function __construct(private readonly AiProvider $provider) {}
 
     /**
@@ -30,7 +28,7 @@ class KnowledgeAssistantService
         $articles = $this->retrieve($question);
 
         $result = match (true) {
-            $articles === [] => $this->unsupported('لا تتوفر لدينا إرشادات معتمدة تجيب عن هذا السؤال.'),
+            $articles === [] => $this->unsupported(ui('ai.assistant.no_approved_guidance')),
             default => $this->answer($question, $articles),
         };
 
@@ -125,7 +123,7 @@ class KnowledgeAssistantService
     private function answer(string $question, array $articles): array
     {
         if (! AiDataGuard::allows(AiDataGuard::ASSISTANT)) {
-            return $this->unsupported('المساعد الذكي غير متاح حالياً. يمكنك متابعة عملك بشكل طبيعي أو إرسال سؤالك لفريق بيكون.');
+            return $this->unsupported(ui('ai.assistant.unavailable'));
         }
 
         try {
@@ -133,12 +131,12 @@ class KnowledgeAssistantService
         } catch (AiUnavailableException|Throwable $e) {
             report($e);
 
-            return $this->unsupported('المساعد الذكي غير متاح حالياً. يمكنك متابعة عملك بشكل طبيعي أو إرسال سؤالك لفريق بيكون.')
+            return $this->unsupported(ui('ai.assistant.unavailable'))
                 + ['sources' => []];
         }
 
         if (! $answer->supported) {
-            return $this->unsupported('لا تتوفر لدينا إرشادات معتمدة تجيب عن هذا السؤال.');
+            return $this->unsupported(ui('ai.assistant.no_approved_guidance'));
         }
 
         $byId = array_column($articles, null, 'id');
@@ -152,7 +150,7 @@ class KnowledgeAssistantService
         return [
             'supported' => true,
             'ai_generated' => true,
-            'label' => self::AI_LABEL,
+            'label' => ui('ai.assistant.suggestion_label'),
             'answer' => $answer->text,
             'sources' => $sources,
             'can_escalate' => true,

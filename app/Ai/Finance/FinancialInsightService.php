@@ -20,7 +20,10 @@ use Throwable;
  */
 class FinancialInsightService
 {
-    public const AI_LABEL = 'اقتراح ذكي — يرجى مراجعته قبل الاعتماد';
+    public static function aiLabel(): string
+    {
+        return ui('ai.assistant.suggestion_label');
+    }
 
     public function __construct(
         private readonly AiProvider $provider,
@@ -36,12 +39,13 @@ class FinancialInsightService
         $report = $this->reports->generate('monthly', $enterprise, $from, $to)->toArray();
         $flags = $this->flags->flags($enterprise, $from, $to);
 
+        $insufficientRecords = ui('ai.insights.insufficient_records');
         $limitations = [];
         if ($flags !== []) {
-            $limitations[] = 'توجد عمليات تحتاج مراجعة (مكررة محتملة أو ناقصة البيانات)، وقد تقلّل من دقة هذه الملاحظات.';
+            $limitations[] = ui('ai.insights.review_flags_limit');
         }
         if (collect($report['sections'])->every(fn ($s) => $s['rows'] === [])) {
-            $limitations[] = 'لا توجد سجلات كافية في هذه الفترة.';
+            $limitations[] = $insufficientRecords;
         }
 
         $figures = [
@@ -54,7 +58,7 @@ class FinancialInsightService
 
         $explanation = null;
         $aiAvailable = true;
-        if (! in_array('لا توجد سجلات كافية في هذه الفترة.', $limitations, true)) {
+        if (! in_array($insufficientRecords, $limitations, true)) {
             if (! AiDataGuard::allows(AiDataGuard::INSIGHTS)) {
                 $aiAvailable = false;
             } else {
@@ -74,7 +78,7 @@ class FinancialInsightService
             'review_flags' => $flags,
             'ai_available' => $aiAvailable,
             'ai_generated' => $explanation !== null,
-            'label' => $explanation !== null ? self::AI_LABEL : null,
+            'label' => $explanation !== null ? self::aiLabel() : null,
             'explanation' => $explanation,
             'message' => $aiAvailable ? null : 'الشرح الذكي غير متاح حالياً، والأرقام أعلاه صحيحة ومحسوبة من سجلاتك.',
         ];

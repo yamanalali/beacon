@@ -22,6 +22,8 @@ class DemoUsersSeeder extends Seeder
                 'role' => UserRole::from($account['role']),
                 'is_active' => true,
                 'email_verified_at' => $user->email_verified_at ?? now(),
+                // Demo accounts skip the signature gate so seed logins stay usable.
+                'signature_skipped_at' => $user->signature_skipped_at ?? now(),
             ])->save();
         }
     }

@@ -26,7 +26,7 @@ class CurrencyController extends Controller
         $currency = Currency::query()->create($data + ['enabled' => true]);
         $audit->record($request->user(), 'currency.created', $currency, $data);
 
-        return back()->with('success', 'تمت إضافة العملة.');
+        return back()->with('success', ui('flash.currency_added'));
     }
 
     public function update(Request $request, Currency $currency, Currencies $catalog, RecordAuditLog $audit)
@@ -45,6 +45,6 @@ class CurrencyController extends Controller
             $audit->record($request->user(), 'currency.updated', $currency, ['before' => $before, 'after' => $data]);
         });
 
-        return back()->with('success', 'تم تحديث العملة. تبقى السجلات السابقة محفوظة.');
+        return back()->with('success', ui('flash.currency_updated'));
     }
 }

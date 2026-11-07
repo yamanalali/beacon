@@ -1,6 +1,7 @@
 import { useForm } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
+import { useT } from '../../Hooks/useT';
 import { PageHeader } from '../../Components/Common/PageHeader';
 import { SectionCard } from '../../Components/Common/SectionCard';
 import { TextInput } from '../../Components/Forms/TextInput';
@@ -25,12 +26,6 @@ type EnterpriseProfile = {
     progress_summary: string | null;
 };
 
-const locations = [
-    { value: 'damascus', label: 'دمشق' },
-    { value: 'rural_damascus', label: 'ريف دمشق' },
-    { value: 'daraa', label: 'درعا' },
-];
-
 function text(value: string | number | null | undefined): string {
     if (value === null || value === undefined) {
         return '';
@@ -40,6 +35,12 @@ function text(value: string | number | null | undefined): string {
 }
 
 export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) {
+    const t = useT();
+    const locations = [
+        { value: 'damascus', label: t('smes.location.damascus', undefined, 'دمشق') },
+        { value: 'rural_damascus', label: t('smes.location.rural_damascus', undefined, 'ريف دمشق') },
+        { value: 'daraa', label: t('smes.location.daraa', undefined, 'درعا') },
+    ];
     const form = useForm({
         business_name: enterprise.business_name,
         sector: text(enterprise.sector),
@@ -65,22 +66,22 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
     }
 
     return (
-        <AppLayout title="تعديل الملف">
+        <AppLayout title={t('smes.edit_title', undefined, 'تعديل الملف')}>
             <div className="app-page">
-                <PageHeader title="تعديل الملف" description={enterprise.business_name} />
+                <PageHeader title={t('smes.edit_title', undefined, 'تعديل الملف')} description={enterprise.business_name} />
                 <form onSubmit={submit} style={{ maxWidth: '42rem' }} className="d-flex flex-column gap-3">
-                    <SectionCard title="المعلومات الأساسية">
+                    <SectionCard title={t('smes.basic_info', undefined, 'المعلومات الأساسية')}>
                         <TextInput
                             id="business_name"
                             name="business_name"
-                            label="اسم المنشأة"
+                            label={t('smes.business_name', undefined, 'اسم المنشأة')}
                             value={form.data.business_name}
                             error={form.errors.business_name}
                             onChange={(value) => form.setData('business_name', value)}
                         />
                         <div className="mb-3">
                             <label htmlFor="location" className="form-label fw-semibold">
-                                الموقع
+                                {t('smes.location', undefined, 'الموقع')}
                             </label>
                             <select
                                 id="location"
@@ -105,7 +106,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                         <TextInput
                             id="contact_name"
                             name="contact_name"
-                            label="اسم جهة الاتصال"
+                            label={t('smes.contact_name', undefined, 'اسم جهة الاتصال')}
                             value={form.data.contact_name}
                             error={form.errors.contact_name}
                             onChange={(value) => form.setData('contact_name', value)}
@@ -113,7 +114,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                         <TextInput
                             id="contact_phone"
                             name="contact_phone"
-                            label="هاتف التواصل"
+                            label={t('smes.contact_phone', undefined, 'هاتف التواصل')}
                             value={form.data.contact_phone}
                             error={form.errors.contact_phone}
                             onChange={(value) => form.setData('contact_phone', value)}
@@ -122,7 +123,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                             id="contact_email"
                             name="contact_email"
                             type="email"
-                            label="البريد الإلكتروني"
+                            label={t('smes.contact_email', undefined, 'البريد الإلكتروني')}
                             value={form.data.contact_email}
                             error={form.errors.contact_email}
                             onChange={(value) => form.setData('contact_email', value)}
@@ -130,18 +131,18 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                         <TextInput
                             id="owner_name"
                             name="owner_name"
-                            label="اسم المالك"
+                            label={t('smes.owner_name', undefined, 'اسم المالك')}
                             value={form.data.owner_name}
                             error={form.errors.owner_name}
                             onChange={(value) => form.setData('owner_name', value)}
                         />
                     </SectionCard>
 
-                    <SectionCard title="تفاصيل إضافية">
+                    <SectionCard title={t('smes.additional_details', undefined, 'تفاصيل إضافية')}>
                         <TextInput
                             id="sector"
                             name="sector"
-                            label="القطاع"
+                            label={t('smes.sector', undefined, 'القطاع')}
                             value={form.data.sector}
                             error={form.errors.sector}
                             onChange={(value) => form.setData('sector', value)}
@@ -150,7 +151,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                             id="founding_date"
                             name="founding_date"
                             type="date"
-                            label="تاريخ التأسيس"
+                            label={t('smes.founding_date', undefined, 'تاريخ التأسيس')}
                             value={form.data.founding_date}
                             error={form.errors.founding_date}
                             onChange={(value) => form.setData('founding_date', value)}
@@ -159,7 +160,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                             id="employee_count"
                             name="employee_count"
                             type="number"
-                            label="عدد العاملين"
+                            label={t('smes.employee_count', undefined, 'عدد العاملين')}
                             value={form.data.employee_count}
                             error={form.errors.employee_count}
                             onChange={(value) => form.setData('employee_count', value)}
@@ -168,8 +169,8 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                             id="female_employee_count"
                             name="female_employee_count"
                             type="number"
-                            label="عدد العاملات"
-                            help="حقل اختياري للتخزين فقط، وليس إطاراً رسمياً."
+                            label={t('smes.female_employees', undefined, 'عدد العاملات')}
+                            help={t('smes.gender_field_help', undefined, 'حقل اختياري للتخزين فقط، وليس إطاراً رسمياً.')}
                             value={form.data.female_employee_count}
                             error={form.errors.female_employee_count}
                             onChange={(value) => form.setData('female_employee_count', value)}
@@ -178,8 +179,8 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                             id="male_employee_count"
                             name="male_employee_count"
                             type="number"
-                            label="عدد العاملين الذكور"
-                            help="حقل اختياري للتخزين فقط، وليس إطاراً رسمياً."
+                            label={t('smes.male_employees', undefined, 'عدد العاملين الذكور')}
+                            help={t('smes.gender_field_help', undefined, 'حقل اختياري للتخزين فقط، وليس إطاراً رسمياً.')}
                             value={form.data.male_employee_count}
                             error={form.errors.male_employee_count}
                             onChange={(value) => form.setData('male_employee_count', value)}
@@ -187,7 +188,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                         <TextInput
                             id="registration_status"
                             name="registration_status"
-                            label="حالة التسجيل"
+                            label={t('smes.registration_status', undefined, 'حالة التسجيل')}
                             value={form.data.registration_status}
                             error={form.errors.registration_status}
                             onChange={(value) => form.setData('registration_status', value)}
@@ -195,14 +196,14 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                         <TextInput
                             id="programme_stage"
                             name="programme_stage"
-                            label="مرحلة البرنامج"
+                            label={t('smes.programme_stage', undefined, 'مرحلة البرنامج')}
                             value={form.data.programme_stage}
                             error={form.errors.programme_stage}
                             onChange={(value) => form.setData('programme_stage', value)}
                         />
                         <div className="mb-3">
                             <label htmlFor="progress_summary" className="form-label fw-semibold">
-                                ملخص التقدم
+                                {t('smes.progress_summary', undefined, 'ملخص التقدم')}
                             </label>
                             <textarea
                                 id="progress_summary"
@@ -216,9 +217,9 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                         </div>
                         <div className="mb-3">
                             <label htmlFor="initial_digital_readiness_note" className="form-label fw-semibold">
-                                ملاحظة الجاهزية الرقمية الأولية
+                                {t('smes.digital_readiness_note', undefined, 'ملاحظة الجاهزية الرقمية الأولية')}
                             </label>
-                            <p className="form-text">هذه ملاحظة وليست درجة</p>
+                            <p className="form-text">{t('smes.note_not_score', undefined, 'هذه ملاحظة وليست درجة')}</p>
                             <textarea
                                 id="initial_digital_readiness_note"
                                 name="initial_digital_readiness_note"
@@ -231,7 +232,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                         </div>
                         <div className="mb-3">
                             <label htmlFor="initial_financial_readiness_note" className="form-label fw-semibold">
-                                ملاحظة الجاهزية المالية الأولية
+                                {t('smes.financial_readiness_note', undefined, 'ملاحظة الجاهزية المالية الأولية')}
                             </label>
                             <textarea
                                 id="initial_financial_readiness_note"
@@ -244,7 +245,7 @@ export default function Edit({ enterprise }: { enterprise: EnterpriseProfile }) 
                             />
                         </div>
                         <button type="submit" className="btn btn-primary" style={{ minHeight: '48px' }} disabled={form.processing}>
-                            حفظ الملف
+                            {t('smes.save_profile', undefined, 'حفظ الملف')}
                         </button>
                     </SectionCard>
                 </form>

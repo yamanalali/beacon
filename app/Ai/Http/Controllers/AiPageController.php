@@ -105,7 +105,7 @@ class AiPageController extends Controller
 
         return redirect()
             ->route('ai.pages.escalations.show', $escalation)
-            ->with('success', 'تم حفظ الرد وإشعار صاحب السؤال.');
+            ->with('success', ui('flash.ai_escalation_reply_saved'));
     }
 
     public function published(Request $request): Response

@@ -34,32 +34,43 @@ abstract class ReadinessAdminRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'required' => 'حقل :attribute مطلوب.',
-            'string' => 'حقل :attribute يجب أن يكون نصاً.',
-            'numeric' => 'حقل :attribute يجب أن يكون رقماً.',
-            'integer' => 'حقل :attribute يجب أن يكون رقماً صحيحاً.',
-            'boolean' => 'حقل :attribute يجب أن يكون نعم أو لا.',
-            'array' => 'حقل :attribute يجب أن يكون قائمة.',
-            'distinct' => 'حقل :attribute مكرر.',
-            'min' => 'حقل :attribute أصغر من المسموح.',
-            'max' => 'حقل :attribute أكبر من المسموح.',
-            'alpha_dash' => 'الرمز يقبل الحروف اللاتينية والأرقام و - و _ فقط.',
-            'unique' => 'هذا الرمز مستخدم في نفس القواعد.',
-            'in' => 'قيمة :attribute غير مقبولة.',
-            'not_in' => 'قيمة :attribute محجوزة.',
-            'exists' => 'العنصر المحدد غير موجود في هذه القواعد.',
-            'lte' => 'الحد الأدنى يجب ألا يتجاوز الحد الأعلى.',
-            'prohibited' => 'لا يُقبل حقل :attribute هنا.',
+            'required' => ui('validation.attribute.required'),
+            'string' => ui('validation.attribute.string'),
+            'numeric' => ui('validation.attribute.numeric'),
+            'integer' => ui('validation.attribute.integer'),
+            'boolean' => ui('validation.attribute.boolean'),
+            'array' => ui('validation.attribute.array'),
+            'distinct' => ui('validation.attribute.distinct'),
+            'min' => ui('validation.attribute.min'),
+            'max' => ui('validation.attribute.max'),
+            'alpha_dash' => ui('validation.attribute.alpha_dash'),
+            'unique' => ui('validation.attribute.unique'),
+            'in' => ui('validation.attribute.in'),
+            'not_in' => ui('validation.attribute.not_in'),
+            'exists' => ui('validation.attribute.exists'),
+            'lte' => ui('validation.attribute.lte'),
+            'prohibited' => ui('validation.attribute.prohibited'),
         ];
     }
 
     public function attributes(): array
     {
         return [
-            'code' => 'الرمز', 'label_ar' => 'الاسم', 'weight' => 'الوزن', 'min_score' => 'الحد الأدنى',
-            'sort_order' => 'الترتيب', 'type' => 'النوع', 'config' => 'الإعدادات', 'min' => 'من', 'max' => 'إلى',
-            'color_token' => 'اللون', 'ids' => 'الترتيب', 'answers' => 'الإجابات', 'definition' => 'التعريف',
-            'readiness_pillar_id' => 'المحور', 'missing_data_treatment' => 'معالجة البيانات الناقصة',
+            'code' => ui('validation.attr.code'),
+            'label_ar' => ui('validation.attr.label_ar'),
+            'weight' => ui('validation.attr.weight'),
+            'min_score' => ui('validation.attr.min_score'),
+            'sort_order' => ui('validation.attr.sort_order'),
+            'type' => ui('validation.attr.type'),
+            'config' => ui('validation.attr.config'),
+            'min' => ui('validation.attr.min'),
+            'max' => ui('validation.attr.max'),
+            'color_token' => ui('validation.attr.color_token'),
+            'ids' => ui('validation.attr.ids'),
+            'answers' => ui('validation.attr.answers'),
+            'definition' => ui('validation.attr.definition'),
+            'readiness_pillar_id' => ui('validation.attr.readiness_pillar_id'),
+            'missing_data_treatment' => ui('validation.attr.missing_data_treatment'),
         ];
     }
 }

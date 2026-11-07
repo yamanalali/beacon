@@ -1,10 +1,12 @@
 import { router } from "@inertiajs/react";
+import { useT } from "../../Hooks/useT";
 import { EmptyState } from "../Feedback/EmptyState";
 import type { DocumentRow } from "../../types/bookkeeping";
 
 export function DocumentList({ documents, canExtract = false }: { documents: DocumentRow[]; canExtract?: boolean }) {
+    const t = useT();
     if (documents.length === 0) {
-        return <EmptyState title="لا توجد مستندات بعد" />;
+        return <EmptyState title={t("documents.empty_list", undefined, "لا توجد مستندات بعد")} />;
     }
 
     return (
@@ -15,18 +17,18 @@ export function DocumentList({ documents, canExtract = false }: { documents: Doc
                     <div className="flex-grow-1">
                         <a href={`/documents/${doc.public_id}`} className="mb-0 fw-semibold d-block">{doc.title}</a>
                         <p className="mb-0 small text-body-secondary">
-                            {doc.uploaded_at} · {doc.size_kb} ك.ب{doc.uploader_name ? ` · ${doc.uploader_name}` : ""}
+                            {doc.uploaded_at} · {doc.size_kb} {t("documents.size_kb_unit", undefined, "ك.ب")}{doc.uploader_name ? ` · ${doc.uploader_name}` : ""}
                             {doc.transaction_public_id ? (
                                 <>
                                     {" · "}
-                                    <a href={`/transactions/${doc.transaction_public_id}`}>مرتبط بعملية</a>
+                                    <a href={`/transactions/${doc.transaction_public_id}`}>{t("documents.linked_transaction", undefined, "مرتبط بعملية")}</a>
                                 </>
                             ) : null}
                         </p>
                     </div>
                     {doc.is_previewable ? (
                         <a className="btn btn-outline-primary" style={{ minHeight: "44px" }} href={`/documents/${doc.public_id}/preview`} target="_blank" rel="noopener noreferrer">
-                            عرض
+                            {t("common.view", undefined, "عرض")}
                         </a>
                     ) : null}
                     {canExtract && !doc.transaction_public_id ? (
@@ -36,11 +38,11 @@ export function DocumentList({ documents, canExtract = false }: { documents: Doc
                             style={{ minHeight: "44px" }}
                             onClick={() => router.post(`/documents/${doc.public_id}/extractions`)}
                         >
-                            تسجيل كعملية
+                            {t("documents.record_as_transaction", undefined, "تسجيل كعملية")}
                         </button>
                     ) : null}
                     {doc.can_download !== false ? <a className="btn btn-outline-secondary" style={{ minHeight: "44px" }} href={`/documents/${doc.public_id}/download`}>
-                        تنزيل
+                        {t("common.download", undefined, "تنزيل")}
                     </a> : null}
                 </li>
             ))}

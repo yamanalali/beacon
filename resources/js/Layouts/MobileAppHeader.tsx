@@ -1,6 +1,7 @@
 import { Link, usePage } from "@inertiajs/react";
 import { Brand } from "../Components/Common/Brand";
 import { ConnectionStatus } from "../Components/Feedback/ConnectionStatus";
+import { useT } from "../Hooks/useT";
 import { NotificationMenu } from "./NotificationMenu";
 import { UserMenu } from "./UserMenu";
 
@@ -12,13 +13,15 @@ export function MobileAppHeader({
     showBack?: boolean;
 }) {
     const { dir } = usePage().props;
+    const t = useT();
+
     return (
         <header className="app-mobile-header d-flex d-lg-none">
             {showBack ? (
                 <button
                     type="button"
                     className="app-icon-button"
-                    aria-label="رجوع"
+                    aria-label={t("common.back")}
                     onClick={() => window.history.back()}
                 >
                     <i
@@ -30,7 +33,7 @@ export function MobileAppHeader({
                 <Link
                     href="/"
                     className="app-mobile-brand"
-                    aria-label="بيكون، الرئيسية"
+                    aria-label={t("shell.brand_home")}
                 >
                     <Brand compact />
                 </Link>

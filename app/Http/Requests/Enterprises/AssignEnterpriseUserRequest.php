@@ -29,8 +29,8 @@ class AssignEnterpriseUserRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'user_id.required' => 'اختر مستخدماً.',
-            'user_id.exists' => 'المستخدم غير موجود.',
+            'user_id.required' => ui('validation.user_required'),
+            'user_id.exists' => ui('validation.user_exists'),
         ];
     }
 }

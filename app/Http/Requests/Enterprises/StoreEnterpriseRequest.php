@@ -33,12 +33,12 @@ class StoreEnterpriseRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'business_name.required' => 'اسم المنشأة مطلوب.',
-            'location.required' => 'الموقع مطلوب.',
-            'location.in' => 'اختر موقعاً من مناطق البرنامج.',
-            'contact_phone.required_without' => 'أدخل رقم الهاتف أو البريد الإلكتروني.',
-            'contact_email.required_without' => 'أدخل رقم الهاتف أو البريد الإلكتروني.',
-            'contact_email.email' => 'البريد الإلكتروني غير صالح.',
+            'business_name.required' => ui('validation.business_name_required'),
+            'location.required' => ui('validation.location_required'),
+            'location.in' => ui('validation.location_in'),
+            'contact_phone.required_without' => ui('validation.contact_phone_or_email'),
+            'contact_email.required_without' => ui('validation.contact_phone_or_email'),
+            'contact_email.email' => ui('validation.contact_email_invalid'),
         ];
     }
 }

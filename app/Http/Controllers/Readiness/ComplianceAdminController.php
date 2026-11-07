@@ -59,7 +59,7 @@ class ComplianceAdminController extends Controller
             $this->audit->record($actor, 'compliance.requirement_created', $requirement, ['version_id' => $version->id, 'code' => $requirement->code]);
         });
 
-        return redirect()->route('admin.compliance.index')->with('success', 'تم إنشاء المتطلب كمسودة.');
+        return redirect()->route('admin.compliance.index')->with('success', ui('flash.compliance_requirement_draft_created'));
     }
 
     /** New draft version (edit / update guidance / effective dates) - never edits a published version. */
@@ -110,7 +110,7 @@ class ComplianceAdminController extends Controller
             'change_summary' => $version->change_summary,
         ]);
 
-        return redirect()->route('admin.compliance.index')->with('success', 'تم نشر النسخة.');
+        return redirect()->route('admin.compliance.index')->with('success', ui('flash.compliance_version_published'));
     }
 
     public function deactivate(Request $request, ComplianceRequirement $requirement): RedirectResponse

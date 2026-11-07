@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import AppLayout from "../../Layouts/AppLayout";
+import { useT } from "../../Hooks/useT";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { StatCard } from "../../Components/Common/StatCard";
 import { SectionCard } from "../../Components/Common/SectionCard";
@@ -17,6 +18,7 @@ type Props = { ruleSets: AdminRuleSet[]; treatments: Record<string, string>; com
 const tone = (s: string) => (s === "draft" ? "warning" : s === "published" ? "success" : "neutral");
 
 function NewDraftForm({ hasDraft }: { hasDraft: boolean }) {
+    const t = useT();
     const [name, setName] = useState("");
     const [summary, setSummary] = useState("");
     const [copy, setCopy] = useState(true);
@@ -35,20 +37,21 @@ function NewDraftForm({ hasDraft }: { hasDraft: boolean }) {
                 setMessage(Object.keys(r.errors).length ? null : r.message);
             }}
         >
-            {hasDraft ? <div className="alert alert-info py-2" role="status">توجد مسودة مفتوحة. انشرها أو احذفها قبل إنشاء مسودة جديدة.</div> : null}
+            {hasDraft ? <div className="alert alert-info py-2" role="status">{t("readiness.admin.open_draft", undefined, "توجد مسودة مفتوحة. انشرها أو احذفها قبل إنشاء مسودة جديدة.")}</div> : null}
             {message ? <div className="alert alert-danger py-2" role="alert">{message}</div> : null}
-            <TextInput id="rs-name" name="name_ar" label="اسم مجموعة القواعد" value={name} onChange={setName} error={errors.name_ar} />
-            <TextInput id="rs-summary" name="change_summary" label="ملخص التغيير (اختياري)" value={summary} onChange={setSummary} error={errors.change_summary} />
+            <TextInput id="rs-name" name="name_ar" label={t("readiness.admin.ruleset_name", undefined, "اسم مجموعة القواعد")} value={name} onChange={setName} error={errors.name_ar} />
+            <TextInput id="rs-summary" name="change_summary" label={t("readiness.admin.change_summary", undefined, "ملخص التغيير (اختياري)")} value={summary} onChange={setSummary} error={errors.change_summary} />
             <div className="form-check mb-3">
                 <input id="rs-copy" type="checkbox" className="form-check-input" checked={copy} onChange={(e) => setCopy(e.target.checked)} />
-                <label className="form-check-label" htmlFor="rs-copy">ابدأ بنسخة من القواعد المعتمدة الحالية</label>
+                <label className="form-check-label" htmlFor="rs-copy">{t("readiness.admin.copy_current", undefined, "ابدأ بنسخة من القواعد المعتمدة الحالية")}</label>
             </div>
-            <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>إنشاء مسودة</button>
+            <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>{t("readiness.admin.create_draft", undefined, "إنشاء مسودة")}</button>
         </form>
     );
 }
 
 function TemplatesCard({ hasDraft }: { hasDraft: boolean }) {
+    const t = useT();
     const fileRef = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
@@ -64,26 +67,26 @@ function TemplatesCard({ hasDraft }: { hasDraft: boolean }) {
     }
 
     return (
-        <SectionCard title="قوالب وأمثلة">
+        <SectionCard title={t("readiness.admin.templates", undefined, "قوالب وأمثلة")}>
             <p className="small text-body-secondary">
-                نزّل مثالاً جاهزاً أو قالباً فارغاً في Excel، عدّله مع فريقك، ثم ارفعه هنا ليصبح مسودة. المثال تعليمي فقط وليس قواعد معتمدة من بيكون.
+                {t("readiness.admin.templates_hint", undefined, "نزّل مثالاً جاهزاً أو قالباً فارغاً في Excel، عدّله مع فريقك، ثم ارفعه هنا ليصبح مسودة. المثال تعليمي فقط وليس قواعد معتمدة من بيكون.")}
             </p>
             <div className="d-flex flex-wrap gap-2 mb-3">
                 <a className="btn btn-outline-primary" href="/admin/readiness/templates/excel-example" download>
                     <i className="bi bi-file-earmark-excel me-1" aria-hidden="true" />
-                    مثال Excel معبأ
+                    {t("readiness.admin.excel_example", undefined, "مثال Excel معبأ")}
                 </a>
                 <a className="btn btn-outline-primary" href="/admin/readiness/templates/excel-blank" download>
                     <i className="bi bi-file-earmark-spreadsheet me-1" aria-hidden="true" />
-                    قالب Excel فارغ
+                    {t("readiness.admin.excel_blank", undefined, "قالب Excel فارغ")}
                 </a>
                 <a className="btn btn-outline-primary" href="/admin/readiness/templates/json-example" download>
                     <i className="bi bi-filetype-json me-1" aria-hidden="true" />
-                    مثال JSON للاستيراد
+                    {t("readiness.admin.json_example", undefined, "مثال JSON للاستيراد")}
                 </a>
             </div>
             {hasDraft ? (
-                <div className="alert alert-info py-2 mb-0" role="status">انشر المسودة الحالية أو احذفها قبل استيراد ملف جديد.</div>
+                <div className="alert alert-info py-2 mb-0" role="status">{t("readiness.admin.import_blocked", undefined, "انشر المسودة الحالية أو احذفها قبل استيراد ملف جديد.")}</div>
             ) : (
                 <>
                     <input
@@ -91,7 +94,7 @@ function TemplatesCard({ hasDraft }: { hasDraft: boolean }) {
                         type="file"
                         className="d-none"
                         accept=".xlsx,.xlsm,application/json,.json"
-                        aria-label="ملف قواعد Excel أو JSON"
+                        aria-label={t("readiness.admin.import_file_label", undefined, "ملف قواعد Excel أو JSON")}
                         onChange={(e) => {
                             const f = e.target.files?.[0];
                             if (f) void importFile(f);
@@ -100,7 +103,7 @@ function TemplatesCard({ hasDraft }: { hasDraft: boolean }) {
                     />
                     <button type="button" className="btn btn-primary" style={{ minHeight: "44px" }} disabled={busy} onClick={() => fileRef.current?.click()}>
                         {busy ? <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" /> : <i className="bi bi-upload me-1" aria-hidden="true" />}
-                        استيراد Excel أو JSON
+                        {t("readiness.admin.import", undefined, "استيراد Excel أو JSON")}
                     </button>
                     {message ? <div className="alert alert-danger py-2 mt-3 mb-0" role="alert">{message}</div> : null}
                 </>
@@ -110,6 +113,7 @@ function TemplatesCard({ hasDraft }: { hasDraft: boolean }) {
 }
 
 export default function Admin({ ruleSets }: Props) {
+    const t = useT();
     const initial = ruleSets.find((s) => s.status === "draft") ?? ruleSets.find((s) => s.status === "published") ?? ruleSets[0];
     const [selectedId, setSelectedId] = useState<number | null>(initial?.id ?? null);
     const selected = ruleSets.find((s) => s.id === selectedId) ?? initial ?? null;
@@ -118,19 +122,19 @@ export default function Admin({ ruleSets }: Props) {
     const published = ruleSets.filter((s) => s.status === "published").length;
 
     return (
-        <AppLayout title="قواعد الجاهزية">
+        <AppLayout title={t("readiness.admin.title", undefined, "قواعد الجاهزية")}>
             <div className="app-page d-flex flex-column gap-3">
-            <PageHeader title="قواعد الجاهزية" description="ابنِ المسودة، راجع المعاينة، ثم اعتمد النسخة. النسخ المعتمدة تبقى مجمّدة، والتقييمات السابقة تحتفظ بنسختها." />
+            <PageHeader title={t("readiness.admin.title", undefined, "قواعد الجاهزية")} description={t("readiness.admin.description", undefined, "ابنِ المسودة، راجع المعاينة، ثم اعتمد النسخة. النسخ المعتمدة تبقى مجمّدة، والتقييمات السابقة تحتفظ بنسختها.")} />
             <div className="row g-3">
-                <div className="col-6 col-md-3"><StatCard label="النسخ" value={String(ruleSets.length)} icon="bi-layers" /></div>
-                <div className="col-6 col-md-3"><StatCard label="معتمدة" value={String(published)} hint="مجمّدة" icon="bi-shield-check" tone="blue" /></div>
-                <div className="col-12 col-md-6"><StatCard label="الخطوة التالية" value={hasDraft ? "مراجعة المسودة" : "إنشاء مسودة"} hint={hasDraft ? "انشرها أو احذفها قبل مسودة جديدة" : "ابدأ من القواعد المعتمدة الحالية"} icon="bi-signpost" tone="amber" /></div>
+                <div className="col-6 col-md-3"><StatCard label={t("readiness.admin.versions", undefined, "النسخ")} value={String(ruleSets.length)} icon="bi-layers" /></div>
+                <div className="col-6 col-md-3"><StatCard label={t("readiness.admin.published", undefined, "معتمدة")} value={String(published)} hint={t("readiness.admin.frozen", undefined, "مجمّدة")} icon="bi-shield-check" tone="blue" /></div>
+                <div className="col-12 col-md-6"><StatCard label={t("readiness.admin.next_step", undefined, "الخطوة التالية")} value={hasDraft ? t("readiness.admin.review_draft", undefined, "مراجعة المسودة") : t("readiness.admin.create_draft", undefined, "إنشاء مسودة")} hint={hasDraft ? t("readiness.admin.draft_hint", undefined, "انشرها أو احذفها قبل مسودة جديدة") : t("readiness.admin.copy_current", undefined, "ابدأ من القواعد المعتمدة الحالية")} icon="bi-signpost" tone="amber" /></div>
             </div>
             <div className="row g-3">
                 <div className="col-12 col-lg-3 d-flex flex-column gap-3">
-                    <SectionCard title="النسخ">
+                    <SectionCard title={t("readiness.admin.versions", undefined, "النسخ")}>
                         {ruleSets.length === 0 ? (
-                            <EmptyState title="لا توجد قواعد بعد" description="أنشئ مسودة أولى لبدء إعداد مصفوفة التقييم." />
+                            <EmptyState title={t("readiness.admin.empty", undefined, "لا توجد قواعد بعد")} description={t("readiness.admin.empty_hint", undefined, "أنشئ مسودة أولى لبدء إعداد مصفوفة التقييم.")} />
                         ) : (
                             <ul className="list-unstyled d-flex flex-column gap-2 mb-0">
                                 {ruleSets.map((s) => (
@@ -147,7 +151,7 @@ export default function Admin({ ruleSets }: Props) {
                             </ul>
                         )}
                     </SectionCard>
-                    <SectionCard title="مسودة جديدة"><NewDraftForm hasDraft={hasDraft} /></SectionCard>
+                    <SectionCard title={t("readiness.admin.new_draft_section", undefined, "مسودة جديدة")}><NewDraftForm hasDraft={hasDraft} /></SectionCard>
                     <TemplatesCard hasDraft={hasDraft} />
                 </div>
                 <div className="col-12 col-lg-9">

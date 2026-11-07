@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useT } from "../../Hooks/useT";
 import type { Criterion, Pillar, ScoreBand } from "../../types/readiness";
 import { SectionCard } from "../Common/SectionCard";
 import { StatusBadge } from "../Feedback/StatusBadge";
@@ -35,30 +36,32 @@ function useDragList(onMove: (from: number, to: number) => void) {
 }
 
 function MoveButtons({ index, count, onMove, label }: { index: number; count: number; onMove: (from: number, to: number) => void; label: string }) {
+    const tr = useT();
     return (
         <span className="d-inline-flex gap-1">
-            <button type="button" className="app-icon-button" aria-label={`نقل ${label} للأعلى`} disabled={index === 0} onClick={() => onMove(index, index - 1)}><i className="bi bi-arrow-up" aria-hidden="true" /></button>
-            <button type="button" className="app-icon-button" aria-label={`نقل ${label} للأسفل`} disabled={index === count - 1} onClick={() => onMove(index, index + 1)}><i className="bi bi-arrow-down" aria-hidden="true" /></button>
+            <button type="button" className="app-icon-button" aria-label={tr("readiness.builder.move_up", { label }, `نقل ${label} للأعلى`)} disabled={index === 0} onClick={() => onMove(index, index - 1)}><i className="bi bi-arrow-up" aria-hidden="true" /></button>
+            <button type="button" className="app-icon-button" aria-label={tr("readiness.builder.move_down", { label }, `نقل ${label} للأسفل`)} disabled={index === count - 1} onClick={() => onMove(index, index + 1)}><i className="bi bi-arrow-down" aria-hidden="true" /></button>
         </span>
     );
 }
 
 function CriteriaList({ criteria, readOnly, onEdit, onMove, onDelete }: { criteria: Criterion[]; readOnly: boolean; onEdit: (c: Criterion) => void; onMove: (from: number, to: number) => void; onDelete: (c: Criterion) => void }) {
+    const tr = useT();
     const drag = useDragList(onMove);
-    if (criteria.length === 0) return <p className="text-muted mb-0">لا توجد معايير في هذا المحور.</p>;
+    if (criteria.length === 0) return <p className="text-muted mb-0">{tr("readiness.builder.no_criteria", undefined, "لا توجد معايير في هذا المحور.")}</p>;
     return (
         <ul className="list-unstyled d-flex flex-column gap-2 mb-0">
             {criteria.map((c, i) => (
                 <li key={c.id} className="app-mobile-record py-2" data-testid="criterion-row" {...(readOnly ? {} : drag(i))}>
                     <div className="d-flex flex-wrap align-items-center gap-2">
                         {!readOnly ? <i className="bi bi-grip-vertical text-muted" aria-hidden="true" style={{ cursor: "grab" }} /> : null}
-                        <span className="fw-semibold flex-grow-1">{c.label_ar || c.code || "معيار بلا اسم"}</span>
+                        <span className="fw-semibold flex-grow-1">{c.label_ar || c.code || tr("readiness.builder.unnamed_criterion", undefined, "معيار بلا اسم")}</span>
                         <StatusBadge label={typeLabel(c.type)} tone="neutral" />
-                        {c.is_mandatory ? <StatusBadge label="إلزامي" tone="danger" /> : null}
-                        <span className="small text-muted">الوزن <bdi dir="ltr">{String(c.weight)}</bdi> · <bdi dir="ltr">{((num(c.weight) / (criteria.reduce((sum, row) => sum + num(row.weight), 0) || 1)) * 100).toFixed(1)}%</bdi> من المحور</span>
+                        {c.is_mandatory ? <StatusBadge label={tr("readiness.builder.mandatory", undefined, "إلزامي")} tone="danger" /> : null}
+                        <span className="small text-muted">{tr("readiness.builder.weight", undefined, "الوزن")} <bdi dir="ltr">{String(c.weight)}</bdi> · <bdi dir="ltr">{((num(c.weight) / (criteria.reduce((sum, row) => sum + num(row.weight), 0) || 1)) * 100).toFixed(1)}%</bdi> {tr("readiness.builder.of_pillar", undefined, "من المحور")}</span>
                         {!readOnly ? <MoveButtons index={i} count={criteria.length} onMove={onMove} label={c.label_ar || c.code} /> : null}
-                        <button type="button" className="app-icon-button" aria-label={`${readOnly ? "عرض" : "تعديل"} ${c.label_ar || c.code}`} onClick={() => onEdit(c)}><i className={`bi ${readOnly ? "bi-eye" : "bi-pencil"}`} aria-hidden="true" /></button>
-                        {!readOnly ? <button type="button" className="app-icon-button" aria-label={`حذف ${c.label_ar || c.code}`} onClick={() => onDelete(c)}><i className="bi bi-trash" aria-hidden="true" /></button> : null}
+                        <button type="button" className="app-icon-button" aria-label={tr("readiness.builder.edit_view", { name: c.label_ar || c.code, mode: readOnly ? tr("common.view", undefined, "عرض") : tr("common.edit", undefined, "تعديل") }, `${readOnly ? "عرض" : "تعديل"} ${c.label_ar || c.code}`)} onClick={() => onEdit(c)}><i className={`bi ${readOnly ? "bi-eye" : "bi-pencil"}`} aria-hidden="true" /></button>
+                        {!readOnly ? <button type="button" className="app-icon-button" aria-label={tr("readiness.builder.delete_criterion", { name: c.label_ar || c.code }, `حذف ${c.label_ar || c.code}`)} onClick={() => onDelete(c)}><i className="bi bi-trash" aria-hidden="true" /></button> : null}
                     </div>
                 </li>
             ))}
@@ -67,6 +70,7 @@ function CriteriaList({ criteria, readOnly, onEdit, onMove, onDelete }: { criter
 }
 
 export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetcher = serverPreview }: Props) {
+    const tr = useT();
     const [rs, setRs] = useState<RuleSetDraft>(ruleSet);
     const [editing, setEditing] = useState<Criterion | null>(null);
     const [drawerErrors, setDrawerErrors] = useState<Record<string, string>>({});
@@ -85,7 +89,7 @@ export function RuleSetBuilder({ ruleSet, actions = serverActions, previewFetche
             const data = await response.json();
             if (!Array.isArray(data.criteria)) throw new Error();
             setLibrary(data.criteria);
-        } catch { setLibraryError("تعذر تحميل مكتبة الأسئلة. حاول مرة أخرى."); }
+        } catch { setLibraryError(tr("readiness.builder.library_error", undefined, "تعذر تحميل مكتبة الأسئلة. حاول مرة أخرى.")); }
     };
     const fileRef = useRef<HTMLInputElement>(null);
     useEffect(() => setRs(ruleSet), [ruleSet]);

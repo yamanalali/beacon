@@ -6,6 +6,7 @@ import { SectionCard } from "../../Components/Common/SectionCard";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { PackageView } from "../../Components/Referrals/PackageView";
 import type { ReferralPackage } from "../../types/referrals";
+import { useT } from "../../Hooks/useT";
 
 type Props = {
     referral: {
@@ -33,70 +34,152 @@ type Props = {
 };
 
 export default function Show({ referral, package: pkg, consent, history, can, statusLabels }: Props) {
+    const t = useT();
     const errors = usePage().props.errors as Record<string, string>;
     const [confirm, setConfirm] = useState(false);
     const [note, setNote] = useState("");
     const url = `/referrals/${referral.public_id}`;
 
     return (
-        <AppLayout title="الإحالة">
+        <AppLayout title={t("referrals.show.title", undefined, "الإحالة")}>
             <div className="app-page">
-                <PageHeader title={`إحالة إلى ${referral.institution ?? ""}`} description={referral.purpose_ar} />
+                <PageHeader
+                    title={t("referrals.show.to_institution", { institution: referral.institution ?? "" }, `إحالة إلى ${referral.institution ?? ""}`)}
+                    description={referral.purpose_ar}
+                />
                 <StatusBadge label={referral.status_label} tone="neutral" />
 
-                <SectionCard title="المعلومات التي ستُشارك">
-                    <p className="mb-1">المؤسسة المستلمة: <strong>{referral.institution}</strong></p>
-                    <ul>{referral.disclosed_items.map((i) => <li key={i.key}>{i.label}</li>)}</ul>
+                <SectionCard title={t("referrals.enterprise.disclosed_items", undefined, "المعلومات التي ستُشارك")}>
+                    <p className="mb-1">
+                        {t("referrals.show.recipient", undefined, "المؤسسة المستلمة")}: <strong>{referral.institution}</strong>
+                    </p>
+                    <ul>
+                        {referral.disclosed_items.map((i) => (
+                            <li key={i.key}>{i.label}</li>
+                        ))}
+                    </ul>
                 </SectionCard>
                 <PackageView pkg={pkg} />
 
-                <SectionCard title="الموافقة">
-                    {consent.active ? <p>تمت الموافقة (نسخة {consent.active.version}) بتاريخ {consent.active.granted_at}</p> : <p>لا توجد موافقة فعّالة.</p>}
+                <SectionCard title={t("referrals.show.consent", undefined, "الموافقة")}>
+                    {consent.active ? (
+                        <p>
+                            {t("referrals.show.consent_granted", { version: consent.active.version, date: consent.active.granted_at }, `تمت الموافقة (نسخة ${consent.active.version}) بتاريخ ${consent.active.granted_at}`)}
+                        </p>
+                    ) : (
+                        <p>{t("referrals.show.no_consent", undefined, "لا توجد موافقة فعّالة.")}</p>
+                    )}
                     {can.consent ? (
                         <div>
                             <p>{consent.text_ar}</p>
                             <div className="form-check mb-2">
                                 <input id="confirm" type="checkbox" className="form-check-input" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
-                                <label htmlFor="confirm" className="form-check-label">أوافق صراحةً على مشاركة المعلومات أعلاه مع هذه المؤسسة</label>
+                                <label htmlFor="confirm" className="form-check-label">
+                                    {t("referrals.show.consent_confirm_label", undefined, "أوافق صراحةً على مشاركة المعلومات أعلاه مع هذه المؤسسة")}
+                                </label>
                             </div>
                             {errors?.confirm ? <p className="text-danger">{errors.confirm}</p> : null}
-                            <button type="button" className="btn btn-primary" style={{ minHeight: "48px" }} disabled={!confirm} onClick={() => router.post(`${url}/consent`, { confirm: true })}>تأكيد الموافقة</button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                style={{ minHeight: "48px" }}
+                                disabled={!confirm}
+                                onClick={() => router.post(`${url}/consent`, { confirm: true })}
+                            >
+                                {t("referrals.show.confirm_consent", undefined, "تأكيد الموافقة")}
+                            </button>
                         </div>
                     ) : null}
                     {can.withdraw ? (
                         <div className="mt-2">
                             <p className="text-muted small">{consent.withdrawal_notice}</p>
-                            <button type="button" className="btn btn-outline-danger" style={{ minHeight: "48px" }} onClick={() => router.post(`${url}/consent/withdraw`)}>سحب الموافقة</button>
+                            <button
+                                type="button"
+                                className="btn btn-outline-danger"
+                                style={{ minHeight: "48px" }}
+                                onClick={() => router.post(`${url}/consent/withdraw`)}
+                            >
+                                {t("referrals.show.withdraw_consent", undefined, "سحب الموافقة")}
+                            </button>
                         </div>
                     ) : null}
                 </SectionCard>
 
-                {can.share ? <button type="button" className="btn btn-primary mt-3" style={{ minHeight: "48px" }} onClick={() => router.post(`${url}/share`)}>مشاركة الإحالة مع المؤسسة</button> : null}
+                {can.share ? (
+                    <button type="button" className="btn btn-primary mt-3" style={{ minHeight: "48px" }} onClick={() => router.post(`${url}/share`)}>
+                        {t("referrals.show.share", undefined, "مشاركة الإحالة مع المؤسسة")}
+                    </button>
+                ) : null}
                 {errors?.consent ? <p className="text-danger">{errors.consent}</p> : null}
 
                 {referral.info_request_note || referral.decision_note || referral.outcome_note ? (
-                    <SectionCard title="الملاحظات">
-                        {referral.info_request_note ? <div className="app-record-line"><span>معلومات مطلوبة</span><span>{referral.info_request_note}</span></div> : null}
-                        {referral.decision_note ? <div className="app-record-line"><span>القرار</span><span>{referral.decision_note}</span></div> : null}
-                        {referral.outcome_note ? <div className="app-record-line"><span>نتيجة التمويل</span><span>{referral.outcome_note}</span></div> : null}
+                    <SectionCard title={t("common.notes", undefined, "الملاحظات")}>
+                        {referral.info_request_note ? (
+                            <div className="app-record-line">
+                                <span>{t("referrals.show.info_requested", undefined, "معلومات مطلوبة")}</span>
+                                <span>{referral.info_request_note}</span>
+                            </div>
+                        ) : null}
+                        {referral.decision_note ? (
+                            <div className="app-record-line">
+                                <span>{t("referrals.show.decision", undefined, "القرار")}</span>
+                                <span>{referral.decision_note}</span>
+                            </div>
+                        ) : null}
+                        {referral.outcome_note ? (
+                            <div className="app-record-line">
+                                <span>{t("referrals.show.outcome", undefined, "نتيجة التمويل")}</span>
+                                <span>{referral.outcome_note}</span>
+                            </div>
+                        ) : null}
                     </SectionCard>
                 ) : null}
 
                 {can.mfi_transitions.length || can.record_outcome ? (
-                    <SectionCard title="تحديث الإحالة">
-                        <textarea aria-label="ملاحظة" className="form-control mb-2" value={note} onChange={(e) => setNote(e.target.value)} />
+                    <SectionCard title={t("referrals.show.update", undefined, "تحديث الإحالة")}>
+                        <textarea
+                            aria-label={t("common.notes", undefined, "ملاحظة")}
+                            className="form-control mb-2"
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                        />
                         <div className="d-flex flex-wrap gap-2">
                             {can.mfi_transitions.map((s) => (
-                                <button key={s} type="button" className="btn btn-outline-primary" style={{ minHeight: "44px" }} onClick={() => router.post(`${url}/status`, { status: s, note })}>{statusLabels[s]}</button>
+                                <button
+                                    key={s}
+                                    type="button"
+                                    className="btn btn-outline-primary"
+                                    style={{ minHeight: "44px" }}
+                                    onClick={() => router.post(`${url}/status`, { status: s, note })}
+                                >
+                                    {statusLabels[s]}
+                                </button>
                             ))}
-                            {can.record_outcome ? <button type="button" className="btn btn-primary" style={{ minHeight: "44px" }} onClick={() => router.post(`${url}/outcome`, { outcome_note: note })}>تسجيل نتيجة التمويل</button> : null}
+                            {can.record_outcome ? (
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    style={{ minHeight: "44px" }}
+                                    onClick={() => router.post(`${url}/outcome`, { outcome_note: note })}
+                                >
+                                    {t("referrals.show.record_outcome", undefined, "تسجيل نتيجة التمويل")}
+                                </button>
+                            ) : null}
                         </div>
                     </SectionCard>
                 ) : null}
 
                 {history.length ? (
-                    <SectionCard title="سجل الحالات">
-                        <ul className="mb-0">{history.map((h, i) => <li key={i}>{h.at} - {statusLabels[h.to] ?? h.to}{h.actor ? ` - ${h.actor}` : ""}{h.note ? `: ${h.note}` : ""}</li>)}</ul>
+                    <SectionCard title={t("referrals.show.status_history", undefined, "سجل الحالات")}>
+                        <ul className="mb-0">
+                            {history.map((h, i) => (
+                                <li key={i}>
+                                    {h.at} - {statusLabels[h.to] ?? h.to}
+                                    {h.actor ? ` - ${h.actor}` : ""}
+                                    {h.note ? `: ${h.note}` : ""}
+                                </li>
+                            ))}
+                        </ul>
                     </SectionCard>
                 ) : null}
             </div>

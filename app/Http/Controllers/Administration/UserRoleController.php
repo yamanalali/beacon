@@ -15,6 +15,6 @@ class UserRoleController extends Controller
     {
         $changeUserRole($request->user(), $user, UserRole::from($request->validated('role')));
 
-        return back()->with('success', 'تم تغيير الدور.');
+        return back()->with('success', ui('flash.user_role_changed'));
     }
 }

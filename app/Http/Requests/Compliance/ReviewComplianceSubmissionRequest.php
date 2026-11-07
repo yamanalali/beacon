@@ -35,9 +35,9 @@ class ReviewComplianceSubmissionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'decision.required' => 'اختر قرار المراجعة.',
-            'decision.in' => 'قرار المراجعة غير صالح.',
-            'review_note.max' => 'الملاحظة طويلة جداً.',
+            'decision.required' => ui('validation.decision_required'),
+            'decision.in' => ui('validation.decision_invalid'),
+            'review_note.max' => ui('validation.review_note_max'),
         ];
     }
 }

@@ -14,6 +14,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/invitations/{token}', [InvitationController::class, 'register'])->where('token', '[A-Za-z0-9]{64}')->middleware('throttle:5,1')->name('invitations.register');
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:5,1');
+    Route::get('/register', [\App\Http\Controllers\Auth\RegistrationApplicationController::class, 'create'])->name('register');
+    Route::post('/register', [\App\Http\Controllers\Auth\RegistrationApplicationController::class, 'store'])->middleware('throttle:5,1')->name('register.store');
 
     Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
     Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->middleware('throttle:5,1')->name('password.email');
@@ -27,6 +29,10 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', EnsureUserIsActive::class])->group(function () {
+    Route::get('/onboarding', [\App\Http\Controllers\Auth\OnboardingController::class, 'show'])->name('onboarding.show');
+    Route::post('/onboarding/signature', [\App\Http\Controllers\Auth\OnboardingController::class, 'storeSignature'])->middleware('throttle:10,1')->name('onboarding.signature');
+    Route::post('/onboarding/skip', [\App\Http\Controllers\Auth\OnboardingController::class, 'skip'])->middleware('throttle:10,1')->name('onboarding.skip');
+
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])->middleware('throttle:5,1')->name('account.password');
 

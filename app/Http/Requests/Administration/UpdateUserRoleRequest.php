@@ -29,6 +29,6 @@ class UpdateUserRoleRequest extends FormRequest
      */
     public function messages(): array
     {
-        return ['role.required' => 'اختر الدور.', 'role.enum' => 'الدور غير صالح.'];
+        return ['role.required' => ui('validation.role_choose'), 'role.enum' => ui('validation.role_invalid')];
     }
 }

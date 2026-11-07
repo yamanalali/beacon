@@ -1,6 +1,7 @@
 import { Link, useForm } from "@inertiajs/react";
-import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import AppLayout from "../../Layouts/AppLayout";
+import { useT } from "../../Hooks/useT";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { FormError } from "../../Components/Forms/FormError";
 import "../../../css/enterprise-profile.css";
@@ -36,19 +37,6 @@ type Props = {
     can_assign: boolean;
 };
 type Tab = "overview" | "details" | "readiness" | "team";
-const locationLabels: Record<string, string> = {
-    damascus: "دمشق",
-    rural_damascus: "ريف دمشق",
-    daraa: "درعا",
-};
-const incompleteLabels: Record<string, string> = {
-    sector: "القطاع",
-    founding_date: "تاريخ التأسيس",
-    employee_count: "عدد العاملين",
-    owner_name: "اسم المالك",
-    contact: "اسم جهة الاتصال",
-    registration_status: "حالة التسجيل",
-};
 
 function Field({
     label,
@@ -61,6 +49,7 @@ function Field({
     ltr?: boolean;
     wide?: boolean;
 }) {
+    const t = useT();
     const missing = value === null || value === "";
     return (
         <div
@@ -70,7 +59,7 @@ function Field({
             <dd>
                 {missing ? (
                     <span className="enterprise-profile__missing">
-                        غير مضاف
+                        {t("smes.show.not_added", undefined, "غير مضاف")}
                     </span>
                 ) : (
                     <bdi dir={ltr ? "ltr" : "auto"}>{value}</bdi>
@@ -81,6 +70,7 @@ function Field({
 }
 
 function People({ people, empty }: { people: Person[]; empty: string }) {
+    const t = useT();
     if (!people.length)
         return (
             <p className="enterprise-profile__quiet">
@@ -92,7 +82,7 @@ function People({ people, empty }: { people: Person[]; empty: string }) {
         <ul
             className="enterprise-profile__people"
             tabIndex={people.length > 5 ? 0 : undefined}
-            aria-label="قائمة الأشخاص المرتبطين بالمنشأة"
+            aria-label={t("smes.show.people_list", undefined, "قائمة الأشخاص المرتبطين بالمنشأة")}
         >
             {people.map((person) => (
                 <li key={person.id}>
@@ -123,6 +113,26 @@ export default function Show({
     member_options,
     can_assign,
 }: Props) {
+    const t = useT();
+    const locationLabels = useMemo(
+        () => ({
+            damascus: t("smes.location.damascus", undefined, "دمشق"),
+            rural_damascus: t("smes.location.rural_damascus", undefined, "ريف دمشق"),
+            daraa: t("smes.location.daraa", undefined, "درعا"),
+        }),
+        [t],
+    );
+    const incompleteLabels = useMemo(
+        () => ({
+            sector: t("smes.sector", undefined, "القطاع"),
+            founding_date: t("smes.founding_date", undefined, "تاريخ التأسيس"),
+            employee_count: t("smes.employee_count", undefined, "عدد العاملين"),
+            owner_name: t("smes.owner_name", undefined, "اسم المالك"),
+            contact: t("smes.contact_name", undefined, "اسم جهة الاتصال"),
+            registration_status: t("smes.registration_status", undefined, "حالة التسجيل"),
+        }),
+        [t],
+    );
     const advisorForm = useForm({ user_id: "" });
     const memberForm = useForm({ user_id: "" });
     const [selectedTab, setSelectedTab] = useState<Tab>("overview");
@@ -130,22 +140,22 @@ export default function Show({
     const prefix = useId();
     const base = `/enterprises/${enterprise.public_id}`;
     const location = enterprise.location
-        ? (locationLabels[enterprise.location] ?? enterprise.location)
+        ? (locationLabels[enterprise.location as keyof typeof locationLabels] ?? enterprise.location)
         : null;
     const hasTeam = members !== null || assignments !== null || can_assign;
     const tabs: { key: Tab; label: string; icon: string }[] = [
-        { key: "overview", label: "نظرة عامة", icon: "bi-grid-1x2" },
-        { key: "details", label: "بيانات المنشأة", icon: "bi-building" },
+        { key: "overview", label: t("smes.show.tab.overview", undefined, "نظرة عامة"), icon: "bi-grid-1x2" },
+        { key: "details", label: t("smes.show.tab.details", undefined, "بيانات المنشأة"), icon: "bi-building" },
         {
             key: "readiness",
-            label: "الجاهزية والمتابعة",
+            label: t("smes.show.tab.readiness", undefined, "الجاهزية والمتابعة"),
             icon: "bi-shield-check",
         },
         ...(hasTeam
             ? [
                   {
                       key: "team" as const,
-                      label: "فريق المنشأة",
+                      label: t("smes.show.tab.team", undefined, "فريق المنشأة"),
                       icon: "bi-people",
                   },
               ]
@@ -157,38 +167,38 @@ export default function Show({
     const modules = [
         {
             path: "transactions",
-            label: "المعاملات المالية",
-            text: "المبيعات والمشتريات والدفعات",
+            label: t("smes.show.module.transactions", undefined, "المعاملات المالية"),
+            text: t("smes.show.module.transactions_desc", undefined, "المبيعات والمشتريات والدفعات"),
             icon: "bi-wallet2",
         },
         {
             path: "documents",
-            label: "المستندات",
-            text: "الفواتير والوثائق والإيصالات",
+            label: t("nav.documents", undefined, "المستندات"),
+            text: t("smes.show.module.documents_desc", undefined, "الفواتير والوثائق والإيصالات"),
             icon: "bi-folder2-open",
         },
         {
             path: "reports",
-            label: "التقارير المالية",
-            text: "قراءة الوضع المالي للمنشأة",
+            label: t("smes.show.module.reports", undefined, "التقارير المالية"),
+            text: t("smes.show.module.reports_desc", undefined, "قراءة الوضع المالي للمنشأة"),
             icon: "bi-bar-chart-line",
         },
         {
             path: "compliance",
-            label: "الامتثال",
-            text: "المتطلبات والمواعيد",
+            label: t("compliance.title", undefined, "الامتثال"),
+            text: t("smes.show.module.compliance_desc", undefined, "المتطلبات والمواعيد"),
             icon: "bi-patch-check",
         },
         {
             path: "readiness",
-            label: "تقييم الجاهزية",
-            text: "التقييمات ومعايير الاستعداد",
+            label: t("readiness.assessment_title", undefined, "تقييم الجاهزية"),
+            text: t("smes.show.module.readiness_desc", undefined, "التقييمات ومعايير الاستعداد"),
             icon: "bi-shield-check",
         },
         {
             path: "referrals",
-            label: "الإحالات",
-            text: "متابعة إحالات التمويل",
+            label: t("smes.show.module.referrals", undefined, "الإحالات"),
+            text: t("smes.show.module.referrals_desc", undefined, "متابعة إحالات التمويل"),
             icon: "bi-send",
         },
     ];
@@ -226,11 +236,11 @@ export default function Show({
             <div className="app-page enterprise-profile">
                 <nav
                     className="enterprise-profile__breadcrumb"
-                    aria-label="مسار ملف المنشأة"
+                    aria-label={t("smes.show.breadcrumb", undefined, "مسار ملف المنشأة")}
                 >
-                    <Link href="/enterprises">المنشآت</Link>
+                    <Link href="/enterprises">{t("nav.enterprises", undefined, "المنشآت")}</Link>
                     <i className="bi bi-chevron-left" aria-hidden="true" />
-                    <span>ملف المنشأة</span>
+                    <span>{t("smes.profile", undefined, "ملف المنشأة")}</span>
                 </nav>
                 <header className="enterprise-profile__hero">
                     <div className="enterprise-profile__identity">
@@ -242,7 +252,7 @@ export default function Show({
                         </span>
                         <div>
                             <span className="enterprise-profile__eyebrow">
-                                ملف المنشأة
+                                {t("smes.profile", undefined, "ملف المنشأة")}
                             </span>
                             <h1>{enterprise.business_name}</h1>
                             <div className="enterprise-profile__meta">
@@ -272,19 +282,19 @@ export default function Show({
                         className="btn btn-primary enterprise-profile__edit"
                     >
                         <i className="bi bi-pencil-square" aria-hidden="true" />
-                        تعديل الملف
+                        {t("smes.edit_title", undefined, "تعديل الملف")}
                     </Link>
                 </header>
 
                 {incomplete_fields.length ? (
                     <aside
                         className="enterprise-profile__notice"
-                        aria-label="معلومات تحتاج استكمال"
+                        aria-label={t("smes.show.incomplete_aria", undefined, "معلومات تحتاج استكمال")}
                     >
                         <i className="bi bi-info-circle" aria-hidden="true" />
                         <div>
                             <strong>
-                                باقي بعض المعلومات لاستكمال ملف المنشأة
+                                {t("smes.show.incomplete_title", undefined, "باقي بعض المعلومات لاستكمال ملف المنشأة")}
                             </strong>
                             <p>
                                 {incomplete_fields
@@ -296,7 +306,7 @@ export default function Show({
                             </p>
                         </div>
                         <Link href={`${base}/edit`}>
-                            استكمال البيانات
+                            {t("smes.show.complete_data", undefined, "استكمال البيانات")}
                             <i
                                 className="bi bi-arrow-left"
                                 aria-hidden="true"
@@ -309,7 +319,7 @@ export default function Show({
                     ref={tabList}
                     className="enterprise-profile__tabs"
                     role="tablist"
-                    aria-label="أقسام ملف المنشأة"
+                    aria-label={t("smes.show.tabs_aria", undefined, "أقسام ملف المنشأة")}
                 >
                     {tabs.map((tab, index) => (
                         <button
@@ -342,23 +352,23 @@ export default function Show({
                 >
                     <div className="row g-4">
                         <div className="col-12 col-xl-8 d-flex flex-column gap-4">
-                            <SectionCard title="المنشأة في لمحة">
+                            <SectionCard title={t("smes.show.at_a_glance", undefined, "المنشأة في لمحة")}>
                                 <dl className="enterprise-profile__fields">
                                     <Field
-                                        label="اسم المالك"
+                                        label={t("smes.owner_name", undefined, "اسم المالك")}
                                         value={enterprise.owner_name}
                                     />
                                     <Field
-                                        label="تاريخ التأسيس"
+                                        label={t("smes.founding_date", undefined, "تاريخ التأسيس")}
                                         value={enterprise.founding_date}
                                         ltr
                                     />
                                     <Field
-                                        label="عدد العاملين"
+                                        label={t("smes.employee_count", undefined, "عدد العاملين")}
                                         value={enterprise.employee_count}
                                     />
                                     <Field
-                                        label="حالة التسجيل"
+                                        label={t("smes.registration_status", undefined, "حالة التسجيل")}
                                         value={enterprise.registration_status}
                                     />
                                 </dl>
@@ -367,17 +377,17 @@ export default function Show({
                                     className="enterprise-profile__text-action"
                                     onClick={() => openTab("details")}
                                 >
-                                    عرض جميع بيانات المنشأة
+                                    {t("smes.show.view_all_details", undefined, "عرض جميع بيانات المنشأة")}
                                     <i
                                         className="bi bi-arrow-left"
                                         aria-hidden="true"
                                     />
                                 </button>
                             </SectionCard>
-                            <SectionCard title="أعمال المنشأة">
+                            <SectionCard title={t("smes.show.business_work", undefined, "أعمال المنشأة")}>
                                 <nav
                                     className="enterprise-profile__modules"
-                                    aria-label="خدمات المنشأة"
+                                    aria-label={t("smes.show.services_aria", undefined, "خدمات المنشأة")}
                                 >
                                     {modules.map((module) => (
                                         <Link
@@ -416,39 +426,39 @@ export default function Show({
                                         aria-hidden="true"
                                     />
                                 </span>
-                                <p>رحلة المنشأة مع بيكون</p>
+                                <p>{t("smes.show.beacon_journey", undefined, "رحلة المنشأة مع بيكون")}</p>
                                 <h2 id={`${prefix}-programme`}>
                                     {enterprise.programme_stage ||
-                                        "لم تُحدّد مرحلة البرنامج بعد"}
+                                        t("smes.show.no_programme_stage", undefined, "لم تُحدّد مرحلة البرنامج بعد")}
                                 </h2>
                                 <p className="enterprise-profile__summary">
                                     {enterprise.progress_summary ||
-                                        "سيظهر هنا ملخص التقدّم عند إضافته إلى الملف."}
+                                        t("smes.show.no_progress_summary", undefined, "سيظهر هنا ملخص التقدّم عند إضافته إلى الملف.")}
                                 </p>
                                 <button
                                     type="button"
                                     onClick={() => openTab("details")}
                                 >
-                                    عرض تفاصيل البرنامج
+                                    {t("smes.show.view_programme", undefined, "عرض تفاصيل البرنامج")}
                                     <i
                                         className="bi bi-arrow-left"
                                         aria-hidden="true"
                                     />
                                 </button>
                             </section>
-                            <SectionCard title="جهة الاتصال">
+                            <SectionCard title={t("smes.show.contact_section", undefined, "جهة الاتصال")}>
                                 <dl className="enterprise-profile__fields enterprise-profile__fields--single">
                                     <Field
-                                        label="الاسم"
+                                        label={t("smes.show.contact_name_short", undefined, "الاسم")}
                                         value={enterprise.contact_name}
                                     />
                                     <Field
-                                        label="الهاتف"
+                                        label={t("smes.contact_phone", undefined, "الهاتف")}
                                         value={enterprise.contact_phone}
                                         ltr
                                     />
                                     <Field
-                                        label="البريد الإلكتروني"
+                                        label={t("smes.contact_email", undefined, "البريد الإلكتروني")}
                                         value={enterprise.contact_email}
                                         ltr
                                     />
@@ -467,53 +477,52 @@ export default function Show({
                     tabIndex={0}
                 >
                     <div className="enterprise-profile__section-intro">
-                        <h2>بيانات المنشأة</h2>
+                        <h2>{t("smes.show.tab.details", undefined, "بيانات المنشأة")}</h2>
                         <p>
-                            معلومات التعريف والتواصل والتسجيل، مرتّبة حسب
-                            الموضوع.
+                            {t("smes.show.details_intro", undefined, "معلومات التعريف والتواصل والتسجيل، مرتّبة حسب الموضوع.")}
                         </p>
                     </div>
                     <div className="row g-4">
                         <div className="col-12 col-xl-6">
-                            <SectionCard title="التعريف بالمنشأة">
+                            <SectionCard title={t("smes.show.identification", undefined, "التعريف بالمنشأة")}>
                                 <dl className="enterprise-profile__fields">
                                     <Field
-                                        label="اسم المنشأة"
+                                        label={t("smes.business_name", undefined, "اسم المنشأة")}
                                         value={enterprise.business_name}
                                         wide
                                     />
                                     <Field
-                                        label="القطاع"
+                                        label={t("smes.sector", undefined, "القطاع")}
                                         value={enterprise.sector}
                                     />
-                                    <Field label="الموقع" value={location} />
+                                    <Field label={t("smes.location", undefined, "الموقع")} value={location} />
                                     <Field
-                                        label="تاريخ التأسيس"
+                                        label={t("smes.founding_date", undefined, "تاريخ التأسيس")}
                                         value={enterprise.founding_date}
                                         ltr
                                     />
                                     <Field
-                                        label="اسم المالك"
+                                        label={t("smes.owner_name", undefined, "اسم المالك")}
                                         value={enterprise.owner_name}
                                     />
                                 </dl>
                             </SectionCard>
                         </div>
                         <div className="col-12 col-xl-6">
-                            <SectionCard title="التواصل">
+                            <SectionCard title={t("smes.show.contact_card", undefined, "التواصل")}>
                                 <dl className="enterprise-profile__fields">
                                     <Field
-                                        label="اسم جهة الاتصال"
+                                        label={t("smes.contact_name", undefined, "اسم جهة الاتصال")}
                                         value={enterprise.contact_name}
                                         wide
                                     />
                                     <Field
-                                        label="الهاتف"
+                                        label={t("smes.contact_phone", undefined, "الهاتف")}
                                         value={enterprise.contact_phone}
                                         ltr
                                     />
                                     <Field
-                                        label="البريد الإلكتروني"
+                                        label={t("smes.contact_email", undefined, "البريد الإلكتروني")}
                                         value={enterprise.contact_email}
                                         ltr
                                     />
@@ -521,40 +530,39 @@ export default function Show({
                             </SectionCard>
                         </div>
                         <div className="col-12 col-xl-6">
-                            <SectionCard title="العاملون في المنشأة">
+                            <SectionCard title={t("smes.show.employees_section", undefined, "العاملون في المنشأة")}>
                                 <dl className="enterprise-profile__fields">
                                     <Field
-                                        label="إجمالي العاملين"
+                                        label={t("smes.show.employees_total", undefined, "إجمالي العاملين")}
                                         value={enterprise.employee_count}
                                     />
                                     <Field
-                                        label="عدد العاملات"
+                                        label={t("smes.female_employees", undefined, "عدد العاملات")}
                                         value={enterprise.female_employee_count}
                                     />
                                     <Field
-                                        label="عدد العاملين الذكور"
+                                        label={t("smes.male_employees", undefined, "عدد العاملين الذكور")}
                                         value={enterprise.male_employee_count}
                                     />
                                 </dl>
                                 <p className="enterprise-profile__footnote">
-                                    أعداد العاملات والعاملين اختيارية وليست
-                                    إطاراً رسمياً للنوع الاجتماعي.
+                                    {t("smes.gender_field_help", undefined, "أعداد العاملات والعاملين اختيارية وليست إطاراً رسمياً للنوع الاجتماعي.")}
                                 </p>
                             </SectionCard>
                         </div>
                         <div className="col-12 col-xl-6">
-                            <SectionCard title="التسجيل والبرنامج">
+                            <SectionCard title={t("smes.show.registration_programme", undefined, "التسجيل والبرنامج")}>
                                 <dl className="enterprise-profile__fields">
                                     <Field
-                                        label="حالة التسجيل"
+                                        label={t("smes.registration_status", undefined, "حالة التسجيل")}
                                         value={enterprise.registration_status}
                                     />
                                     <Field
-                                        label="مرحلة البرنامج"
+                                        label={t("smes.programme_stage", undefined, "مرحلة البرنامج")}
                                         value={enterprise.programme_stage}
                                     />
                                     <Field
-                                        label="ملخص التقدم"
+                                        label={t("smes.progress_summary", undefined, "ملخص التقدم")}
                                         value={enterprise.progress_summary}
                                         wide
                                     />
@@ -573,38 +581,37 @@ export default function Show({
                     tabIndex={0}
                 >
                     <div className="enterprise-profile__section-intro">
-                        <h2>الجاهزية والمتابعة</h2>
+                        <h2>{t("smes.show.tab.readiness", undefined, "الجاهزية والمتابعة")}</h2>
                         <p>
-                            الملاحظات الأولية والإرشاد وحالة الموافقة في مكان
-                            واحد.
+                            {t("smes.show.readiness_intro", undefined, "الملاحظات الأولية والإرشاد وحالة الموافقة في مكان واحد.")}
                         </p>
                     </div>
                     <div className="row g-4">
                         <div className="col-12 col-xl-7 d-flex flex-column gap-4">
-                            <SectionCard title="ملاحظات الجاهزية الأولية">
+                            <SectionCard title={t("smes.show.initial_readiness_notes", undefined, "ملاحظات الجاهزية الأولية")}>
                                 <p className="enterprise-profile__inline-note">
                                     <i
                                         className="bi bi-info-circle"
                                         aria-hidden="true"
                                     />
-                                    هذه ملاحظات أولية وليست درجات تقييم.
+                                    {t("smes.note_not_score", undefined, "هذه ملاحظات أولية وليست درجات تقييم.")}
                                 </p>
                                 <dl className="enterprise-profile__fields enterprise-profile__fields--single">
                                     <Field
-                                        label="الجاهزية الرقمية الأولية"
+                                        label={t("smes.digital_readiness_note", undefined, "الجاهزية الرقمية الأولية")}
                                         value={
                                             enterprise.initial_digital_readiness_note
                                         }
                                     />
                                     <Field
-                                        label="الجاهزية المالية الأولية"
+                                        label={t("smes.financial_readiness_note", undefined, "الجاهزية المالية الأولية")}
                                         value={
                                             enterprise.initial_financial_readiness_note
                                         }
                                     />
                                 </dl>
                             </SectionCard>
-                            <SectionCard title="الموافقة">
+                            <SectionCard title={t("smes.show.consent_section", undefined, "الموافقة")}>
                                 <div className="enterprise-profile__pending">
                                     <i
                                         className="bi bi-file-earmark-check"
@@ -612,18 +619,17 @@ export default function Show({
                                     />
                                     <div>
                                         <strong>
-                                            بانتظار اعتماد نص الموافقة
+                                            {t("smes.show.consent_pending_title", undefined, "بانتظار اعتماد نص الموافقة")}
                                         </strong>
                                         <p>
-                                            سجل الموافقة غير متاح حتى يعتمد
-                                            بيكون نص الموافقة.
+                                            {t("smes.show.consent_pending_body", undefined, "سجل الموافقة غير متاح حتى يعتمد بيكون نص الموافقة.")}
                                         </p>
                                     </div>
                                 </div>
                             </SectionCard>
                         </div>
                         <div className="col-12 col-xl-5">
-                            <SectionCard title="الإرشاد والمتابعة">
+                            <SectionCard title={t("smes.show.advisory_section", undefined, "الإرشاد والمتابعة")}>
                                 <div className="enterprise-profile__advisory">
                                     <span>
                                         <i
@@ -631,16 +637,15 @@ export default function Show({
                                             aria-hidden="true"
                                         />
                                     </span>
-                                    <h3>متابعة الخطوة التالية</h3>
+                                    <h3>{t("smes.show.advisory_next_step", undefined, "متابعة الخطوة التالية")}</h3>
                                     <p>
-                                        انتقل إلى سجل الإرشاد لمراجعة النشاطات
-                                        وإجراءات المتابعة.
+                                        {t("smes.show.advisory_body", undefined, "انتقل إلى سجل الإرشاد لمراجعة النشاطات وإجراءات المتابعة.")}
                                     </p>
                                     <Link
                                         href={`${base}/advisory`}
                                         className="btn btn-primary"
                                     >
-                                        عرض الإرشاد والمتابعة
+                                        {t("smes.show.view_advisory", undefined, "عرض الإرشاد والمتابعة")}
                                         <i
                                             className="bi bi-arrow-left"
                                             aria-hidden="true"
@@ -662,20 +667,19 @@ export default function Show({
                         tabIndex={0}
                     >
                         <div className="enterprise-profile__section-intro">
-                            <h2>فريق المنشأة</h2>
+                            <h2>{t("smes.show.tab.team", undefined, "فريق المنشأة")}</h2>
                             <p>
-                                المستخدمون المرتبطون بالمنشأة والمستشارون
-                                المعيّنون لها.
+                                {t("smes.show.team_intro", undefined, "المستخدمون المرتبطون بالمنشأة والمستشارون المعيّنون لها.")}
                             </p>
                         </div>
                         <div className="row g-4">
                             {members !== null || can_assign ? (
                                 <div className="col-12 col-xl-6">
-                                    <SectionCard title="مستخدمو المنشأة">
+                                    <SectionCard title={t("smes.show.enterprise_users", undefined, "مستخدمو المنشأة")}>
                                         {members !== null ? (
                                             <People
                                                 people={members}
-                                                empty="لا يوجد مستخدم مرتبط بالمنشأة بعد."
+                                                empty={t("smes.show.no_members", undefined, "لا يوجد مستخدم مرتبط بالمنشأة بعد.")}
                                             />
                                         ) : null}
                                         {can_assign ? (
@@ -692,7 +696,7 @@ export default function Show({
                                                     htmlFor="member_user_id"
                                                     className="form-label"
                                                 >
-                                                    ربط مستخدم منشأة
+                                                    {t("smes.show.link_member", undefined, "ربط مستخدم منشأة")}
                                                 </label>
                                                 <select
                                                     id="member_user_id"
@@ -714,7 +718,7 @@ export default function Show({
                                                     }
                                                 >
                                                     <option value="">
-                                                        اختر مستخدماً
+                                                        {t("smes.show.choose_user", undefined, "اختر مستخدماً")}
                                                     </option>
                                                     {member_options.map(
                                                         (option) => (
@@ -742,7 +746,7 @@ export default function Show({
                                                         memberForm.processing
                                                     }
                                                 >
-                                                    ربط المستخدم
+                                                    {t("smes.show.link_member_submit", undefined, "ربط المستخدم")}
                                                 </button>
                                             </form>
                                         ) : null}
@@ -751,11 +755,11 @@ export default function Show({
                             ) : null}
                             {assignments !== null || can_assign ? (
                                 <div className="col-12 col-xl-6">
-                                    <SectionCard title="المستشارون">
+                                    <SectionCard title={t("smes.show.advisors", undefined, "المستشارون")}>
                                         {assignments !== null ? (
                                             <People
                                                 people={assignments}
-                                                empty="لا يوجد مستشار معيّن للمنشأة بعد."
+                                                empty={t("smes.show.no_advisors", undefined, "لا يوجد مستشار معيّن للمنشأة بعد.")}
                                             />
                                         ) : null}
                                         {can_assign ? (
@@ -772,7 +776,7 @@ export default function Show({
                                                     htmlFor="advisor_user_id"
                                                     className="form-label"
                                                 >
-                                                    تعيين مستشار
+                                                    {t("smes.show.assign_advisor", undefined, "تعيين مستشار")}
                                                 </label>
                                                 <select
                                                     id="advisor_user_id"
@@ -794,7 +798,7 @@ export default function Show({
                                                     }
                                                 >
                                                     <option value="">
-                                                        اختر مستشاراً
+                                                        {t("smes.show.choose_advisor", undefined, "اختر مستشاراً")}
                                                     </option>
                                                     {advisor_options.map(
                                                         (option) => (
@@ -822,7 +826,7 @@ export default function Show({
                                                         advisorForm.processing
                                                     }
                                                 >
-                                                    تعيين المستشار
+                                                    {t("smes.show.assign_advisor_submit", undefined, "تعيين المستشار")}
                                                 </button>
                                             </form>
                                         ) : null}

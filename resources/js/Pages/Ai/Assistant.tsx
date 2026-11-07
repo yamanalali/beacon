@@ -4,6 +4,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { postJson } from "../../Components/Ai/http";
+import { useT } from "../../Hooks/useT";
 
 export type AssistantAnswer = {
     supported: boolean;
@@ -18,6 +19,7 @@ type EscalationCreated = { id: string; status: string; message: string };
 type Props = { ai_available: boolean; can_escalate: boolean; question_max_length: number; fetchImpl?: typeof fetch };
 
 export default function Assistant({ ai_available, can_escalate, question_max_length, fetchImpl }: Props) {
+    const t = useT();
     const [question, setQuestion] = useState("");
     const [asked, setAsked] = useState("");
     const [busy, setBusy] = useState<"ask" | "escalate" | null>(null);
@@ -54,19 +56,26 @@ export default function Assistant({ ai_available, can_escalate, question_max_len
     const showEscalate = can_escalate && (answer ? answer.can_escalate : !ai_available);
 
     return (
-        <AppLayout title="المساعد الذكي">
+        <AppLayout title={t("ai.assistant.title", undefined, "المساعد الذكي")}>
             <div className="app-page d-flex flex-column gap-3">
-                <PageHeader title="المساعد الذكي" description="اسأل عن مسك الدفاتر واستخدام المنصة والامتثال. الإجابات من قاعدة معرفة بيكون المعتمدة فقط." />
+                <PageHeader
+                    title={t("ai.assistant.title", undefined, "المساعد الذكي")}
+                    description={t(
+                        "ai.assistant.description",
+                        undefined,
+                        "اسأل عن مسك الدفاتر واستخدام المنصة والامتثال. الإجابات من قاعدة معرفة بيكون المعتمدة فقط.",
+                    )}
+                />
                 {!ai_available ? (
                     <div className="alert alert-warning mb-0" role="status">
                         <i className="bi bi-info-circle me-2" aria-hidden="true" />
-                        المساعد غير متاح حالياً. يمكنك إرسال سؤالك مباشرة إلى فريق بيكون.
+                        {t("ai.assistant.unavailable", undefined, "المساعد غير متاح حالياً. يمكنك إرسال سؤالك مباشرة إلى فريق بيكون.")}
                     </div>
                 ) : null}
-                <SectionCard title="سؤالك">
+                <SectionCard title={t("ai.assistant.your_question", undefined, "سؤالك")}>
                     <form onSubmit={ask} noValidate>
                         <label htmlFor="ai-question" className="form-label">
-                            اكتب سؤالك
+                            {t("ai.assistant.question_label", undefined, "اكتب سؤالك")}
                         </label>
                         <textarea
                             id="ai-question"
@@ -78,7 +87,7 @@ export default function Assistant({ ai_available, can_escalate, question_max_len
                             aria-describedby="ai-question-help"
                         />
                         <div id="ai-question-help" className="form-text d-flex justify-content-between">
-                            <span>لا تشارك كلمات مرور أو بيانات بطاقات.</span>
+                            <span>{t("ai.assistant.question_hint", undefined, "لا تشارك كلمات مرور أو بيانات بطاقات.")}</span>
                             <bdi dir="ltr">
                                 {question.length}/{question_max_length}
                             </bdi>
@@ -86,14 +95,27 @@ export default function Assistant({ ai_available, can_escalate, question_max_len
                         <div className="d-grid d-sm-flex gap-2 mt-3">
                             {ai_available ? (
                                 <button type="submit" className="btn btn-primary" disabled={tooShort || busy !== null}>
-                                    {busy === "ask" ? <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" /> : <i className="bi bi-stars me-2" aria-hidden="true" />}
-                                    اسأل المساعد
+                                    {busy === "ask" ? (
+                                        <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                                    ) : (
+                                        <i className="bi bi-stars me-2" aria-hidden="true" />
+                                    )}
+                                    {t("ai.assistant.ask", undefined, "اسأل المساعد")}
                                 </button>
                             ) : null}
                             {showEscalate && !escalated ? (
-                                <button type="button" className={ai_available ? "btn btn-outline-secondary" : "btn btn-primary"} onClick={escalate} disabled={(asked || question).trim().length < 3 || busy !== null}>
-                                    {busy === "escalate" ? <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" /> : <i className="bi bi-person-raised-hand me-2" aria-hidden="true" />}
-                                    أرسل السؤال لفريق بيكون
+                                <button
+                                    type="button"
+                                    className={ai_available ? "btn btn-outline-secondary" : "btn btn-primary"}
+                                    onClick={escalate}
+                                    disabled={(asked || question).trim().length < 3 || busy !== null}
+                                >
+                                    {busy === "escalate" ? (
+                                        <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                                    ) : (
+                                        <i className="bi bi-person-raised-hand me-2" aria-hidden="true" />
+                                    )}
+                                    {t("ai.assistant.escalate", undefined, "أرسل السؤال لفريق بيكون")}
                                 </button>
                             ) : null}
                         </div>
@@ -106,11 +128,11 @@ export default function Assistant({ ai_available, can_escalate, question_max_len
                 ) : null}
                 {busy === "ask" ? (
                     <p className="text-body-secondary mb-0" role="status">
-                        جارٍ البحث في قاعدة المعرفة…
+                        {t("ai.assistant.searching", undefined, "جارٍ البحث في قاعدة المعرفة…")}
                     </p>
                 ) : null}
                 {answer ? (
-                    <SectionCard title="الإجابة">
+                    <SectionCard title={t("ai.assistant.answer", undefined, "الإجابة")}>
                         <div aria-live="polite">
                             {answer.label ? (
                                 <span className="app-status app-status--neutral mb-2">
@@ -123,7 +145,7 @@ export default function Assistant({ ai_available, can_escalate, question_max_len
                             </p>
                             {answer.sources.length > 0 ? (
                                 <>
-                                    <h3 className="h6">المصادر</h3>
+                                    <h3 className="h6">{t("ai.assistant.sources", undefined, "المصادر")}</h3>
                                     <ul className="mb-0">
                                         {answer.sources.map((s) => (
                                             <li key={s.id}>{s.title}</li>
@@ -138,13 +160,13 @@ export default function Assistant({ ai_available, can_escalate, question_max_len
                     <div className="alert alert-success mb-0 d-flex flex-wrap justify-content-between align-items-center gap-2" role="status">
                         <span>{escalated.message}</span>
                         <Link href={`/ai/pages/escalations/${escalated.id}`} className="btn btn-sm btn-outline-secondary">
-                            عرض الاستفسار
+                            {t("ai.escalations.view", undefined, "عرض الاستفسار")}
                         </Link>
                     </div>
                 ) : null}
                 <div>
                     <Link href="/ai/pages/escalations" className="btn btn-link px-0">
-                        استفساراتي السابقة
+                        {t("ai.escalations.my_previous", undefined, "استفساراتي السابقة")}
                     </Link>
                 </div>
             </div>

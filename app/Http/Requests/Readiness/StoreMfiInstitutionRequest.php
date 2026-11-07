@@ -63,11 +63,11 @@ class StoreMfiInstitutionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name_ar.required' => 'اسم المؤسسة مطلوب.',
-            'code.unique' => 'رمز المؤسسة مستخدم مسبقاً.',
-            'contact_email.email' => 'أدخل بريداً إلكترونياً صالحاً.',
-            'website.url' => 'أدخل رابط موقع بصيغة صحيحة (مثلاً https://…).',
-            'loan_size_max.gte' => 'الحد الأقصى للقرض يجب ألا يقل عن الحد الأدنى.',
+            'name_ar.required' => ui('validation.mfi_name_required'),
+            'code.unique' => ui('validation.mfi_code_unique'),
+            'contact_email.email' => ui('validation.email_invalid'),
+            'website.url' => ui('validation.website_url'),
+            'loan_size_max.gte' => ui('validation.loan_max_gte_min'),
         ];
     }
 }

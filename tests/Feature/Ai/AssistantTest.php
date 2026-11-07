@@ -37,7 +37,7 @@ class AssistantTest extends TestCase
             ->assertOk()
             ->assertJsonPath('supported', true)
             ->assertJsonPath('ai_generated', true)
-            ->assertJsonPath('label', KnowledgeAssistantService::AI_LABEL)
+            ->assertJsonPath('label', ui('ai.assistant.suggestion_label'))
             ->assertJsonPath('sources.0.id', $a->public_id);
     }
 

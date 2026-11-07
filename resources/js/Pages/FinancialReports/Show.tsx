@@ -10,6 +10,7 @@ import { SelectInput, type SelectOption } from "../../Components/Forms/SelectInp
 import { TextInput } from "../../Components/Forms/TextInput";
 import type { EnterpriseRef } from "../../types/bookkeeping";
 import { Money } from "../../Components/Common/Money";
+import { useT } from "../../Hooks/useT";
 
 type Section = { title: string; columns: string[]; rows: string[][] };
 type Report = { key: string; title: string; period_label: string; sections: Section[]; notes: string[] };
@@ -41,6 +42,7 @@ export default function Show({
     print: boolean;
     can_export?: boolean;
 }) {
+    const t = useT();
     const online = useOnlineStatus();
     const { offline } = usePage().props;
     const local = !online || offline?.cached === true;
@@ -61,12 +63,12 @@ export default function Show({
     }, [print, can_export]);
 
     return (
-        <AppLayout title="التقارير">
+        <AppLayout title={t("reports.title", undefined, "التقارير")}>
             <div className="app-page d-flex flex-column gap-3">
                 <PageHeader title={report.title} description={`${enterprise.business_name} — ${report.period_label}`} />
 
                 <div className="d-print-none">
-                    <SectionCard title="اختيار التقرير">
+                    <SectionCard title={t("reports.select_report", undefined, "اختيار التقرير")}>
                         <form
                             onSubmit={(event) => {
                                 event.preventDefault();
@@ -75,22 +77,48 @@ export default function Show({
                         >
                             <div className="row g-2">
                                 <div className="col-12 col-lg-4">
-                                    <SelectInput id="report" label="التقرير" value={values.report} options={reports} onChange={(v) => setValues({ ...values, report: v })} />
+                                    <SelectInput
+                                        id="report"
+                                        label={t("reports.report_label", undefined, "التقرير")}
+                                        value={values.report}
+                                        options={reports}
+                                        onChange={(v) => setValues({ ...values, report: v })}
+                                    />
                                 </div>
                                 <div className="col-6 col-lg-2">
-                                    <TextInput id="from" name="from" type="date" label="من تاريخ" value={values.from} onChange={(v) => setValues({ ...values, from: v })} />
+                                    <TextInput
+                                        id="from"
+                                        name="from"
+                                        type="date"
+                                        label={t("filters.date_from", undefined, "من تاريخ")}
+                                        value={values.from}
+                                        onChange={(v) => setValues({ ...values, from: v })}
+                                    />
                                 </div>
                                 <div className="col-6 col-lg-2">
-                                    <TextInput id="to" name="to" type="date" label="إلى تاريخ" value={values.to} onChange={(v) => setValues({ ...values, to: v })} />
+                                    <TextInput
+                                        id="to"
+                                        name="to"
+                                        type="date"
+                                        label={t("filters.date_to", undefined, "إلى تاريخ")}
+                                        value={values.to}
+                                        onChange={(v) => setValues({ ...values, to: v })}
+                                    />
                                 </div>
                                 {values.report === "income_statement" ? (
                                     <div className="col-12 col-lg-4">
-                                        <SelectInput id="basis" label="طريقة الاحتساب" value={values.basis} options={bases} onChange={(v) => setValues({ ...values, basis: v })} />
+                                        <SelectInput
+                                            id="basis"
+                                            label={t("reports.basis_label", undefined, "طريقة الاحتساب")}
+                                            value={values.basis}
+                                            options={bases}
+                                            onChange={(v) => setValues({ ...values, basis: v })}
+                                        />
                                     </div>
                                 ) : null}
                             </div>
                             <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }}>
-                                عرض التقرير
+                                {t("reports.show_report", undefined, "عرض التقرير")}
                             </button>
                         </form>
                     </SectionCard>
@@ -98,32 +126,50 @@ export default function Show({
 
                 <div className="d-flex flex-wrap gap-2 d-print-none">
                     {can_export ? <>
-                    {local ? <button type="button" className="btn btn-outline-primary" disabled>Excel متاح عند الاتصال</button> : <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/xlsx?${query}`}>
-                        <i className="bi bi-file-earmark-excel me-2" aria-hidden="true" />
-                        تنزيل Excel
-                    </a>}
-                    {local ? <button type="button" className="btn btn-outline-primary" onClick={downloadLocalCsv}>تنزيل CSV من النسخة المحفوظة</button> : <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/csv?${query}`}>
-                        <i className="bi bi-filetype-csv me-2" aria-hidden="true" />
-                        تنزيل CSV
-                    </a>}
-                    {local ? <button type="button" className="btn btn-outline-primary" disabled>PDF متاح عند الاتصال</button> : <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/pdf?${query}`}>
-                        <i className="bi bi-filetype-pdf me-2" aria-hidden="true" />
-                        تنزيل PDF
-                    </a>}
+                    {local ? (
+                        <button type="button" className="btn btn-outline-primary" disabled>
+                            {t("reports.excel_when_online", undefined, "Excel متاح عند الاتصال")}
+                        </button>
+                    ) : (
+                        <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/xlsx?${query}`}>
+                            <i className="bi bi-file-earmark-excel me-2" aria-hidden="true" />
+                            {t("reports.download_excel", undefined, "تنزيل Excel")}
+                        </a>
+                    )}
+                    {local ? (
+                        <button type="button" className="btn btn-outline-primary" onClick={downloadLocalCsv}>
+                            {t("reports.download_csv_cached", undefined, "تنزيل CSV من النسخة المحفوظة")}
+                        </button>
+                    ) : (
+                        <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/csv?${query}`}>
+                            <i className="bi bi-filetype-csv me-2" aria-hidden="true" />
+                            {t("reports.download_csv", undefined, "تنزيل CSV")}
+                        </a>
+                    )}
+                    {local ? (
+                        <button type="button" className="btn btn-outline-primary" disabled>
+                            {t("reports.pdf_when_online", undefined, "PDF متاح عند الاتصال")}
+                        </button>
+                    ) : (
+                        <a className="btn btn-outline-primary" style={{ minHeight: "48px" }} href={`${base}/export/pdf?${query}`}>
+                            <i className="bi bi-filetype-pdf me-2" aria-hidden="true" />
+                            {t("reports.download_pdf", undefined, "تنزيل PDF")}
+                        </a>
+                    )}
                     <button type="button" className="btn btn-outline-primary" style={{ minHeight: "48px" }} onClick={() => window.print()}>
                         <i className="bi bi-printer me-2" aria-hidden="true" />
-                        طباعة
+                        {t("common.print", undefined, "طباعة")}
                     </button>
                     </> : null}
                     <Link href={`/enterprises/${enterprise.public_id}/transactions`} className="btn btn-link" style={{ minHeight: "48px" }}>
-                        المعاملات
+                        {t("transactions.title", undefined, "المعاملات")}
                     </Link>
                 </div>
 
                 {report.sections.map((section) => (
                     <SectionCard key={section.title} title={section.title}>
                         {section.rows.length === 0 ? (
-                            <EmptyState title="لا توجد بيانات لهذه الفترة" />
+                            <EmptyState title={t("reports.empty_period", undefined, "لا توجد بيانات لهذه الفترة")} />
                         ) : (
                             <div className="table-responsive">
                                 <table className="table align-middle mb-0">
@@ -160,7 +206,13 @@ export default function Show({
                             {n}
                         </p>
                     ))}
-                    <p className="mb-0">هذا التقرير محسوب من سجلاتك المحفوظة وليس تقييماً أو موافقة على تمويل.</p>
+                    <p className="mb-0">
+                        {t(
+                            "reports.disclaimer",
+                            undefined,
+                            "هذا التقرير محسوب من سجلاتك المحفوظة وليس تقييماً أو موافقة على تمويل.",
+                        )}
+                    </p>
                 </div>
             </div>
         </AppLayout>

@@ -1,6 +1,7 @@
 import { Link, useForm } from "@inertiajs/react";
 import { FormEvent } from "react";
 import { TextInput } from "../../Components/Forms/TextInput";
+import { useT } from "../../Hooks/useT";
 import { GuestAuthLayout } from "./GuestAuthLayout";
 
 type DemoAccounts = {
@@ -13,6 +14,7 @@ export default function Login({
 }: {
     demoAccounts?: DemoAccounts;
 }) {
+    const t = useT();
     const form = useForm({
         email: "",
         password: "",
@@ -24,14 +26,14 @@ export default function Login({
     }
 
     return (
-        <GuestAuthLayout title="تسجيل الدخول">
+        <GuestAuthLayout title={t("auth.login.title")}>
             <form onSubmit={submit} noValidate>
                 <TextInput
                     id="email"
                     name="email"
                     type="email"
                     autoComplete="username"
-                    label="البريد الإلكتروني"
+                    label={t("auth.login.email")}
                     value={form.data.email}
                     error={form.errors.email}
                     onChange={(value) => form.setData("email", value)}
@@ -41,7 +43,7 @@ export default function Login({
                     name="password"
                     type="password"
                     autoComplete="current-password"
-                    label="كلمة المرور"
+                    label={t("auth.login.password")}
                     value={form.data.password}
                     error={form.errors.password}
                     onChange={(value) => form.setData("password", value)}
@@ -52,20 +54,21 @@ export default function Login({
                     style={{ minHeight: "48px" }}
                     disabled={form.processing}
                 >
-                    تسجيل الدخول
+                    {t("auth.login.submit")}
                 </button>
                 <p className="mt-3 mb-0">
-                    <Link href="/forgot-password">نسيت كلمة المرور</Link>
+                    <Link href="/forgot-password">{t("auth.login.forgot")}</Link>
+                </p>
+                <p className="mt-2 mb-0">
+                    <Link href="/register">{t("register.link")}</Link>
                 </p>
             </form>
             {demoAccounts ? (
                 <aside
                     className="border rounded p-3 mt-4 small"
-                    aria-label="حسابات تجريبية"
+                    aria-label={t("auth.demo.title")}
                 >
-                    <p className="fw-semibold mb-2">
-                        حسابات تجريبية (بيئة التطوير فقط)
-                    </p>
+                    <p className="fw-semibold mb-2">{t("auth.demo.dev_only")}</p>
                     <ul className="list-unstyled mb-2">
                         {demoAccounts.accounts.map((account) => (
                             <li
@@ -90,7 +93,7 @@ export default function Login({
                         ))}
                     </ul>
                     <p className="mb-0">
-                        كلمة المرور:{" "}
+                        {t("auth.demo.password")}:{" "}
                         <code dir="ltr">{demoAccounts.password}</code>
                     </p>
                 </aside>

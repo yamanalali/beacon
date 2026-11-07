@@ -34,8 +34,8 @@ class PasswordResetLinkRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'البريد الإلكتروني مطلوب.',
-            'email.email' => 'أدخل بريداً إلكترونياً صالحاً.',
+            'email.required' => ui('validation.email_required'),
+            'email.email' => ui('validation.email_invalid'),
         ];
     }
 }

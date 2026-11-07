@@ -20,6 +20,7 @@ use App\Models\FinancialTransaction;
 use App\Models\TransactionItem;
 use App\Models\TransactionSettlement;
 use App\Navigation\PageAccess;
+use App\Services\Bookkeeping\TransactionInvoiceExporter;
 use App\Support\Currencies;
 use App\Support\Money;
 use App\Support\TabularListExporter;
@@ -244,7 +245,7 @@ class TransactionController extends Controller
     {
         $action->execute($request->user(), $transaction);
 
-        return back()->with('success', 'تم اعتماد العملية وإضافتها للتقارير.');
+        return back()->with('success', ui('flash.transaction_posted'));
     }
 
     public function store(StoreTransactionRequest $request, Enterprise $enterprise, CreateTransactionAction $action): RedirectResponse
@@ -253,7 +254,7 @@ class TransactionController extends Controller
 
         $transaction = $action->execute($request->user(), $enterprise, $request->validated());
 
-        return self::withItemsWarning(redirect()->route('transactions.show', $transaction)->with('success', 'تم حفظ العملية.'), $transaction);
+        return self::withItemsWarning(redirect()->route('transactions.show', $transaction)->with('success', ui('flash.transaction_saved')), $transaction);
     }
 
     public function show(Request $request, FinancialTransaction $transaction): Response
@@ -288,7 +289,17 @@ class TransactionController extends Controller
             'can_correct' => $user->can('correct', $transaction),
             'can_settle' => $user->can('settle', $transaction) && $transaction->outstandingMinor() > 0,
             'can_upload' => $user->can('upload', [Document::class, $transaction->enterprise]),
+            'invoice_pdf_url' => route('transactions.invoice.pdf', $transaction),
+            'has_signature' => filled($user->signature_path),
         ]);
+    }
+
+    public function invoicePdf(Request $request, FinancialTransaction $transaction, TransactionInvoiceExporter $exporter): StreamedResponse
+    {
+        $transaction->load(['enterprise', 'items', 'creator:id,name']);
+        Gate::authorize('view', $transaction);
+
+        return $exporter->pdf($transaction, $request->user());
     }
 
     public function editCorrection(FinancialTransaction $transaction): Response
@@ -311,7 +322,7 @@ class TransactionController extends Controller
 
         $corrected = $action->execute($request->user(), $transaction, $request->validated());
 
-        return self::withItemsWarning(redirect()->route('transactions.show', $corrected)->with('success', 'تم حفظ التصحيح مع الاحتفاظ بالسجل الأصلي.'), $corrected);
+        return self::withItemsWarning(redirect()->route('transactions.show', $corrected)->with('success', ui('flash.transaction_correction_saved')), $corrected);
     }
 
     public function storeSettlement(StoreSettlementRequest $request, FinancialTransaction $transaction, RecordSettlementAction $action): RedirectResponse
@@ -321,7 +332,7 @@ class TransactionController extends Controller
 
         $action->execute($request->user(), $transaction, $request->validated());
 
-        return redirect()->route('transactions.show', $transaction)->with('success', 'تم تسجيل الدفعة.');
+        return redirect()->route('transactions.show', $transaction)->with('success', ui('flash.settlement_recorded'));
     }
 
     /**
@@ -380,7 +391,10 @@ class TransactionController extends Controller
         $t->load('items');
 
         return $t->itemsMismatch()
-            ? $response->with('warning', 'مجموع البنود ('.Money::fromMinor($t->itemsTotalMinor()).') لا يساوي مبلغ العملية ('.Money::fromMinor($t->amountMinor()).'). تم الحفظ، راجع الفرق (ضريبة أو خصم مثلاً).')
+            ? $response->with('warning', ui('flash.transaction_items_mismatch', [
+                'items_total' => Money::fromMinor($t->itemsTotalMinor()),
+                'amount' => Money::fromMinor($t->amountMinor()),
+            ]))
             : $response;
     }
 

@@ -2,6 +2,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { StatusBadge, type StatusTone } from "../../Components/Feedback/StatusBadge";
+import { useT } from "../../Hooks/useT";
 
 type Result = { criterion_id: number; label: string; result: "met" | "not_met" | "needs_review"; result_label: string; reason: string };
 type Match = {
@@ -32,13 +33,15 @@ function loanLabel(m: Match): string | null {
 }
 
 export default function Matching({ enterprise, matches, disclaimer }: Props) {
+    const t = useT();
+
     return (
-        <AppLayout title="مطابقة مؤسسات التمويل">
+        <AppLayout title={t("mfi.matching.title", undefined, "مطابقة مؤسسات التمويل")}>
             <div className="app-page d-flex flex-column gap-3">
-                <PageHeader title="مطابقة مؤسسات التمويل" description={enterprise.business_name} />
+                <PageHeader title={t("mfi.matching.title", undefined, "مطابقة مؤسسات التمويل")} description={enterprise.business_name} />
                 <div className="alert alert-info mb-0">{disclaimer}</div>
                 <div className="d-flex flex-column gap-3">
-                    {matches.length === 0 ? <EmptyState title="لا توجد مؤسسات فعّالة" /> : null}
+                    {matches.length === 0 ? <EmptyState title={t("mfi.matching.empty", undefined, "لا توجد مؤسسات فعّالة")} /> : null}
                     {matches.map((m) => {
                         const loan = loanLabel(m);
                         return (
@@ -49,18 +52,33 @@ export default function Matching({ enterprise, matches, disclaimer }: Props) {
                                             {m.name_ar}
                                             {m.code ? <span className="text-body-secondary fw-normal small ms-2">({m.code})</span> : null}
                                         </strong>
-                                        {m.name_en ? <span className="small text-body-secondary d-block" lang="en">{m.name_en}</span> : null}
+                                        {m.name_en ? (
+                                            <span className="small text-body-secondary d-block" lang="en">
+                                                {m.name_en}
+                                            </span>
+                                        ) : null}
                                         <ul className="list-unstyled small text-body-secondary mb-0 mt-1">
-                                            {m.region_ar ? <li>التغطية: {m.region_ar}</li> : null}
-                                            {loan ? <li>نطاق القرض: {loan}</li> : null}
+                                            {m.region_ar ? (
+                                                <li>
+                                                    {t("mfi.matching.coverage", undefined, "التغطية")}: {m.region_ar}
+                                                </li>
+                                            ) : null}
+                                            {loan ? (
+                                                <li>
+                                                    {t("mfi.matching.loan_range", undefined, "نطاق القرض")}: {loan}
+                                                </li>
+                                            ) : null}
                                             {m.focus_ar ? <li>{m.focus_ar}</li> : null}
                                             {m.contact_name || m.contact_phone ? (
-                                                <li>التواصل: {[m.contact_name, m.contact_phone].filter(Boolean).join(" · ")}</li>
+                                                <li>
+                                                    {t("mfi.matching.contact", undefined, "التواصل")}:{" "}
+                                                    {[m.contact_name, m.contact_phone].filter(Boolean).join(" · ")}
+                                                </li>
                                             ) : null}
                                         </ul>
                                     </div>
                                     <p className="small mb-0 text-body-secondary">
-                                        مستوفى {m.counts.met} · غير مستوفى {m.counts.not_met} · يحتاج مراجعة {m.counts.needs_review}
+                                        {t("mfi.matching.counts", { met: m.counts.met, not_met: m.counts.not_met, review: m.counts.needs_review }, `مستوفى ${m.counts.met} · غير مستوفى ${m.counts.not_met} · يحتاج مراجعة ${m.counts.needs_review}`)}
                                     </p>
                                 </div>
                                 <ul className="list-unstyled mb-0">
@@ -74,7 +92,9 @@ export default function Matching({ enterprise, matches, disclaimer }: Props) {
                                         </li>
                                     ))}
                                     {m.results.length === 0 ? (
-                                        <li className="border-top pt-2 mt-2 small text-body-secondary">لا توجد شروط أهلية مفعّلة لهذه المؤسسة بعد.</li>
+                                        <li className="border-top pt-2 mt-2 small text-body-secondary">
+                                            {t("mfi.matching.no_criteria", undefined, "لا توجد شروط أهلية مفعّلة لهذه المؤسسة بعد.")}
+                                        </li>
                                     ) : null}
                                 </ul>
                             </article>

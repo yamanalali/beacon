@@ -1,5 +1,6 @@
 import { router } from "@inertiajs/react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useT } from "../../Hooks/useT";
 import { EmptyState } from "../Feedback/EmptyState";
 import { formatNumber, type NumberFormat } from "./format";
 import "../../../css/datatable.css";
@@ -100,26 +101,6 @@ export type DataTableProps<T> = {
     server?: ServerOptions<T>;
 };
 
-const L = {
-    search: "بحث",
-    columns: "الأعمدة",
-    density: "كثافة العرض",
-    compact: "مضغوط",
-    comfortable: "مريح",
-    selectAll: "تحديد كل الصفوف",
-    selectRow: "تحديد الصف",
-    selected: (n: number) => `${formatNumber(n, "integer")} محدد`,
-    clear: "إلغاء التحديد",
-    loading: "جارٍ التحميل",
-    prev: "السابق",
-    next: "التالي",
-    pages: "التنقل بين الصفحات",
-    range: (f: number, t: number, total: number) => `${formatNumber(f, "integer")}–${formatNumber(t, "integer")} من ${formatNumber(total, "integer")}`,
-    sortAsc: "ترتيب تصاعدي",
-    sortDesc: "ترتيب تنازلي",
-    noMatch: "لا توجد نتائج مطابقة للبحث",
-};
-
 function raw<T>(row: T, key: string): unknown {
     return (row as Record<string, unknown>)?.[key];
 }
@@ -139,9 +120,38 @@ function normalizeMeta<T>(s?: ServerOptions<T>): PaginatorMeta | undefined {
  * Client mode (default) sorts/searches the given rows; server mode delegates to the controller.
  */
 export function DataTable<T>(props: DataTableProps<T>) {
+    const t = useT();
+    const L = useMemo(
+        () => ({
+            search: t("datatable.search", undefined, "بحث"),
+            columns: t("datatable.columns", undefined, "الأعمدة"),
+            density: t("datatable.density", undefined, "كثافة العرض"),
+            compact: t("datatable.compact", undefined, "مضغوط"),
+            comfortable: t("datatable.comfortable", undefined, "مريح"),
+            selectAll: t("datatable.select_all", undefined, "تحديد كل الصفوف"),
+            selectRow: t("datatable.select_row", undefined, "تحديد الصف"),
+            selected: (n: number) =>
+                t("datatable.selected", { count: formatNumber(n, "integer") }, `${formatNumber(n, "integer")} محدد`),
+            clear: t("datatable.clear_selection", undefined, "إلغاء التحديد"),
+            loading: t("common.loading", undefined, "جارٍ التحميل"),
+            prev: t("pagination.previous", undefined, "السابق"),
+            next: t("pagination.next", undefined, "التالي"),
+            pages: t("datatable.pages_nav", undefined, "التنقل بين الصفحات"),
+            range: (f: number, to: number, total: number) =>
+                t(
+                    "datatable.range",
+                    { from: formatNumber(f, "integer"), to: formatNumber(to, "integer"), total: formatNumber(total, "integer") },
+                    `${formatNumber(f, "integer")}–${formatNumber(to, "integer")} من ${formatNumber(total, "integer")}`,
+                ),
+            sortAsc: t("datatable.sort_asc", undefined, "ترتيب تصاعدي"),
+            sortDesc: t("datatable.sort_desc", undefined, "ترتيب تنازلي"),
+            noMatch: t("datatable.no_match", undefined, "لا توجد نتائج مطابقة للبحث"),
+        }),
+        [t],
+    );
     const {
-        columns, rowKey, caption, emptyTitle = "لا توجد بيانات", emptyDescription, emptyActionLabel, onEmptyAction, onRowClick, rowLabel,
-        searchable = false, searchPlaceholder = "ابحث…", selectable = false, bulkActions = [], loading = false,
+        columns, rowKey, caption, emptyTitle = t("datatable.empty", undefined, "لا توجد بيانات"), emptyDescription, emptyActionLabel, onEmptyAction, onRowClick, rowLabel,
+        searchable = false, searchPlaceholder = t("datatable.search_placeholder", undefined, "ابحث…"), selectable = false, bulkActions = [], loading = false,
         defaultDensity = "comfortable", defaultSort, stickyFirstColumn = true, maxHeight = "70vh", toolbar, server,
     } = props;
     const sourceRows = props.rows ?? server?.paginator?.data ?? [];

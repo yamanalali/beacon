@@ -29,11 +29,11 @@ class UpdatePasswordRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'current_password.required' => 'كلمة المرور الحالية مطلوبة.',
-            'current_password.current_password' => 'كلمة المرور الحالية غير صحيحة.',
-            'password.required' => 'كلمة المرور الجديدة مطلوبة.',
-            'password.confirmed' => 'تأكيد كلمة المرور غير مطابق.',
-            'password.min' => 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
+            'current_password.required' => ui('validation.current_password_required'),
+            'current_password.current_password' => ui('validation.current_password_wrong'),
+            'password.required' => ui('validation.new_password_required'),
+            'password.confirmed' => ui('validation.password_confirmed'),
+            'password.min' => ui('validation.password_min'),
         ];
     }
 }

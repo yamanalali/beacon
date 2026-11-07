@@ -4,6 +4,7 @@ import {
     type HTMLInputTypeAttribute,
     type InputHTMLAttributes,
 } from "react";
+import { useT } from "../../Hooks/useT";
 
 export function TextInput(props: {
     id: string;
@@ -35,6 +36,7 @@ export function TextInput(props: {
         required,
         placeholder,
     } = props;
+    const t = useT();
     const [visible, setVisible] = useState(false);
     const isPassword = type === "password";
     const helpId = help ? `${id}-help` : undefined;
@@ -79,7 +81,7 @@ export function TextInput(props: {
                         type="button"
                         className="app-password-toggle"
                         onClick={() => setVisible(!visible)}
-                        aria-label={`${visible ? "إخفاء" : "إظهار"} ${label}`}
+                        aria-label={`${visible ? t("common.hide", undefined, "إخفاء") : t("common.show", undefined, "إظهار")} ${label}`}
                         aria-pressed={visible}
                     >
                         <i

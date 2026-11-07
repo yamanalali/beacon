@@ -22,6 +22,6 @@ class PreviewRuleSetRequest extends ReadinessAdminRequest
 
     public function messages(): array
     {
-        return parent::messages() + ['answers.*.criterion_id.in' => 'المعيار لا ينتمي إلى هذه القواعد.'];
+        return parent::messages() + ['answers.*.criterion_id.in' => ui('validation.criterion_not_in_ruleset')];
     }
 }

@@ -5,6 +5,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { SearchInput } from "../../Components/Navigation/SearchInput";
+import { useT } from "../../Hooks/useT";
 
 type EnterpriseRow = {
     public_id: string;
@@ -33,6 +34,7 @@ export default function Index({
     filters: { search: string };
     can_export?: boolean;
 }) {
+    const t = useT();
     const [search, setSearch] = useState(filters.search ?? "");
 
     function submitSearch(event: FormEvent) {
@@ -45,12 +47,12 @@ export default function Index({
     }
 
     return (
-        <AppLayout title="المنشآت">
+        <AppLayout title={t("smes.title", undefined, "المنشآت")}>
             <div className="app-page">
                 <div className="app-page-toolbar">
                     <PageHeader
-                        title="المنشآت"
-                        description="ملفات المنشآت، ومتابعة الأعمال والتقدّم في مكان واحد."
+                        title={t("smes.title", undefined, "المنشآت")}
+                        description={t("smes.index_description", undefined, "ملفات المنشآت، ومتابعة الأعمال والتقدّم في مكان واحد.")}
                     />
                     <div className="d-flex flex-wrap gap-2">
                         {can_export ? (
@@ -61,7 +63,7 @@ export default function Index({
                             className="btn btn-primary"
                         >
                             <i className="bi bi-plus-lg me-2" aria-hidden="true" />
-                            إضافة منشأة
+                            {t("smes.create", undefined, "إضافة منشأة")}
                         </Link>
                     </div>
                 </div>
@@ -69,19 +71,19 @@ export default function Index({
                     <div className="app-search-toolbar__field">
                         <SearchInput
                             id="enterprise-search"
-                            label="البحث باسم المنشأة"
+                            label={t("smes.search_label", undefined, "البحث باسم المنشأة")}
                             value={search}
                             onChange={setSearch}
                         />
                     </div>
                     <button type="submit" className="btn btn-primary">
                         <i className="bi bi-search me-2" aria-hidden="true" />
-                        بحث
+                        {t("common.search", undefined, "بحث")}
                     </button>
                 </form>
 
                 {enterprises.data.length === 0 ? (
-                    <EmptyState title="لا توجد منشآت حتى الآن" />
+                    <EmptyState title={t("smes.empty", undefined, "لا توجد منشآت حتى الآن")} />
                 ) : (
                     <>
                         <div className="d-lg-none d-flex flex-column gap-3">

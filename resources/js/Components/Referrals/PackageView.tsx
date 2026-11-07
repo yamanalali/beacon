@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useT } from "../../Hooks/useT";
 import { SectionCard } from "../Common/SectionCard";
 import { EmptyState } from "../Feedback/EmptyState";
 import { StatusBadge } from "../Feedback/StatusBadge";
@@ -47,10 +48,12 @@ const WORDS: Record<string, string> = {
 export const isTechnicalKey = (k: string) => /(^id$|_id$|^public_id$|uuid|hash|token|^created_by$|^updated_at$|^created_at$|_path$|^path$|^url$|mime)/i.test(k);
 
 /** Arabic label for a key; unknown keys get a word-based Arabic fallback, else a generic one. Never the raw key. */
-export function humanizeKey(k: string): string {
-    if (LABELS[k]) return LABELS[k];
+export function humanizeKey(k: string, tr?: ReturnType<typeof useT>): string {
+    const label = (key: string, fb: string) => (tr ? tr(key, undefined, fb) : fb);
+    const mapKey = `referrals.pkg.${k}`;
+    if (LABELS[k]) return label(mapKey, LABELS[k]);
     const parts = k.split(/[_\s-]+/).map((w) => WORDS[w.toLowerCase()]).filter(Boolean);
-    return parts.length ? parts.join(" ") : "معلومة إضافية";
+    return parts.length ? parts.join(" ") : label("referrals.pkg.extra_info", "معلومة إضافية");
 }
 
 const MONEY_KEY = /(amount|revenue|income|expense|profit|balance|receivable|payable|total|sales|cost|price)/i;
@@ -72,7 +75,8 @@ const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v ===
 
 /** Primitive/collection value as readable UI. `ctx` is the parent object (for a sibling `currency`). */
 export function ValueView({ k, v, ctx }: { k: string; v: unknown; ctx?: Record<string, unknown> }): ReactNode {
-    if (typeof v === "boolean") return <StatusBadge label={v ? "نعم" : "لا"} tone={v ? "success" : "danger"} />;
+    const tr = useT();
+    if (typeof v === "boolean") return <StatusBadge label={v ? tr("common.yes", undefined, "نعم") : tr("common.no", undefined, "لا")} tone={v ? "success" : "danger"} />;
     if (typeof v === "number" || (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v.trim()) && MONEY_KEY.test(k))) {
         const cur = typeof ctx?.currency === "string" ? ctx.currency : null;
         if (MONEY_KEY.test(k) && cur) return <bdi dir="ltr">{formatMoney(v as number | string, cur)}</bdi>;
@@ -92,13 +96,14 @@ export function ValueView({ k, v, ctx }: { k: string; v: unknown; ctx?: Record<s
 
 /** Label/value lines for an object; empty and technical fields are hidden. */
 export function Lines({ obj, skip = [] }: { obj: Record<string, unknown>; skip?: string[] }) {
+    const tr = useT();
     const entries = Object.entries(obj).filter(([k, v]) => !skip.includes(k) && !isTechnicalKey(k) && !isEmpty(v) && !(k === "currency" && Object.keys(obj).some((x) => MONEY_KEY.test(x))));
     if (entries.length === 0) return null;
     return (
         <div>
             {entries.map(([k, v], i) => (
                 <div key={i} className="app-record-line">
-                    <span>{humanizeKey(k)}</span>
+                    <span>{humanizeKey(k, tr)}</span>
                     <span><ValueView k={k} v={v} ctx={obj} /></span>
                 </div>
             ))}
@@ -108,13 +113,14 @@ export function Lines({ obj, skip = [] }: { obj: Record<string, unknown>; skip?:
 
 /** Lists of objects: table on md+, cards on mobile. */
 export function RecordsTable({ rows }: { rows: Record<string, unknown>[] }) {
+    const tr = useT();
     const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((k) => !isTechnicalKey(k) && rows.some((r) => !isEmpty(r[k])));
     if (rows.length === 0 || cols.length === 0) return null;
     return (
         <>
             <div className="table-responsive d-none d-md-block">
                 <table className="table align-middle mb-0">
-                    <thead><tr>{cols.map((c) => <th key={c} scope="col">{humanizeKey(c)}</th>)}</tr></thead>
+                    <thead><tr>{cols.map((c) => <th key={c} scope="col">{humanizeKey(c, tr)}</th>)}</tr></thead>
                     <tbody>
                         {rows.map((r, i) => (
                             <tr key={i}>{cols.map((c) => <td key={c}>{isEmpty(r[c]) ? "—" : <ValueView k={c} v={r[c]} ctx={r} />}</td>)}</tr>
@@ -130,16 +136,17 @@ export function RecordsTable({ rows }: { rows: Record<string, unknown>[] }) {
 }
 
 function ReadinessCard({ data }: { data: Record<string, unknown> }) {
+    const tr = useT();
     const score = data.score;
     const band = typeof data.band === "string" && data.band.trim() ? data.band : null;
     const met = data.mandatory_conditions_met;
     return (
-        <SectionCard title={SECTION_TITLES.readiness_assessment}>
+        <SectionCard title={tr("referrals.pkg.section.readiness_assessment", undefined, SECTION_TITLES.readiness_assessment)}>
             <div className="d-flex flex-wrap align-items-center gap-2 mb-2" data-testid="readiness-badges">
-                {!isEmpty(score) ? <span className="app-status app-status--neutral"><span>النتيجة <bdi dir="ltr">{Number(score).toLocaleString("en-US", { maximumFractionDigits: 2 })}</bdi> من 100</span></span> : <StatusBadge label="لم تُحسب النتيجة" tone="neutral" />}
+                {!isEmpty(score) ? <span className="app-status app-status--neutral"><span>{tr("readiness.result.score_label", undefined, "النتيجة")} <bdi dir="ltr">{Number(score).toLocaleString("en-US", { maximumFractionDigits: 2 })}</bdi> {tr("readiness.result.out_of_100", undefined, "من 100")}</span></span> : <StatusBadge label={tr("referrals.pkg.score_not_calculated", undefined, "لم تُحسب النتيجة")} tone="neutral" />}
                 {/* Band colour token is not in the package yet (label only), so the badge stays neutral. */}
                 {band ? <StatusBadge label={band} tone="neutral" /> : null}
-                {typeof met === "boolean" ? <StatusBadge label={met ? "الشروط الإلزامية مستوفاة" : "شرط إلزامي غير مستوفى"} tone={met ? "success" : "danger"} /> : null}
+                {typeof met === "boolean" ? <StatusBadge label={met ? tr("readiness.result.mandatory_met", undefined, "الشروط الإلزامية مستوفاة") : tr("readiness.result.mandatory_unmet", undefined, "شرط إلزامي غير مستوفى")} tone={met ? "success" : "danger"} /> : null}
             </div>
             <Lines obj={data} skip={["score", "band", "mandatory_conditions_met", "disclaimer"]} />
             {typeof data.disclaimer === "string" && data.disclaimer ? <p className="form-text mb-0 mt-2">{data.disclaimer}</p> : null}
@@ -157,6 +164,7 @@ const EMPTY_TEXT: Record<string, string> = {
 
 /** Server sends *_label next to raw codes (#78); show the label in place of the code. */
 function EnterpriseCard({ data }: { data: Record<string, unknown> }) {
+    const tr = useT();
     const obj: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(data)) {
         if (k.endsWith("_label")) continue;
@@ -165,20 +173,21 @@ function EnterpriseCard({ data }: { data: Record<string, unknown> }) {
         // A code with a label key but no label shows «—», never the raw code (both empty: hidden).
         obj[k] = hasLabel ? label : `${k}_label` in data && !isEmpty(v) ? "—" : v;
     }
-    return <SectionCard title={SECTION_TITLES.enterprise_profile}><Lines obj={obj} /></SectionCard>;
+    return <SectionCard title={tr("referrals.pkg.section.enterprise_profile", undefined, SECTION_TITLES.enterprise_profile)}><Lines obj={obj} /></SectionCard>;
 }
 
 
 /** One card per currency, SYP first; never converted. */
 export function FinancialSummary({ data }: { data: Record<string, unknown> }) {
+    const tr = useT();
     const period = isPlainObject(data.period) ? (data.period as { from?: string; to?: string }) : null;
     const rows = (Array.isArray(data.currencies) ? data.currencies : []).filter(isPlainObject) as unknown as ReferralCurrencyTotals[];
     const sorted = [...rows].sort((a, b) => (a.currency === "SYP" ? -1 : b.currency === "SYP" ? 1 : a.currency.localeCompare(b.currency)));
     return (
-        <SectionCard title={SECTION_TITLES.financial_summary}>
-            {period?.from && period?.to ? <p className="text-muted mb-2" data-testid="fin-period">الفترة من {formatDate(period.from)} إلى {formatDate(period.to)}</p> : null}
+        <SectionCard title={tr("referrals.pkg.section.financial_summary", undefined, SECTION_TITLES.financial_summary)}>
+            {period?.from && period?.to ? <p className="text-muted mb-2" data-testid="fin-period">{tr("referrals.pkg.period_from_to", undefined, "الفترة من")} {formatDate(period.from)} {tr("common.to", undefined, "إلى")} {formatDate(period.to)}</p> : null}
             {sorted.length === 0 ? (
-                <EmptyState title="لا توجد معاملات" description={EMPTY_TEXT.financial_summary} />
+                <EmptyState title={tr("referrals.pkg.no_transactions", undefined, "لا توجد معاملات")} description={tr("referrals.pkg.empty.financial_summary", undefined, EMPTY_TEXT.financial_summary)} />
             ) : (
                 <div className="row g-2">
                     {sorted.map((c) => {
@@ -187,13 +196,13 @@ export function FinancialSummary({ data }: { data: Record<string, unknown> }) {
                             <div key={c.currency} className="col-12 col-md-6 col-xl-4">
                                 <div className="app-mobile-record h-100" data-testid="fin-currency">
                                     <div className="fw-semibold mb-1">{c.currency}</div>
-                                    <div className="app-record-line"><span>الإيرادات</span><bdi dir="ltr">{formatMoney(c.income_total, c.currency)}</bdi></div>
-                                    <div className="app-record-line"><span>المصروفات</span><bdi dir="ltr">{formatMoney(c.expense_total, c.currency)}</bdi></div>
+                                    <div className="app-record-line"><span>{tr("referrals.pkg.revenue", undefined, "الإيرادات")}</span><bdi dir="ltr">{formatMoney(c.income_total, c.currency)}</bdi></div>
+                                    <div className="app-record-line"><span>{tr("referrals.pkg.expenses", undefined, "المصروفات")}</span><bdi dir="ltr">{formatMoney(c.expense_total, c.currency)}</bdi></div>
                                     <div className="app-record-line">
-                                        <span>الصافي</span>
+                                        <span>{tr("dashboard.sme.net_label", undefined, "الصافي")}</span>
                                         <bdi dir="ltr" data-testid="fin-net" style={{ color: net > 0 ? "var(--app-success)" : net < 0 ? "var(--app-danger)" : undefined, fontWeight: 600 }}>{formatMoney(c.net, c.currency)}</bdi>
                                     </div>
-                                    <div className="app-record-line"><span>عدد المعاملات</span><bdi dir="ltr">{Number(c.transaction_count ?? 0).toLocaleString("en-US")}</bdi></div>
+                                    <div className="app-record-line"><span>{tr("referrals.pkg.transaction_count", undefined, "عدد المعاملات")}</span><bdi dir="ltr">{Number(c.transaction_count ?? 0).toLocaleString("en-US")}</bdi></div>
                                 </div>
                             </div>
                         );
@@ -209,6 +218,7 @@ type SortKey = "name" | "type" | "date";
 
 /** Sortable table on md+, cards on mobile. Default: newest first (server order). */
 export function DocumentsTable({ docs }: { docs: Doc[] }) {
+    const tr = useT();
     const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "date", dir: -1 });
     const sorted = [...docs].sort((a, b) => {
         const x = a[sort.key] ?? "";
@@ -223,10 +233,10 @@ export function DocumentsTable({ docs }: { docs: Doc[] }) {
         </th>
     );
     return (
-        <SectionCard title={SECTION_TITLES.documents}>
+        <SectionCard title={tr("referrals.pkg.section.documents", undefined, SECTION_TITLES.documents)}>
             <div className="table-responsive d-none d-md-block">
                 <table className="table align-middle mb-0" data-testid="docs-table">
-                    <thead><tr>{head("name", "الاسم")}{head("type", "النوع")}{head("date", "التاريخ")}</tr></thead>
+                    <thead><tr>{head("name", tr("referrals.pkg.name", undefined, "الاسم"))}{head("type", tr("referrals.pkg.type", undefined, "النوع"))}{head("date", tr("common.date", undefined, "التاريخ"))}</tr></thead>
                     <tbody>
                         {sorted.map((d, i) => <tr key={i}><td>{d.name}</td><td>{d.type || "—"}</td><td>{d.date ? formatDate(d.date) : "—"}</td></tr>)}
                     </tbody>
@@ -236,8 +246,8 @@ export function DocumentsTable({ docs }: { docs: Doc[] }) {
                 {sorted.map((d, i) => (
                     <div key={i} className="app-mobile-record">
                         <div className="fw-semibold">{d.name}</div>
-                        {d.type ? <div className="app-record-line"><span>النوع</span><span>{d.type}</span></div> : null}
-                        {d.date ? <div className="app-record-line"><span>التاريخ</span><span>{formatDate(d.date)}</span></div> : null}
+                        {d.type ? <div className="app-record-line"><span>{tr("referrals.pkg.type", undefined, "النوع")}</span><span>{d.type}</span></div> : null}
+                        {d.date ? <div className="app-record-line"><span>{tr("common.date", undefined, "التاريخ")}</span><span>{formatDate(d.date)}</span></div> : null}
                     </div>
                 ))}
             </div>
@@ -246,36 +256,39 @@ export function DocumentsTable({ docs }: { docs: Doc[] }) {
 }
 
 function EmptySection({ k }: { k: string }) {
+    const tr = useT();
     return (
-        <SectionCard title={SECTION_TITLES[k]}>
-            <div data-testid={`empty-${k}`}><EmptyState title="غير متوفر" description={EMPTY_TEXT[k]} /></div>
+        <SectionCard title={tr(`referrals.pkg.section.${k}`, undefined, SECTION_TITLES[k] ?? humanizeKey(k))}>
+            <div data-testid={`empty-${k}`}><EmptyState title={tr("referrals.pkg.unavailable", undefined, "غير متوفر")} description={tr(`referrals.pkg.empty.${k}`, undefined, EMPTY_TEXT[k])} /></div>
         </SectionCard>
     );
 }
 
 function Section({ k, v }: { k: string; v: unknown }) {
+    const tr = useT();
     if (k === "financial_summary" && isPlainObject(v) && Array.isArray(v.currencies)) return <FinancialSummary data={v} />;
     if (isEmpty(v)) return KNOWN_ORDER.includes(k) ? <EmptySection k={k} /> : null;
     if (k === "readiness_assessment" && isPlainObject(v)) return <ReadinessCard data={v} />;
     if (k === "enterprise_profile" && isPlainObject(v)) return <EnterpriseCard data={v} />;
     if (k === "documents" && Array.isArray(v) && v.every((d) => isPlainObject(d) && typeof d.name === "string")) return <DocumentsTable docs={v.filter(isPlainObject) as unknown as Doc[]} />;
     return (
-        <SectionCard title={SECTION_TITLES[k] ?? humanizeKey(k)}>
+        <SectionCard title={tr(`referrals.pkg.section.${k}`, undefined, SECTION_TITLES[k] ?? humanizeKey(k, tr))}>
             {Array.isArray(v) ? <ValueView k={k} v={v} /> : isPlainObject(v) ? <Lines obj={v} /> : <ValueView k={k} v={v} />}
         </SectionCard>
     );
 }
 
 export function PackageView({ pkg }: { pkg: Pkg }) {
+    const tr = useT();
     // Every known section is shown; missing (not disclosed) or empty ones get an Arabic empty state.
-    if (Object.keys(pkg).length === 0) return <p className="text-muted mb-0">لا توجد بيانات مشاركة بعد.</p>;
+    if (Object.keys(pkg).length === 0) return <p className="text-muted mb-0">{tr("referrals.pkg.no_shared_data", undefined, "لا توجد بيانات مشاركة بعد.")}</p>;
     const known = KNOWN_ORDER;
     const extra = Object.entries(pkg).filter(([k, v]) => !KNOWN_ORDER.includes(k) && !isTechnicalKey(k) && !isEmpty(v));
     return (
         <div className="d-flex flex-column gap-3" data-testid="package-view">
             {known.map((k) => <Section key={k} k={k} v={pkg[k]} />)}
             {extra.length ? (
-                <SectionCard title="تفاصيل إضافية">
+                <SectionCard title={tr("referrals.pkg.extra_details", undefined, "تفاصيل إضافية")}>
                     {extra.map(([k, v], i) =>
                         isPlainObject(v) || (Array.isArray(v) && v.some(isPlainObject)) ? (
                             <div key={i} className="mb-3"><div className="fw-semibold mb-1">{humanizeKey(k)}</div><ValueView k={k} v={v} /></div>

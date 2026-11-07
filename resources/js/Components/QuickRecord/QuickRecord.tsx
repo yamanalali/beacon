@@ -1,6 +1,7 @@
 import { usePage } from "@inertiajs/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "../../Hooks/useT";
 import { ReceiptCapture } from "../Documents/ReceiptCapture";
 import { VoiceRecorder } from "./VoiceRecorder";
 import type { QuickRecord as QuickRecordProps } from "../../types/shared";
@@ -18,6 +19,7 @@ export function withExtract(url: string): string {
 }
 
 export function QuickRecordSheet({ qr, onClose }: { qr: QuickRecordProps; onClose: () => void }) {
+    const t = useT();
     const [view, setView] = useState<View>("menu");
     const ref = useRef<HTMLDivElement>(null);
     const closeRef = useRef<HTMLButtonElement>(null);
@@ -40,19 +42,19 @@ export function QuickRecordSheet({ qr, onClose }: { qr: QuickRecordProps; onClos
         return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
     }, [onClose]);
 
-    const title = view === "photo" ? "صوّر فاتورة" : view === "voice" ? "سجّل صوت" : "سجّل معاملة";
+    const title = view === "photo" ? t("quick_record.photo_invoice", undefined, "صوّر فاتورة") : view === "voice" ? t("quick_record.voice", undefined, "سجّل صوت") : t("quick_record.record_transaction", undefined, "سجّل معاملة");
     return createPortal(
         <>
             <div className="offcanvas-backdrop fade show app-sheet-backdrop" onClick={onClose} aria-hidden="true" />
             <div ref={ref} className="offcanvas offcanvas-bottom show app-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
                 <div className="app-sheet__header">
                     {view !== "menu" ? (
-                        <button type="button" className="app-icon-button" aria-label="رجوع" onClick={() => setView("menu")}>
+                        <button type="button" className="app-icon-button" aria-label={t("common.back", undefined, "رجوع")} onClick={() => setView("menu")}>
                             <i className="bi bi-arrow-right" aria-hidden="true" />
                         </button>
                     ) : null}
                     <h2 id={titleId} className="app-sheet__title">{title}</h2>
-                    <button ref={closeRef} type="button" className="app-icon-button" aria-label="إغلاق" onClick={onClose}>
+                    <button ref={closeRef} type="button" className="app-icon-button" aria-label={t("common.close", undefined, "إغلاق")} onClick={onClose}>
                         <i className="bi bi-x-lg" aria-hidden="true" />
                     </button>
                 </div>
@@ -60,19 +62,19 @@ export function QuickRecordSheet({ qr, onClose }: { qr: QuickRecordProps; onClos
                     <ul className="app-sheet__list">
                         <li>
                             <button type="button" className="app-side-link" onClick={() => setView("photo")}>
-                                <i className="bi bi-camera" aria-hidden="true" /><span>صوّر فاتورة</span>
+                                <i className="bi bi-camera" aria-hidden="true" /><span>{t("quick_record.photo_invoice", undefined, "صوّر فاتورة")}</span>
                             </button>
                         </li>
                         {qr.voice_url ? (
                             <li>
                                 <button type="button" className="app-side-link" onClick={() => setView("voice")}>
-                                    <i className="bi bi-mic" aria-hidden="true" /><span>سجّل صوت</span>
+                                    <i className="bi bi-mic" aria-hidden="true" /><span>{t("quick_record.voice", undefined, "سجّل صوت")}</span>
                                 </button>
                             </li>
                         ) : null}
                         <li>
                             <a href={qr.manual_url} className="app-side-link">
-                                <i className="bi bi-pencil-square" aria-hidden="true" /><span>إدخال يدوي</span>
+                                <i className="bi bi-pencil-square" aria-hidden="true" /><span>{t("quick_record.manual", undefined, "إدخال يدوي")}</span>
                             </a>
                         </li>
                     </ul>
@@ -93,10 +95,12 @@ export function QuickRecordSheet({ qr, onClose }: { qr: QuickRecordProps; onClos
 
 /** The «سجّل معاملة» trigger. `hero`: full-width CTA; `fab`: floating circle; `tab`: bottom-bar centre (legacy). */
 export function QuickRecordButton({ variant = "hero" }: { variant?: "hero" | "tab" | "fab" }) {
+    const t = useT();
     const qr = useQuickRecord();
     const [open, setOpen] = useState(false);
     const btn = useRef<HTMLButtonElement>(null);
     const close = useCallback(() => { setOpen(false); btn.current?.focus(); }, []);
+    const label = t("quick_record.record_transaction", undefined, "سجّل معاملة");
     if (!qr) return null;
     return (
         <>
@@ -105,26 +109,26 @@ export function QuickRecordButton({ variant = "hero" }: { variant?: "hero" | "ta
                     <span className="btn btn-primary rounded-circle d-inline-flex align-items-center justify-content-center" style={{ width: 44, height: 44, marginTop: -14 }} aria-hidden="true">
                         <i className="bi bi-plus-lg" />
                     </span>
-                    <span className="app-tab__label">سجّل معاملة</span>
+                    <span className="app-tab__label">{label}</span>
                 </button>
             ) : variant === "fab" ? (
                 <button
                     ref={btn}
                     type="button"
                     className="sme-fab__btn"
-                    aria-label="سجّل معاملة"
+                    aria-label={label}
                     aria-haspopup="dialog"
                     aria-expanded={open}
                     onClick={() => setOpen(true)}
                 >
                     <i className="bi bi-plus-lg" aria-hidden="true" />
-                    <span>سجّل معاملة</span>
+                    <span>{label}</span>
                 </button>
             ) : (
                 <button ref={btn} type="button" className="btn btn-primary btn-lg w-100 d-flex align-items-center justify-content-center gap-2 sme-primary__btn"
                     aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
                     <i className="bi bi-plus-circle" aria-hidden="true" />
-                    سجّل معاملة
+                    {label}
                 </button>
             )}
             {open ? <QuickRecordSheet qr={qr} onClose={close} /> : null}

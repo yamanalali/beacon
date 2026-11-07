@@ -1,7 +1,9 @@
 import { useForm } from "@inertiajs/react";
+import { useT } from "../../Hooks/useT";
 import { TextInput } from "../Forms/TextInput";
 
 export function DocumentUploader({ enterpriseId, transactionId }: { enterpriseId: string; transactionId?: string }) {
+    const t = useT();
     const form = useForm<{ file: File | null; title: string; transaction: string }>({
         file: null,
         title: "",
@@ -21,9 +23,9 @@ export function DocumentUploader({ enterpriseId, transactionId }: { enterpriseId
         >
             <div className="app-upload-zone mb-3">
                 <span className="app-upload-zone__icon"><i className="bi bi-cloud-arrow-up" aria-hidden="true" /></span>
-                <p className="fw-semibold mb-1">أضف وثيقة إلى ملف منشأتك</p>
+                <p className="fw-semibold mb-1">{t("documents.add_to_profile", undefined, "أضف وثيقة إلى ملف منشأتك")}</p>
                 <label htmlFor="document_file" className="form-label mb-1 fw-semibold">
-                    الملف (صورة أو PDF، حتى 10 ميغابايت)
+                    {t("documents.file_hint", undefined, "الملف (صورة أو PDF، حتى 10 ميغابايت)")}
                 </label>
                 <input
                     id="document_file"
@@ -44,19 +46,19 @@ export function DocumentUploader({ enterpriseId, transactionId }: { enterpriseId
             <TextInput
                 id="document_title"
                 name="title"
-                label="عنوان المستند (اختياري)"
+                label={t("documents.title_optional", undefined, "عنوان المستند (اختياري)")}
                 value={form.data.title}
                 onChange={(value) => form.setData("title", value)}
                 error={form.errors.title}
             />
             {form.progress ? (
-                <div className="progress mb-3" role="progressbar" aria-label="جارٍ الرفع" aria-valuenow={form.progress.percentage ?? 0}>
+                <div className="progress mb-3" role="progressbar" aria-label={t("documents.upload_progress", undefined, "جارٍ الرفع")} aria-valuenow={form.progress.percentage ?? 0}>
                     <div className="progress-bar" style={{ width: `${form.progress.percentage ?? 0}%` }} />
                 </div>
             ) : null}
             <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }} disabled={form.processing || form.data.file === null}>
                 <i className="bi bi-upload me-2" aria-hidden="true" />
-                {form.processing ? "جارٍ الرفع..." : "رفع المستند"}
+                {form.processing ? t("documents.uploading", undefined, "جارٍ الرفع...") : t("documents.upload", undefined, "رفع المستند")}
             </button>
         </form>
     );

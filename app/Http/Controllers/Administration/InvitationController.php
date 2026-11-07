@@ -32,7 +32,7 @@ class InvitationController extends Controller
         $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
         $data = $request->validate(['name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email'), function ($attribute, $value, $fail) {
             if (User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower($value)])->exists()) {
-                $fail('هذا البريد مستخدم بالفعل.');
+                $fail(ui('validation.email_already_used'));
             }
         }],
             'role' => ['required', Rule::enum(UserRole::class)], 'enterprise_id' => ['nullable', 'required_if:role,sme_user', 'exists:enterprises,id'],
@@ -43,7 +43,7 @@ class InvitationController extends Controller
         $audit->record($request->user(), 'user.invited', $invitation, ['email' => $data['email'], 'role' => $data['role'], 'enterprise_id' => $data['enterprise_id'] ?? null]);
 
         // Show once to the administrator for delivery using their approved channel.
-        return back()->with('invitation_link', route('invitations.accept', $token))->with('success', 'تم إنشاء دعوة صالحة لسبعة أيام. انسخ الرابط وشاركه مع صاحب البريد المحدد.');
+        return back()->with('invitation_link', route('invitations.accept', $token))->with('success', ui('flash.invitation_created'));
     }
 
     public function revoke(Request $request, UserInvitation $invitation, RecordAuditLog $audit)
@@ -52,7 +52,7 @@ class InvitationController extends Controller
         $invitation->update(['revoked_at' => now()]);
         $audit->record($request->user(), 'user.invitation_revoked', $invitation);
 
-        return back()->with('success', 'تم إلغاء الدعوة.');
+        return back()->with('success', ui('flash.invitation_revoked'));
     }
 
     private function valid(string $token): UserInvitation
@@ -96,6 +96,6 @@ class InvitationController extends Controller
             $audit->record($user, 'user.invitation_accepted', $invite, ['user_id' => $user->id]);
         });
 
-        return redirect()->route('login')->with('success', 'تم إنشاء الحساب. يمكنك تسجيل الدخول.');
+        return redirect()->route('login')->with('success', ui('flash.account_created'));
     }
 }

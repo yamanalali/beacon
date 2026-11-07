@@ -1,5 +1,6 @@
 import { router, useForm } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
+import { useT } from "../../Hooks/useT";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
@@ -47,6 +48,7 @@ function RecordStatusBadge({ status, label }: { status: RecordStatus; label: str
 }
 
 export default function Index({ enterprise, canRecord, activities, followUps }: AdvisoryPageProps) {
+    const t = useT();
     const form = useForm({
         activity_date: "",
         notes: "",
@@ -65,15 +67,15 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
     };
 
     return (
-        <AppLayout title="الإرشاد">
+        <AppLayout title={t("advisory.title", undefined, "الإرشاد")}>
             <div className="app-page">
                 <PageHeader
-                    title="الزيارات الإرشادية"
-                    description={`${enterprise.business_name} — سجل النشاط والمتابعة.`}
+                    title={t("advisory.visits_title", undefined, "الزيارات الإرشادية")}
+                    description={t("advisory.visits_description", { name: enterprise.business_name }, `${enterprise.business_name} — سجل النشاط والمتابعة.`)}
                 />
 
                 {canRecord ? (
-                    <SectionCard title="تسجيل نشاط">
+                    <SectionCard title={t("advisory.record_activity", undefined, "تسجيل نشاط")}>
                         <form
                             onSubmit={(event) => {
                                 event.preventDefault();
@@ -82,7 +84,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                         >
                             <TextInput
                                 id="activity_date"
-                                label="تاريخ النشاط"
+                                label={t("advisory.activity_date", undefined, "تاريخ النشاط")}
                                 name="activity_date"
                                 type="date"
                                 value={form.data.activity_date}
@@ -91,7 +93,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                             />
                             <div className="mb-3">
                                 <label htmlFor="notes" className="form-label mb-1 fw-semibold">
-                                    ملاحظات
+                                    {t("common.notes", undefined, "ملاحظات")}
                                 </label>
                                 <textarea
                                     id="notes"
@@ -104,16 +106,16 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                             </div>
                             <TextInput
                                 id="follow_up_description"
-                                label="إجراء متابعة (اختياري)"
+                                label={t("advisory.follow_up_optional", undefined, "إجراء متابعة (اختياري)")}
                                 name="follow_up_description"
                                 value={form.data.follow_up_description}
                                 onChange={(value) => form.setData("follow_up_description", value)}
                                 error={form.errors.follow_up_description}
-                                help="اتركه فارغاً إذا لم يكن هناك إجراء لاحق."
+                                help={t("advisory.follow_up_help", undefined, "اتركه فارغاً إذا لم يكن هناك إجراء لاحق.")}
                             />
                             <TextInput
                                 id="target_date"
-                                label="التاريخ المستهدف (اختياري)"
+                                label={t("advisory.target_date_optional", undefined, "التاريخ المستهدف (اختياري)")}
                                 name="target_date"
                                 type="date"
                                 value={form.data.target_date}
@@ -126,16 +128,16 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                 style={{ minHeight: "48px" }}
                                 disabled={form.processing}
                             >
-                                حفظ النشاط
+                                {t("advisory.save_activity", undefined, "حفظ النشاط")}
                             </button>
                         </form>
                     </SectionCard>
                 ) : null}
 
                 <div className="mt-4">
-                    <h2 className="h5 mb-3">الأنشطة</h2>
+                    <h2 className="h5 mb-3">{t("advisory.activities", undefined, "الأنشطة")}</h2>
                     {activities.length === 0 ? (
-                        <EmptyState title="لا توجد زيارات إرشادية بعد" />
+                        <EmptyState title={t("advisory.empty_activities", undefined, "لا توجد زيارات إرشادية بعد")} />
                     ) : (
                         <>
                             <div className="d-lg-none d-flex flex-column gap-3">
@@ -147,9 +149,9 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                         </div>
                                         {activity.notes ? <p className="mb-2">{activity.notes}</p> : null}
                                         {activity.responsible_name ? (
-                                            <p className="mb-1">المسؤول: {activity.responsible_name}</p>
+                                            <p className="mb-1">{t("advisory.responsible", undefined, "المسؤول")}: {activity.responsible_name}</p>
                                         ) : null}
-                                        {activity.target_date ? <p className="mb-0">التاريخ المستهدف: {activity.target_date}</p> : null}
+                                        {activity.target_date ? <p className="mb-0">{t("advisory.target_date", undefined, "التاريخ المستهدف")}: {activity.target_date}</p> : null}
                                     </article>
                                 ))}
                             </div>
@@ -157,11 +159,11 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                 <table className="table align-middle">
                                     <thead>
                                         <tr>
-                                            <th>التاريخ</th>
-                                            <th>ملاحظات</th>
-                                            <th>المسؤول</th>
-                                            <th>التاريخ المستهدف</th>
-                                            <th>الحالة</th>
+                                            <th>{t("common.date", undefined, "التاريخ")}</th>
+                                            <th>{t("common.notes", undefined, "ملاحظات")}</th>
+                                            <th>{t("advisory.responsible", undefined, "المسؤول")}</th>
+                                            <th>{t("advisory.target_date", undefined, "التاريخ المستهدف")}</th>
+                                            <th>{t("common.status", undefined, "الحالة")}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -184,9 +186,9 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                 </div>
 
                 <div className="mt-4">
-                    <h2 className="h5 mb-3">إجراءات المتابعة</h2>
+                    <h2 className="h5 mb-3">{t("advisory.follow_ups", undefined, "إجراءات المتابعة")}</h2>
                     {followUps.length === 0 ? (
-                        <EmptyState title="لا توجد إجراءات متابعة بعد" />
+                        <EmptyState title={t("advisory.empty_follow_ups", undefined, "لا توجد إجراءات متابعة بعد")} />
                     ) : (
                         <>
                             <div className="d-lg-none d-flex flex-column gap-3">
@@ -200,7 +202,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                             <p className="mb-1">المسؤول: {followUp.responsible_name}</p>
                                         ) : null}
                                         {followUp.target_date ? (
-                                            <p className="mb-2">التاريخ المستهدف: {followUp.target_date}</p>
+                                            <p className="mb-2">{t("advisory.target_date", undefined, "التاريخ المستهدف")}: {followUp.target_date}</p>
                                         ) : null}
                                         {followUp.can_complete && followUp.status === "open" ? (
                                             <button
@@ -209,7 +211,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                                 style={{ minHeight: "48px" }}
                                                 onClick={() => completeFollowUp(followUp.id)}
                                             >
-                                                تأكيد إنجاز الإجراء
+                                                {t("advisory.confirm_follow_up", undefined, "تأكيد إنجاز الإجراء")}
                                             </button>
                                         ) : null}
                                     </article>
@@ -219,10 +221,10 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                 <table className="table align-middle">
                                     <thead>
                                         <tr>
-                                            <th>الإجراء</th>
-                                            <th>المسؤول</th>
-                                            <th>التاريخ المستهدف</th>
-                                            <th>الحالة</th>
+                                            <th>{t("advisory.action", undefined, "الإجراء")}</th>
+                                            <th>{t("advisory.responsible", undefined, "المسؤول")}</th>
+                                            <th>{t("advisory.target_date", undefined, "التاريخ المستهدف")}</th>
+                                            <th>{t("common.status", undefined, "الحالة")}</th>
                                             <th></th>
                                         </tr>
                                     </thead>
@@ -243,7 +245,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                                             style={{ minHeight: "44px" }}
                                                             onClick={() => completeFollowUp(followUp.id)}
                                                         >
-                                                            تأكيد إنجاز الإجراء
+                                                            {t("advisory.confirm_follow_up", undefined, "تأكيد إنجاز الإجراء")}
                                                         </button>
                                                     ) : null}
                                                 </td>

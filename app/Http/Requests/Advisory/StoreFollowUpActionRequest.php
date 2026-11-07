@@ -41,7 +41,7 @@ class StoreFollowUpActionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'description.required' => 'وصف الإجراء مطلوب.',
+            'description.required' => ui('validation.action_description_required'),
         ];
     }
 }

@@ -1,11 +1,12 @@
 import { Link, router } from "@inertiajs/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { DataTable, type Column, type Paginator } from "../../../Components/Data/DataTable";
 import AppLayout from "../../../Layouts/AppLayout";
 import { PageHeader } from "../../../Components/Common/PageHeader";
 import { SectionCard } from "../../../Components/Common/SectionCard";
 import { SelectInput } from "../../../Components/Forms/SelectInput";
 import { TextInput } from "../../../Components/Forms/TextInput";
+import { useT } from "../../../Hooks/useT";
 
 type Row = {
     id: number;
@@ -18,23 +19,45 @@ type Row = {
 };
 type Filters = { action: string; actor: string; target_type: string; from: string; to: string };
 
-const columns: Column<Row>[] = [
-    { key: "created_at", header: "الوقت", cell: (log) => <bdi dir="ltr">{log.created_at}</bdi>, numeric: true },
-    { key: "actor_name", header: "المستخدم", cell: (log) => log.actor_name ?? "النظام" },
-    { key: "action", header: "الإجراء", cell: (log) => <bdi dir="ltr">{log.action}</bdi>, primary: true },
-    { key: "target", header: "السجل", cell: (log) => <bdi dir="ltr">{log.target_type} #{log.target_id}</bdi> },
-    {
-        key: "actions",
-        header: "",
-        hideable: false,
-        hideOnMobile: true,
-        cell: (log) => (
-            <Link href={`/admin/audit-logs/${log.id}`} className="btn btn-outline-primary btn-sm" style={{ minHeight: "40px" }} onClick={(e) => e.stopPropagation()}>
-                التفاصيل
-            </Link>
-        ),
-    },
-];
+function useAuditColumns(t: ReturnType<typeof useT>): Column<Row>[] {
+    return useMemo(
+        () => [
+            { key: "created_at", header: t("admin.audit.column.time", undefined, "الوقت"), cell: (log) => <bdi dir="ltr">{log.created_at}</bdi>, numeric: true },
+            {
+                key: "actor_name",
+                header: t("admin.audit.column.actor", undefined, "المستخدم"),
+                cell: (log) => log.actor_name ?? t("admin.audit.system", undefined, "النظام"),
+            },
+            { key: "action", header: t("admin.audit.column.action", undefined, "الإجراء"), cell: (log) => <bdi dir="ltr">{log.action}</bdi>, primary: true },
+            {
+                key: "target",
+                header: t("admin.audit.column.target", undefined, "السجل"),
+                cell: (log) => (
+                    <bdi dir="ltr">
+                        {log.target_type} #{log.target_id}
+                    </bdi>
+                ),
+            },
+            {
+                key: "actions",
+                header: "",
+                hideable: false,
+                hideOnMobile: true,
+                cell: (log) => (
+                    <Link
+                        href={`/admin/audit-logs/${log.id}`}
+                        className="btn btn-outline-primary btn-sm"
+                        style={{ minHeight: "40px" }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {t("common.details", undefined, "التفاصيل")}
+                    </Link>
+                ),
+            },
+        ],
+        [t],
+    );
+}
 
 export default function Index({
     logs,
@@ -47,57 +70,106 @@ export default function Index({
     actions: string[];
     target_types: string[];
 }) {
+    const t = useT();
+    const columns = useAuditColumns(t);
     const [values, setValues] = useState<Filters>(filters);
     const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== "")).toString();
 
     return (
-        <AppLayout title="سجل التدقيق">
+        <AppLayout title={t("nav.admin.audit-logs", undefined, "سجل التدقيق")}>
             <div className="app-page d-flex flex-column gap-3">
-                <PageHeader title="سجل التدقيق" description="سجل دائم لكل الإجراءات المهمة. لا يمكن تعديله أو حذفه." />
-                <SectionCard title="تصفية">
+                <PageHeader
+                    title={t("nav.admin.audit-logs", undefined, "سجل التدقيق")}
+                    description={t("admin.audit.index_description", undefined, "سجل دائم لكل الإجراءات المهمة. لا يمكن تعديله أو حذفه.")}
+                />
+                <SectionCard title={t("common.filter", undefined, "تصفية")}>
                     <form
                         onSubmit={(event) => {
                             event.preventDefault();
-                            router.get("/admin/audit-logs", Object.fromEntries(Object.entries(values).filter(([, v]) => v !== "")), { preserveState: true });
+                            router.get("/admin/audit-logs", Object.fromEntries(Object.entries(values).filter(([, v]) => v !== "")), {
+                                preserveState: true,
+                            });
                         }}
                     >
                         <div className="row g-2">
                             <div className="col-12 col-lg-3">
-                                <SelectInput id="action" label="الإجراء" value={values.action} placeholder="الكل" options={actions.map((a) => ({ value: a, label: a }))} onChange={(v) => setValues({ ...values, action: v })} />
+                                <SelectInput
+                                    id="action"
+                                    label={t("admin.audit.column.action", undefined, "الإجراء")}
+                                    value={values.action}
+                                    placeholder={t("common.all", undefined, "الكل")}
+                                    options={actions.map((a) => ({ value: a, label: a }))}
+                                    onChange={(v) => setValues({ ...values, action: v })}
+                                />
                             </div>
                             <div className="col-12 col-lg-3">
-                                <SelectInput id="target_type" label="نوع السجل" value={values.target_type} placeholder="الكل" options={target_types.map((t) => ({ value: t, label: t.split("\\").pop() ?? t }))} onChange={(v) => setValues({ ...values, target_type: v })} />
+                                <SelectInput
+                                    id="target_type"
+                                    label={t("admin.audit.filter.target_type", undefined, "نوع السجل")}
+                                    value={values.target_type}
+                                    placeholder={t("common.all", undefined, "الكل")}
+                                    options={target_types.map((typeName) => ({
+                                        value: typeName,
+                                        label: typeName.split("\\").pop() ?? typeName,
+                                    }))}
+                                    onChange={(v) => setValues({ ...values, target_type: v })}
+                                />
                             </div>
                             <div className="col-12 col-lg-2">
-                                <TextInput id="actor" name="actor" label="المستخدم (اسم أو بريد)" value={values.actor} onChange={(v) => setValues({ ...values, actor: v })} />
+                                <TextInput
+                                    id="actor"
+                                    name="actor"
+                                    label={t("admin.audit.filter.actor", undefined, "المستخدم (اسم أو بريد)")}
+                                    value={values.actor}
+                                    onChange={(v) => setValues({ ...values, actor: v })}
+                                />
                             </div>
                             <div className="col-6 col-lg-2">
-                                <TextInput id="from" name="from" type="date" label="من" value={values.from} onChange={(v) => setValues({ ...values, from: v })} />
+                                <TextInput
+                                    id="from"
+                                    name="from"
+                                    type="date"
+                                    label={t("common.from", undefined, "من")}
+                                    value={values.from}
+                                    onChange={(v) => setValues({ ...values, from: v })}
+                                />
                             </div>
                             <div className="col-6 col-lg-2">
-                                <TextInput id="to" name="to" type="date" label="إلى" value={values.to} onChange={(v) => setValues({ ...values, to: v })} />
+                                <TextInput
+                                    id="to"
+                                    name="to"
+                                    type="date"
+                                    label={t("common.to", undefined, "إلى")}
+                                    value={values.to}
+                                    onChange={(v) => setValues({ ...values, to: v })}
+                                />
                             </div>
                         </div>
                         <div className="d-flex flex-wrap gap-2">
                             <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }}>
-                                عرض النتائج
+                                {t("admin.audit.show_results", undefined, "عرض النتائج")}
                             </button>
                             <a href={`/admin/audit-logs/export${query ? `?${query}` : ""}`} className="btn btn-outline-primary" style={{ minHeight: "48px" }}>
                                 <i className="bi bi-filetype-csv me-2" aria-hidden="true" />
-                                تنزيل CSV
+                                {t("reports.download_csv", undefined, "تنزيل CSV")}
                             </a>
                         </div>
                     </form>
                 </SectionCard>
 
                 <DataTable
-                    caption="سجل التدقيق"
+                    caption={t("nav.admin.audit-logs", undefined, "سجل التدقيق")}
                     columns={columns}
                     rowKey={(log) => log.id}
                     rowLabel={(log) => `${log.action} #${log.id}`}
                     onRowClick={(log) => router.visit(`/admin/audit-logs/${log.id}`)}
-                    emptyTitle="لا توجد سجلات مطابقة"
-                    server={{ paginator: logs, url: "/admin/audit-logs", query: Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== "")), only: ["logs", "filters"] }}
+                    emptyTitle={t("admin.audit.empty", undefined, "لا توجد سجلات مطابقة")}
+                    server={{
+                        paginator: logs,
+                        url: "/admin/audit-logs",
+                        query: Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== "")),
+                        only: ["logs", "filters"],
+                    }}
                 />
             </div>
         </AppLayout>

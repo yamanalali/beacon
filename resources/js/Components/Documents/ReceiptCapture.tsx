@@ -1,5 +1,6 @@
 import { router, useForm, usePage } from "@inertiajs/react";
 import { useEffect, useRef, useState } from "react";
+import { useT } from "../../Hooks/useT";
 import type { DocumentRow } from "../../types/bookkeeping";
 import type { BeaconSharedProps } from "../../types/shared";
 import { handleInertiaConflict } from "../../lib/inertiaConflict";
@@ -17,6 +18,7 @@ type Step = "pick" | "ready" | "uploading" | "reading" | "error";
  * Provider-agnostic: if reading is unavailable the review page opens in manual-entry mode.
  */
 export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterpriseId: string; currentIds: string[]; uploadUrl?: string }) {
+    const t = useT();
     const page = usePage();
     const form = useForm<{ file: File | null; title: string }>({ file: null, title: "" });
     const [step, setStep] = useState<Step>("pick");
@@ -64,17 +66,17 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
 
     return (
         <div className="d-flex flex-column gap-3">
-            <p className="mb-0 text-body-secondary">صوّر الإيصال أو الفاتورة، وسنقرأ المبلغ والتاريخ والمورد لتراجعها قبل الحفظ.</p>
+            <p className="mb-0 text-body-secondary">{t("documents.receipt_capture_intro", undefined, "صوّر الإيصال أو الفاتورة، وسنقرأ المبلغ والتاريخ والمورد لتراجعها قبل الحفظ.")}</p>
             <div className="d-grid gap-2 d-sm-flex">
                 <label className={`btn btn-primary${busy ? " disabled" : ""}`} style={{ minHeight: "56px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
                     <i className="bi bi-camera me-2" aria-hidden="true" />
-                    تصوير الإيصال
+                    {t("documents.capture_receipt", undefined, "تصوير الإيصال")}
                     <input type="file" accept="image/*" capture="environment" className="visually-hidden" data-testid="camera-input"
                         disabled={busy} onChange={(e) => choose(e.target.files?.[0] ?? null)} />
                 </label>
                 <label className={`btn btn-outline-primary${busy ? " disabled" : ""}`} style={{ minHeight: "56px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
                     <i className="bi bi-paperclip me-2" aria-hidden="true" />
-                    اختيار ملف
+                    {t("documents.choose_file", undefined, "اختيار ملف")}
                     <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="visually-hidden" data-testid="file-input"
                         disabled={busy} onChange={(e) => choose(e.target.files?.[0] ?? null)} />
                 </label>
@@ -83,7 +85,7 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
             {form.data.file ? (
                 <div className="app-mobile-record d-flex gap-3 align-items-center">
                     {preview ? (
-                        <img src={preview} alt="معاينة الإيصال" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10 }} />
+                        <img src={preview} alt={t("documents.receipt_preview_alt", undefined, "معاينة الإيصال")} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10 }} />
                     ) : (
                         <i className="bi bi-file-earmark-pdf fs-2" aria-hidden="true" />
                     )}
@@ -92,7 +94,7 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
                         <div className="small text-body-secondary"><bdi dir="ltr">{Math.max(1, Math.round(form.data.file.size / 1024))} KB</bdi></div>
                     </div>
                     {!busy ? (
-                        <button type="button" className="btn btn-link" onClick={() => choose(null)} aria-label="إزالة الملف">
+                        <button type="button" className="btn btn-link" onClick={() => choose(null)} aria-label={t("documents.remove_file", undefined, "إزالة الملف")}>
                             <i className="bi bi-x-lg" aria-hidden="true" />
                         </button>
                     ) : null}
@@ -100,23 +102,23 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
             ) : null}
 
             {step === "uploading" ? (
-                <div className="progress" role="progressbar" aria-label="جارٍ رفع الإيصال" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                <div className="progress" role="progressbar" aria-label={t("documents.uploading_receipt", undefined, "جارٍ رفع الإيصال")} aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
                     <div className="progress-bar" style={{ width: `${pct}%` }} />
                 </div>
             ) : null}
             <div aria-live="polite" className="small">
-                {step === "uploading" ? `جارٍ الرفع… ${pct}%` : step === "reading" ? "جارٍ قراءة الإيصال… سيفتح نموذج المراجعة تلقائياً." : null}
+                {step === "uploading" ? t("documents.uploading_pct", { pct }, `جارٍ الرفع… ${pct}%`) : step === "reading" ? t("documents.reading_receipt", undefined, "جارٍ قراءة الإيصال… سيفتح نموذج المراجعة تلقائياً.") : null}
             </div>
             {info ? <div className="alert alert-info mb-0" role="status">{info}</div> : null}
             {step === "error" || form.errors.file ? (
                 <div className="alert alert-danger mb-0" role="alert">
-                    {form.errors.file ?? "تعذّر إكمال العملية. يمكنك المحاولة مرة أخرى، أو اختيار المستند من القائمة وتسجيله يدوياً."}
+                    {form.errors.file ?? t("documents.receipt_capture_error", undefined, "تعذّر إكمال العملية. يمكنك المحاولة مرة أخرى، أو اختيار المستند من القائمة وتسجيله يدوياً.")}
                 </div>
             ) : null}
 
             <button type="button" className="btn btn-primary" style={{ minHeight: "48px" }} disabled={!form.data.file || busy} onClick={upload}>
                 <i className="bi bi-upload me-2" aria-hidden="true" />
-                {busy ? "يرجى الانتظار…" : "رفع ومراجعة"}
+                {busy ? t("documents.please_wait", undefined, "يرجى الانتظار…") : t("documents.upload_and_review", undefined, "رفع ومراجعة")}
             </button>
         </div>
     );

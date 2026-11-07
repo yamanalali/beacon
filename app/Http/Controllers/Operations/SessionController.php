@@ -41,7 +41,7 @@ class SessionController extends Controller
             ->delete();
         $audit->record($user, 'security.sessions_revoked', $user, ['count' => $count]);
 
-        return redirect()->route('account.sessions')->with('success', 'تم إنهاء الجلسات الأخرى.');
+        return redirect()->route('account.sessions')->with('success', ui('flash.sessions_terminated'));
     }
 
     private function usesDatabase(): bool

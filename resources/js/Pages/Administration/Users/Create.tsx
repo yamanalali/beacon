@@ -4,6 +4,7 @@ import { TextInput } from "../../../Components/Forms/TextInput";
 import { PageHeader } from "../../../Components/Common/PageHeader";
 import { SectionCard } from "../../../Components/Common/SectionCard";
 import AppLayout from "../../../Layouts/AppLayout";
+import { useT } from "../../../Hooks/useT";
 
 type RoleOption = {
     value: string;
@@ -15,6 +16,7 @@ type CreateUserProps = {
 };
 
 export default function Create({ roles }: CreateUserProps) {
+    const t = useT();
     const form = useForm({
         name: "",
         email: "",
@@ -29,19 +31,15 @@ export default function Create({ roles }: CreateUserProps) {
     }
 
     return (
-        <AppLayout title="إضافة حساب">
+        <AppLayout title={t("admin.users.create_title", undefined, "إضافة حساب")}>
             <div className="app-page">
-                <PageHeader title="إضافة حساب" />
-                <SectionCard title="بيانات الحساب">
-                    <form
-                        onSubmit={submit}
-                        noValidate
-                        style={{ maxWidth: "40rem" }}
-                    >
+                <PageHeader title={t("admin.users.create_title", undefined, "إضافة حساب")} />
+                <SectionCard title={t("admin.users.account_data", undefined, "بيانات الحساب")}>
+                    <form onSubmit={submit} noValidate style={{ maxWidth: "40rem" }}>
                         <TextInput
                             id="name"
                             name="name"
-                            label="الاسم"
+                            label={t("account.name", undefined, "الاسم")}
                             value={form.data.name}
                             error={form.errors.name}
                             onChange={(value) => form.setData("name", value)}
@@ -50,7 +48,7 @@ export default function Create({ roles }: CreateUserProps) {
                             id="email"
                             name="email"
                             type="email"
-                            label="البريد الإلكتروني"
+                            label={t("account.email", undefined, "البريد الإلكتروني")}
                             value={form.data.email}
                             error={form.errors.email}
                             onChange={(value) => form.setData("email", value)}
@@ -60,31 +58,24 @@ export default function Create({ roles }: CreateUserProps) {
                             name="password"
                             type="password"
                             autoComplete="new-password"
-                            label="كلمة المرور"
+                            label={t("admin.users.password", undefined, "كلمة المرور")}
                             value={form.data.password}
                             error={form.errors.password}
-                            onChange={(value) =>
-                                form.setData("password", value)
-                            }
+                            onChange={(value) => form.setData("password", value)}
                         />
                         <TextInput
                             id="password_confirmation"
                             name="password_confirmation"
                             type="password"
                             autoComplete="new-password"
-                            label="تأكيد كلمة المرور"
+                            label={t("admin.users.password_confirm", undefined, "تأكيد كلمة المرور")}
                             value={form.data.password_confirmation}
                             error={form.errors.password_confirmation}
-                            onChange={(value) =>
-                                form.setData("password_confirmation", value)
-                            }
+                            onChange={(value) => form.setData("password_confirmation", value)}
                         />
                         <div className="mb-3">
-                            <label
-                                htmlFor="role"
-                                className="form-label fw-semibold"
-                            >
-                                الدور
+                            <label htmlFor="role" className="form-label fw-semibold">
+                                {t("account.role", undefined, "الدور")}
                             </label>
                             <select
                                 id="role"
@@ -92,9 +83,7 @@ export default function Create({ roles }: CreateUserProps) {
                                 className={`form-select${form.errors.role ? " is-invalid" : ""}`}
                                 style={{ minHeight: "48px", fontSize: "16px" }}
                                 value={form.data.role}
-                                onChange={(event) =>
-                                    form.setData("role", event.target.value)
-                                }
+                                onChange={(event) => form.setData("role", event.target.value)}
                             >
                                 {roles.map((role) => (
                                     <option key={role.value} value={role.value}>
@@ -103,29 +92,17 @@ export default function Create({ roles }: CreateUserProps) {
                                 ))}
                             </select>
                             {form.errors.role ? (
-                                <div
-                                    className="invalid-feedback d-block"
-                                    role="alert"
-                                >
+                                <div className="invalid-feedback d-block" role="alert">
                                     {form.errors.role}
                                 </div>
                             ) : null}
                         </div>
                         <div className="d-flex gap-2">
-                            <button
-                                type="submit"
-                                className="btn btn-primary"
-                                style={{ minHeight: "48px" }}
-                                disabled={form.processing}
-                            >
-                                حفظ الحساب
+                            <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }} disabled={form.processing}>
+                                {t("admin.users.save_account", undefined, "حفظ الحساب")}
                             </button>
-                            <Link
-                                href="/users"
-                                className="btn btn-outline-secondary"
-                                style={{ minHeight: "48px" }}
-                            >
-                                إلغاء
+                            <Link href="/users" className="btn btn-outline-secondary" style={{ minHeight: "48px" }}>
+                                {t("common.cancel", undefined, "إلغاء")}
                             </Link>
                         </div>
                     </form>

@@ -47,12 +47,12 @@ class ImportRuleSetRequest extends ReadinessAdminRequest
 
                 return;
             } catch (Throwable) {
-                $validator->errors()->add('file', 'تعذر قراءة الملف. استخدم قالب Excel أو ملف JSON من بيكون.');
+                $validator->errors()->add('file', ui('validation.import_file_read_failed'));
 
                 return;
             }
             if (($def['format'] ?? null) !== ReadinessRuleSetValidator::FORMAT) {
-                $validator->errors()->add('definition', 'الملف ليس تعريف قواعد جاهزية من بيكون.');
+                $validator->errors()->add('definition', ui('validation.import_not_beacon_rules'));
 
                 return;
             }
@@ -69,8 +69,8 @@ class ImportRuleSetRequest extends ReadinessAdminRequest
     public function messages(): array
     {
         return parent::messages() + [
-            'file.required_without' => 'يرجى إرفاق ملف JSON أو Excel.',
-            'definition.required_without' => 'يرجى إرفاق ملف JSON أو Excel.',
+            'file.required_without' => ui('validation.import_file_or_definition'),
+            'definition.required_without' => ui('validation.import_file_or_definition'),
         ];
     }
 

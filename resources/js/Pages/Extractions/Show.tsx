@@ -6,6 +6,7 @@ import { DocumentList } from "../../Components/Documents/DocumentList";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { ReviewForm, initialReviewData, reviewPayload, type CategorySuggestion, type ReviewFormData, type TransactionDraft } from "../../Components/Transactions/ReviewForm";
 import type { BookkeepingOptions, DocumentRow, EnterpriseRef } from "../../types/bookkeeping";
+import { useT } from "../../Hooks/useT";
 
 type Extraction = TransactionDraft & {
     public_id: string;
@@ -32,35 +33,44 @@ export default function Show({
     category_suggestion: CategorySuggestion;
     options: BookkeepingOptions;
     can_review: boolean;
-    /** Optional until the backend sends it. */
     transaction_type_options?: { value: string; label: string }[];
     suggested_transaction_type?: string | null;
 }) {
+    const t = useT();
     const draft: TransactionDraft = { ...extraction, suggested_transaction_type };
     const form = useForm<ReviewFormData>(initialReviewData(draft, type, options, category_suggestion, transaction_type_options));
     const doc = extraction.document;
     const pending = extraction.status === "pending_review";
 
     return (
-        <AppLayout title="مراجعة الإيصال">
+        <AppLayout title={t("extractions.show.title", undefined, "مراجعة الإيصال")}>
             <div className="app-page d-flex flex-column gap-3">
-                <PageHeader title="راجع العملية قبل الحفظ" description={enterprise.business_name} />
+                <PageHeader title={t("extractions.show.review_heading", undefined, "راجع العملية قبل الحفظ")} description={enterprise.business_name} />
                 <div className="d-flex flex-wrap align-items-center gap-2">
-                    <StatusBadge label={extraction.status_label} tone={extraction.status === "confirmed" ? "success" : extraction.status === "rejected" ? "neutral" : "warning"} />
+                    <StatusBadge
+                        label={extraction.status_label}
+                        tone={extraction.status === "confirmed" ? "success" : extraction.status === "rejected" ? "neutral" : "warning"}
+                    />
                     {extraction.confirmed_transaction_public_id ? (
                         <Link href={`/transactions/${extraction.confirmed_transaction_public_id}`} className="btn btn-outline-primary btn-sm">
-                            عرض العملية المحفوظة
+                            {t("extractions.show.view_saved", undefined, "عرض العملية المحفوظة")}
                         </Link>
                     ) : null}
                 </div>
                 {pending && !can_review ? (
-                    <div className="alert alert-info mb-0" role="status">يمكنك الاطلاع على الإيصال فقط؛ التأكيد متاح لمن يملك صلاحية تسجيل العمليات.</div>
+                    <div className="alert alert-info mb-0" role="status">
+                        {t(
+                            "extractions.show.view_only",
+                            undefined,
+                            "يمكنك الاطلاع على الإيصال فقط؛ التأكيد متاح لمن يملك صلاحية تسجيل العمليات.",
+                        )}
+                    </div>
                 ) : null}
 
                 <div className="row g-3">
                     {pending && can_review ? (
                         <div className="col-12 col-lg-7 order-2 order-lg-1">
-                            <SectionCard title="بيانات العملية">
+                            <SectionCard title={t("transactions.form.operation_data", undefined, "بيانات العملية")}>
                                 <ReviewForm
                                     draft={draft}
                                     data={form.data}
@@ -75,7 +85,15 @@ export default function Show({
                                         form.post(`/extractions/${extraction.public_id}/confirm`);
                                     }}
                                     onReject={() => {
-                                        if (window.confirm("هل تريد تجاهل هذا الاقتراح؟ سيبقى المستند محفوظاً.")) {
+                                        if (
+                                            window.confirm(
+                                                t(
+                                                    "extractions.show.reject_confirm",
+                                                    undefined,
+                                                    "هل تريد تجاهل هذا الاقتراح؟ سيبقى المستند محفوظاً.",
+                                                ),
+                                            )
+                                        ) {
                                             router.post(`/extractions/${extraction.public_id}/reject`);
                                         }
                                     }}
@@ -84,11 +102,21 @@ export default function Show({
                         </div>
                     ) : null}
                     <div className={`col-12 ${pending && can_review ? "col-lg-5 order-1 order-lg-2" : ""}`}>
-                        <SectionCard title="الإيصال">
+                        <SectionCard title={t("extractions.show.receipt", undefined, "الإيصال")}>
                             {doc.is_image && doc.is_previewable ? (
                                 <a href={`/documents/${doc.public_id}/preview`} target="_blank" rel="noopener noreferrer" className="d-block mb-3">
-                                    <img src={`/documents/${doc.public_id}/preview`} alt={`صورة ${doc.title}`} loading="lazy"
-                                        style={{ width: "100%", maxHeight: 320, objectFit: "contain", borderRadius: 12, background: "var(--app-background)" }} />
+                                    <img
+                                        src={`/documents/${doc.public_id}/preview`}
+                                        alt={t("extractions.show.image_alt", { title: doc.title }, `صورة ${doc.title}`)}
+                                        loading="lazy"
+                                        style={{
+                                            width: "100%",
+                                            maxHeight: 320,
+                                            objectFit: "contain",
+                                            borderRadius: 12,
+                                            background: "var(--app-background)",
+                                        }}
+                                    />
                                 </a>
                             ) : null}
                             <DocumentList documents={[doc]} />

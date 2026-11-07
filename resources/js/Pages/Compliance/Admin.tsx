@@ -1,5 +1,6 @@
 import { router, useForm } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
+import { useT } from "../../Hooks/useT";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { StatCard } from "../../Components/Common/StatCard";
@@ -32,6 +33,7 @@ type Requirement = {
 type Props = { requirements: Requirement[]; categories: Record<string, string> };
 
 export default function Admin({ requirements, categories }: Props) {
+    const t = useT();
     const form = useForm({
         code: "",
         category: Object.keys(categories)[0] ?? "",
@@ -46,29 +48,29 @@ export default function Admin({ requirements, categories }: Props) {
     const drafts = requirements.reduce((n, r) => n + r.versions.filter((v) => v.status === "draft").length, 0);
 
     return (
-        <AppLayout title="متطلبات الامتثال">
+        <AppLayout title={t("compliance.title", undefined, "متطلبات الامتثال")}>
             <div className="app-page d-flex flex-column gap-3">
                 <PageHeader
-                    title="إدارة متطلبات الامتثال"
-                    description="أضف المتطلب كمسودة، ثم انشر النسخة عندما يصبح الإرشاد جاهزاً. التقييمات السابقة تبقى على النسخة التي استُخدمت وقتها."
+                    title={t("compliance.admin.title", undefined, "إدارة متطلبات الامتثال")}
+                    description={t("compliance.admin.description", undefined, "أضف المتطلب كمسودة، ثم انشر النسخة عندما يصبح الإرشاد جاهزاً. التقييمات السابقة تبقى على النسخة التي استُخدمت وقتها.")}
                 />
 
                 <div className="row g-3">
                     <div className="col-12 col-md-4">
-                        <StatCard label="المتطلبات" value={String(requirements.length)} hint="كل المتطلبات المسجلة" icon="bi-list-check" />
+                        <StatCard label={t("compliance.admin.stat_requirements", undefined, "المتطلبات")} value={String(requirements.length)} hint={t("compliance.admin.stat_requirements_hint", undefined, "كل المتطلبات المسجلة")} icon="bi-list-check" />
                     </div>
                     <div className="col-6 col-md-4">
-                        <StatCard label="فعّالة" value={String(active)} hint="تظهر للمنشآت" icon="bi-check2-circle" tone="blue" />
+                        <StatCard label={t("compliance.admin.stat_active", undefined, "فعّالة")} value={String(active)} hint={t("compliance.admin.stat_active_hint", undefined, "تظهر للمنشآت")} icon="bi-check2-circle" tone="blue" />
                     </div>
                     <div className="col-6 col-md-4">
-                        <StatCard label="مسودات" value={String(drafts)} hint="بانتظار النشر" icon="bi-pencil" tone="amber" />
+                        <StatCard label={t("compliance.admin.stat_drafts", undefined, "مسودات")} value={String(drafts)} hint={t("compliance.admin.stat_drafts_hint", undefined, "بانتظار النشر")} icon="bi-pencil" tone="amber" />
                     </div>
                 </div>
 
                 <div className="row g-3 align-items-start">
                     <div className="col-12 col-lg-4">
-                        <SectionCard title="متطلب جديد">
-                            <p className="small text-body-secondary">يُحفظ كمسودة. لا يظهر للمنشأة قبل نشر النسخة.</p>
+                        <SectionCard title={t("compliance.admin.new_requirement", undefined, "متطلب جديد")}>
+                            <p className="small text-body-secondary">{t("compliance.admin.new_requirement_hint", undefined, "يُحفظ كمسودة. لا يظهر للمنشأة قبل نشر النسخة.")}</p>
                             <form
                                 className="d-flex flex-column gap-1"
                                 onSubmit={(e) => {
@@ -76,37 +78,37 @@ export default function Admin({ requirements, categories }: Props) {
                                     form.post("/admin/compliance", { preserveScroll: true, onSuccess: () => form.reset() });
                                 }}
                             >
-                                <TextInput id="code" name="code" label="الرمز" value={form.data.code} onChange={(v) => form.setData("code", v)} error={form.errors.code} />
+                                <TextInput id="code" name="code" label={t("compliance.admin.code", undefined, "الرمز")} value={form.data.code} onChange={(v) => form.setData("code", v)} error={form.errors.code} />
                                 <div className="mb-3">
-                                    <label htmlFor="category" className="form-label mb-1 fw-semibold">التصنيف</label>
+                                    <label htmlFor="category" className="form-label mb-1 fw-semibold">{t("compliance.admin.category", undefined, "التصنيف")}</label>
                                     <select id="category" className="form-select" style={{ minHeight: "48px" }} value={form.data.category} onChange={(e) => form.setData("category", e.target.value)}>
                                         {Object.entries(categories).map(([key, label]) => (
                                             <option key={key} value={key}>{label}</option>
                                         ))}
                                     </select>
                                 </div>
-                                <TextInput id="title_ar" name="title_ar" label="العنوان" value={form.data.title_ar} onChange={(v) => form.setData("title_ar", v)} error={form.errors.title_ar} />
-                                <TextInput id="description_ar" name="description_ar" label="الوصف" value={form.data.description_ar} onChange={(v) => form.setData("description_ar", v)} />
+                                <TextInput id="title_ar" name="title_ar" label={t("documents.show.title_label", undefined, "العنوان")} value={form.data.title_ar} onChange={(v) => form.setData("title_ar", v)} error={form.errors.title_ar} />
+                                <TextInput id="description_ar" name="description_ar" label={t("compliance.admin.description", undefined, "الوصف")} value={form.data.description_ar} onChange={(v) => form.setData("description_ar", v)} />
                                 <TextInput
                                     id="guidance_ar"
                                     name="guidance_ar"
-                                    label="الإرشاد المعتمد"
+                                    label={t("compliance.admin.guidance", undefined, "الإرشاد المعتمد")}
                                     value={form.data.guidance_ar}
                                     onChange={(v) => form.setData("guidance_ar", v)}
-                                    help="اتركه فارغاً إذا كان المحتوى بانتظار اعتماد بيكون."
+                                    help={t("compliance.admin.guidance_help", undefined, "اتركه فارغاً إذا كان المحتوى بانتظار اعتماد بيكون.")}
                                 />
-                                <TextInput id="effective_from" name="effective_from" type="date" label="تاريخ السريان" value={form.data.effective_from} onChange={(v) => form.setData("effective_from", v)} />
+                                <TextInput id="effective_from" name="effective_from" type="date" label={t("compliance.admin.effective_from", undefined, "تاريخ السريان")} value={form.data.effective_from} onChange={(v) => form.setData("effective_from", v)} />
                                 <div className="form-check mb-3">
                                     <input id="requires_document" type="checkbox" className="form-check-input" checked={form.data.requires_document} onChange={(e) => form.setData("requires_document", e.target.checked)} />
-                                    <label htmlFor="requires_document" className="form-check-label">يتطلب وثيقة</label>
+                                    <label htmlFor="requires_document" className="form-check-label">{t("compliance.admin.requires_document", undefined, "يتطلب وثيقة")}</label>
                                 </div>
-                                <button type="submit" className="btn btn-primary w-100" style={{ minHeight: "48px" }} disabled={form.processing}>حفظ كمسودة</button>
+                                <button type="submit" className="btn btn-primary w-100" style={{ minHeight: "48px" }} disabled={form.processing}>{t("compliance.admin.save_draft", undefined, "حفظ كمسودة")}</button>
                             </form>
                         </SectionCard>
                     </div>
 
                     <div className="col-12 col-lg-8 d-flex flex-column gap-3">
-                        {requirements.length === 0 ? <EmptyState title="لا توجد متطلبات بعد" description="أضف أول متطلب من النموذج، ثم انشر النسخة عندما يعتمد بيكون الإرشاد." /> : null}
+                        {requirements.length === 0 ? <EmptyState title={t("compliance.admin.empty", undefined, "لا توجد متطلبات بعد")} description={t("compliance.admin.empty_hint", undefined, "أضف أول متطلب من النموذج، ثم انشر النسخة عندما يعتمد بيكون الإرشاد.")} /> : null}
                         {requirements.map((req) => (
                             <article key={req.public_id} className="border rounded p-3 bg-white">
                                 <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -114,25 +116,25 @@ export default function Admin({ requirements, categories }: Props) {
                                         <div className="small text-body-secondary">{req.category_label}</div>
                                         <h2 className="h5 mb-0"><bdi dir="ltr">{req.code}</bdi></h2>
                                     </div>
-                                    <StatusBadge label={req.is_active ? "فعّال" : req.replaced_by ? `مستبدل بـ ${req.replaced_by}` : "غير فعّال"} tone={req.is_active ? "success" : "warning"} />
+                                    <StatusBadge label={req.is_active ? t("compliance.admin.status_active", undefined, "فعّال") : req.replaced_by ? t("compliance.admin.replaced_by", { code: req.replaced_by }, `مستبدل بـ ${req.replaced_by}`) : t("compliance.admin.status_inactive", undefined, "غير فعّال")} tone={req.is_active ? "success" : "warning"} />
                                 </div>
                                 <ul className="list-unstyled d-flex flex-column gap-2 mt-3 mb-0">
                                     {req.versions.map((v) => (
                                         <li key={v.id} className="border rounded p-3">
                                             <div className="d-flex justify-content-between flex-wrap gap-2">
-                                                <span className="fw-semibold">نسخة {v.version_number}: {v.title_ar}</span>
-                                                <StatusBadge label={v.status === "published" ? "منشورة" : "مسودة"} tone={v.status === "published" ? "success" : "warning"} />
+                                                <span className="fw-semibold">{t("compliance.admin.version_line", { n: v.version_number, title: v.title_ar }, `نسخة ${v.version_number}: ${v.title_ar}`)}</span>
+                                                <StatusBadge label={v.status === "published" ? t("compliance.admin.version_published", undefined, "منشورة") : t("common.draft", undefined, "مسودة")} tone={v.status === "published" ? "success" : "warning"} />
                                             </div>
                                             <div className="d-flex flex-wrap gap-2 mt-2">
-                                                {v.requires_document ? <StatusBadge label="يتطلب وثيقة" tone="neutral" /> : null}
-                                                {v.effective_from ? <span className="small text-body-secondary">السريان <bdi dir="ltr">{v.effective_from}</bdi></span> : null}
+                                                {v.requires_document ? <StatusBadge label={t("compliance.admin.requires_document", undefined, "يتطلب وثيقة")} tone="neutral" /> : null}
+                                                {v.effective_from ? <span className="small text-body-secondary">{t("compliance.admin.effective", undefined, "السريان")} <bdi dir="ltr">{v.effective_from}</bdi></span> : null}
                                             </div>
-                                            {v.guidance_pending ? <p className="small text-body-secondary mb-0 mt-2">الإرشاد بانتظار مدخلات بيكون</p> : null}
-                                            {v.published_at ? <p className="small mb-0 mt-2">نشرها {v.published_by} في <bdi dir="ltr">{v.published_at}</bdi></p> : null}
-                                            {v.change_summary ? <p className="small mb-0 mt-1">التغيير: {v.change_summary}</p> : null}
+                                            {v.guidance_pending ? <p className="small text-body-secondary mb-0 mt-2">{t("compliance.admin.guidance_pending", undefined, "الإرشاد بانتظار مدخلات بيكون")}</p> : null}
+                                            {v.published_at ? <p className="small mb-0 mt-2">{t("compliance.admin.published_by", { user: v.published_by, at: v.published_at }, `نشرها ${v.published_by} في ${v.published_at}`)}</p> : null}
+                                            {v.change_summary ? <p className="small mb-0 mt-1">{t("compliance.admin.change_summary", { summary: v.change_summary }, `التغيير: ${v.change_summary}`)}</p> : null}
                                             {v.status === "draft" ? (
                                                 <button type="button" className="btn btn-primary btn-sm mt-3" style={{ minHeight: "44px" }} onClick={() => router.post(`/admin/compliance/versions/${v.id}/publish`, {}, { preserveScroll: true })}>
-                                                    نشر النسخة
+                                                    {t("compliance.admin.publish_version", undefined, "نشر النسخة")}
                                                 </button>
                                             ) : null}
                                         </li>
@@ -140,7 +142,7 @@ export default function Admin({ requirements, categories }: Props) {
                                 </ul>
                                 {req.is_active ? (
                                     <button type="button" className="btn btn-outline-danger btn-sm mt-3" style={{ minHeight: "44px" }} onClick={() => router.post(`/admin/compliance/${req.public_id}/deactivate`, {}, { preserveScroll: true })}>
-                                        إيقاف المتطلب
+                                        {t("compliance.admin.deactivate", undefined, "إيقاف المتطلب")}
                                     </button>
                                 ) : null}
                             </article>

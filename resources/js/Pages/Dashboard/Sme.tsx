@@ -8,6 +8,7 @@ import { Money } from "../../Components/Common/Money";
 import { currencySymbol, formatMoneyIsolated } from "../../lib/money";
 import { trendLabel } from "../../Components/Dashboard/CurrencyCards";
 import { StatusBadge, type StatusTone } from "../../Components/Feedback/StatusBadge";
+import { useT } from "../../Hooks/useT";
 import type { DashboardAlert, SmeDashboardKpis, SmeDashboardProps, SmeRecentTransaction } from "../../types/dashboard";
 
 /**
@@ -55,40 +56,44 @@ export function AlertItem({ alert }: { alert: DashboardAlert }) {
 
 const money = formatMoneyIsolated;
 
-const TYPE_LABEL: Record<SmeRecentTransaction["type"], string> = {
-    sale: "مبيع",
-    income: "دخل",
-    purchase: "شراء",
-    expense: "مصروف",
-};
-
-function transactionTitle(t: SmeRecentTransaction): string {
-    const desc = t.description?.trim();
-    if (desc) return desc;
-    const label = t.category_label?.trim();
-    if (label) return label;
-    return TYPE_LABEL[t.type];
+function typeLabel(txType: SmeRecentTransaction["type"], t: ReturnType<typeof useT>): string {
+    const map: Record<SmeRecentTransaction["type"], string> = {
+        sale: t("transactions.type.sale_short", undefined, "مبيع"),
+        income: t("transactions.type.income_short", undefined, "دخل"),
+        purchase: t("transactions.type.purchase_short", undefined, "شراء"),
+        expense: t("transactions.type.expense_short", undefined, "مصروف"),
+    };
+    return map[txType];
 }
 
-function TransactionRow({ t }: { t: SmeRecentTransaction }) {
-    const income = t.direction === "income";
+function transactionTitle(tx: SmeRecentTransaction, t: ReturnType<typeof useT>): string {
+    const desc = tx.description?.trim();
+    if (desc) return desc;
+    const label = tx.category_label?.trim();
+    if (label) return label;
+    return typeLabel(tx.type, t);
+}
+
+function TransactionRow({ tx }: { tx: SmeRecentTransaction }) {
+    const t = useT();
+    const income = tx.direction === "income";
     return (
         <li>
-            <Link href={t.url} className="sme-tx">
+            <Link href={tx.url} className="sme-tx">
                 <span className={`sme-tx__icon ${income ? "is-in" : "is-out"}`} aria-hidden="true">
                     <i className={`bi ${income ? "bi-arrow-down-left" : "bi-arrow-up-right"}`} />
                 </span>
                 <span className="sme-tx__copy">
-                    <span className="sme-tx__title">{transactionTitle(t)}</span>
+                    <span className="sme-tx__title">{transactionTitle(tx, t)}</span>
                     <span className="sme-tx__meta">
-                        {TYPE_LABEL[t.type]}
-                        {t.counterparty ? ` · ${t.counterparty}` : ""}
+                        {typeLabel(tx.type, t)}
+                        {tx.counterparty ? ` · ${tx.counterparty}` : ""}
                         {" · "}
-                        <bdi dir="ltr">{t.transaction_date}</bdi>
+                        <bdi dir="ltr">{tx.transaction_date}</bdi>
                     </span>
                 </span>
                 <span className={`sme-tx__amount ${income ? "is-in" : "is-out"}`}>
-                    <Money amount={t.amount} currency={t.currency} signed={income ? "in" : "out"} />
+                    <Money amount={tx.amount} currency={tx.currency} signed={income ? "in" : "out"} />
                 </span>
             </Link>
         </li>
@@ -143,8 +148,9 @@ function totalsFor(kpis: SmeDashboardKpis, code: string): {
 }
 
 function HomeSkeleton() {
+    const t = useT();
     return (
-        <div className="sme-home sme-home--loading" aria-busy="true" aria-label="جارٍ التحميل" data-testid="home-skeleton">
+        <div className="sme-home sme-home--loading" aria-busy="true" aria-label={t("common.loading", undefined, "جارٍ التحميل")} data-testid="home-skeleton">
             <div className="sme-skel sme-skel--hero" />
             <div className="sme-skel sme-skel--btn" />
             <div className="sme-skel sme-skel--list" />
@@ -162,6 +168,8 @@ export default function Sme({
     compliance = { overdue: [], upcoming: [] },
     alerts = [],
 }: Props) {
+    const t = useT();
+    const homeTitle = t("common.home", undefined, "الرئيسية");
     const deadlines = [...compliance.overdue, ...compliance.upcoming].slice(0, 3);
     const enterpriseHref = enterprise ? `/enterprises/${enterprise.public_id}` : null;
     const feed = recent_transactions.slice(0, 5);
@@ -192,13 +200,13 @@ export default function Sme({
 
     if (enterprise === null) {
         return (
-            <AppLayout title="الرئيسية">
+            <AppLayout title={homeTitle}>
                 <div className="app-page sme-home">
                     <SectionCard>
                         <EmptyState
                             icon="bi-buildings"
-                            title="لا توجد منشأة مرتبطة بحسابك بعد"
-                            description="تواصل مع فريق Beacon لربط حسابك بمنشأتك."
+                            title={t("dashboard.sme.no_enterprise_title", undefined, "لا توجد منشأة مرتبطة بحسابك بعد")}
+                            description={t("dashboard.sme.no_enterprise_desc", undefined, "تواصل مع فريق Beacon لربط حسابك بمنشأتك.")}
                         />
                         <div className="sme-primary mt-3">
                             <QuickRecordButton />
@@ -211,7 +219,7 @@ export default function Sme({
 
     if (kpis === null) {
         return (
-            <AppLayout title="الرئيسية">
+            <AppLayout title={homeTitle}>
                 <div className="app-page">
                     <HomeSkeleton />
                 </div>
@@ -220,16 +228,16 @@ export default function Sme({
     }
 
     return (
-        <AppLayout title="الرئيسية">
+        <AppLayout title={homeTitle}>
             <div className="app-page sme-home">
                 {/*
                   Mobile: single column (hero → CTA → alerts → feed → status).
                   Desktop (≥992): 12-col — hero 8 + CTA 4; feed 8 + status 4. width:auto, max 1040px.
                 */}
                 <div className="sme-home__grid">
-                    <section className={`sme-hero ${netTone}`} aria-label="مؤشرات هذا الشهر" data-testid="home-balance">
+                    <section className={`sme-hero ${netTone}`} aria-label={t("dashboard.sme.month_indicators", undefined, "مؤشرات هذا الشهر")} data-testid="home-balance">
                         {codes.length > 1 ? (
-                            <div className="sme-currency-toggle" role="tablist" aria-label="العملة" data-testid="currency-toggle">
+                            <div className="sme-currency-toggle" role="tablist" aria-label={t("dashboard.sme.currency_tabs", undefined, "العملة")} data-testid="currency-toggle">
                                 {codes.map((code) => (
                                     <button
                                         key={code}
@@ -250,7 +258,7 @@ export default function Sme({
                             </div>
                         )}
 
-                        <p className="sme-hero__label">صافي هذا الشهر</p>
+                        <p className="sme-hero__label">{t("dashboard.sme.net_month", undefined, "صافي هذا الشهر")}</p>
                         <p className="sme-hero__net" data-testid="hero-net">
                             <bdi>{money(active!.net, currency)}</bdi>
                         </p>
@@ -261,19 +269,19 @@ export default function Sme({
                                     {" · "}
                                 </>
                             ) : null}
-                            <bdi dir="ltr">{active!.count}</bdi> معاملة
+                            <bdi dir="ltr">{t("dashboard.sme.transaction_count", { count: active!.count }, `${active!.count} معاملة`)}</bdi>
                         </p>
 
                         <div className="sme-hero__split">
                             <div className="sme-hero__stat is-in">
-                                <span>دخل</span>
+                                <span>{t("transactions.income", undefined, "دخل")}</span>
                                 <strong>
                                     <bdi>{money(active!.income, currency)}</bdi>
                                 </strong>
                                 {incomeTrend ? <small>{incomeTrend}</small> : null}
                             </div>
                             <div className="sme-hero__stat is-out">
-                                <span>مصروف</span>
+                                <span>{t("transactions.expense", undefined, "مصروف")}</span>
                                 <strong>
                                     <bdi>{money(active!.expense, currency)}</bdi>
                                 </strong>
@@ -283,12 +291,12 @@ export default function Sme({
                     </section>
 
                     <div className="sme-primary sme-primary--panel" ref={heroActionRef}>
-                        <p className="sme-primary__hint d-none d-lg-block">سجّل مبيعاً أو مصروفاً بسرعة</p>
+                        <p className="sme-primary__hint d-none d-lg-block">{t("dashboard.sme.quick_record_hint", undefined, "سجّل مبيعاً أو مصروفاً بسرعة")}</p>
                         <QuickRecordButton />
                     </div>
 
                     {alerts.length > 0 ? (
-                        <section className="sme-block sme-home__alerts" aria-label="يحتاج انتباهك">
+                        <section className="sme-block sme-home__alerts" aria-label={t("dashboard.sme.needs_attention", undefined, "يحتاج انتباهك")}>
                             <div className="sme-alerts" data-testid="alerts">
                                 {alerts.slice(0, 2).map((a) => (
                                     <AlertItem key={a.key} alert={a} />
@@ -299,48 +307,54 @@ export default function Sme({
 
                     <section className="sme-block sme-feed">
                         <div className="sme-block__head">
-                            <h2>آخر الحركات</h2>
+                            <h2>{t("dashboard.sme.recent_activity", undefined, "آخر الحركات")}</h2>
                             <Link href="/transactions" className="sme-block__link">
-                                عرض الكل
+                                {t("dashboard.sme.view_all", undefined, "عرض الكل")}
                             </Link>
                         </div>
                         {feed.length === 0 ? (
                             <div className="sme-feed__empty">
-                                <EmptyState title="لا توجد معاملات بعد" description="سجّل أول مبيع أو مصروف." icon="bi-wallet2" />
+                                <EmptyState
+                                    title={t("dashboard.sme.no_transactions_title", undefined, "لا توجد معاملات بعد")}
+                                    description={t("dashboard.sme.no_transactions_desc", undefined, "سجّل أول مبيع أو مصروف.")}
+                                    icon="bi-wallet2"
+                                />
                                 <div className="sme-primary">
                                     <QuickRecordButton />
                                 </div>
                             </div>
                         ) : (
                             <ul className="sme-tx-list">
-                                {feed.map((t) => (
-                                    <TransactionRow key={t.public_id} t={t} />
+                                {feed.map((tx) => (
+                                    <TransactionRow key={tx.public_id} tx={tx} />
                                 ))}
                             </ul>
                         )}
                     </section>
 
-                    <aside className="sme-home__side" aria-label="الامتثال والجاهزية">
+                    <aside className="sme-home__side" aria-label={t("dashboard.sme.compliance_readiness", undefined, "الامتثال والجاهزية")}>
                         <section className="sme-status">
                             <Link href={enterpriseHref ? `${enterpriseHref}/compliance` : "#"} className="sme-status__chip">
-                                <span className="sme-status__chip-label">الامتثال</span>
+                                <span className="sme-status__chip-label">{t("dashboard.sme.compliance", undefined, "الامتثال")}</span>
                                 {topDeadline ? (
                                     <strong className={topDeadline.overdue ? "text-danger" : ""}>
-                                        {topDeadline.overdue ? "متأخر" : "قريب"}
+                                        {topDeadline.overdue
+                                            ? t("dashboard.sme.overdue", undefined, "متأخر")
+                                            : t("dashboard.sme.soon", undefined, "قريب")}
                                     </strong>
                                 ) : (
-                                    <strong>لا مواعيد</strong>
+                                    <strong>{t("dashboard.sme.no_deadlines", undefined, "لا مواعيد")}</strong>
                                 )}
                             </Link>
                             <Link href={enterpriseHref ? `${enterpriseHref}/readiness` : "#"} className="sme-status__chip">
-                                <span className="sme-status__chip-label">الجاهزية</span>
+                                <span className="sme-status__chip-label">{t("dashboard.sme.readiness", undefined, "الجاهزية")}</span>
                                 <strong>
                                     <bdi dir="ltr">{readinessStatus ?? "—"}</bdi>
                                 </strong>
                             </Link>
                             <Link href={enterpriseHref ? `${enterpriseHref}/referrals` : "#"} className="sme-status__chip">
-                                <span className="sme-status__chip-label">الإحالة</span>
-                                <strong>{referralStatus ?? "لا توجد"}</strong>
+                                <span className="sme-status__chip-label">{t("dashboard.sme.referral", undefined, "الإحالة")}</span>
+                                <strong>{referralStatus ?? t("dashboard.sme.no_referral", undefined, "لا توجد")}</strong>
                             </Link>
                         </section>
                     </aside>

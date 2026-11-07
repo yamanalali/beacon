@@ -39,12 +39,12 @@ class SubmitComplianceDocumentRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'file.required' => 'اختر ملفاً لرفعه.',
-            'file.uploaded' => 'تعذّر رفع الملف. حاول مرة أخرى.',
-            'file.max' => 'حجم الملف كبير. الحد الأقصى '.intdiv((int) config('documents.max_kilobytes'), 1024).' ميغابايت.',
-            'file.mimes' => 'نوع الملف غير مسموح. المسموح: صور (JPG, PNG, WEBP) أو PDF.',
-            'file.mimetypes' => 'نوع الملف غير مسموح. المسموح: صور (JPG, PNG, WEBP) أو PDF.',
-            'title.max' => 'العنوان طويل جداً.',
+            'file.required' => ui('validation.file_required'),
+            'file.uploaded' => ui('validation.file_uploaded'),
+            'file.max' => ui('validation.file_max', ['max_mb' => intdiv((int) config('documents.max_kilobytes'), 1024)]),
+            'file.mimes' => ui('validation.file_mimes'),
+            'file.mimetypes' => ui('validation.file_mimes'),
+            'title.max' => ui('validation.title_max'),
         ];
     }
 }

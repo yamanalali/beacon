@@ -110,6 +110,7 @@ export type BeaconSharedProps = PageProps & {
     offline?: { cached?: boolean; cached_at?: string; queued_id?: string; missing_page?: string };
     locale: string;
     dir: "rtl" | "ltr";
+    translations: Record<string, string>;
     auth: {
         user: AuthUser | null;
         navigation: NavigationItem[];

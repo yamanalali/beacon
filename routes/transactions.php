@@ -18,6 +18,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/transactions/{transaction:public_id}', [TransactionController::class, 'show'])
         ->name('transactions.show');
+    Route::get('/transactions/{transaction:public_id}/invoice.pdf', [TransactionController::class, 'invoicePdf'])
+        ->name('transactions.invoice.pdf');
     Route::get('/transactions/{transaction:public_id}/correct', [TransactionController::class, 'editCorrection'])
         ->name('transactions.correct.edit');
     Route::post('/transactions/{transaction:public_id}/correct', [TransactionController::class, 'correct'])

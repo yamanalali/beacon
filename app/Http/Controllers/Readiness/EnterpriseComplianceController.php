@@ -182,7 +182,7 @@ class EnterpriseComplianceController extends Controller
         );
 
         return redirect()->route('enterprises.compliance.index', $enterprise)
-            ->with('success', 'تم رفع الوثيقة وهي بانتظار مراجعة المستشار.');
+            ->with('success', ui('flash.compliance_document_submitted'));
     }
 
     public function review(
@@ -207,6 +207,6 @@ class EnterpriseComplianceController extends Controller
         );
 
         return redirect()->route('enterprises.compliance.index', $enterprise)
-            ->with('success', 'تم حفظ قرار المراجعة.');
+            ->with('success', ui('flash.compliance_review_decision_saved'));
     }
 }

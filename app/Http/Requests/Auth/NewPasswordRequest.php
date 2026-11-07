@@ -37,10 +37,10 @@ class NewPasswordRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'البريد الإلكتروني مطلوب.',
-            'password.required' => 'كلمة المرور مطلوبة.',
-            'password.confirmed' => 'تأكيد كلمة المرور غير مطابق.',
-            'password.min' => 'كلمة المرور يجب أن تكون 8 أحرف على الأقل.',
+            'email.required' => ui('validation.email_required'),
+            'password.required' => ui('validation.password_required'),
+            'password.confirmed' => ui('validation.password_confirmed'),
+            'password.min' => ui('validation.password_min'),
         ];
     }
 }

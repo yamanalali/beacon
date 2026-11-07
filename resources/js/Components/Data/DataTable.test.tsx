@@ -2,7 +2,10 @@ import { cleanup, fireEvent, render, screen, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const get = vi.fn();
-vi.mock("@inertiajs/react", () => ({ router: { get: (...a: unknown[]) => get(...a) } }));
+vi.mock("@inertiajs/react", () => ({
+    router: { get: (...a: unknown[]) => get(...a) },
+    usePage: () => ({ props: {} }),
+}));
 
 import { DataTable, type Column } from "./DataTable";
 import { formatNumber } from "./format";

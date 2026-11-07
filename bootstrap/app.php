@@ -2,11 +2,13 @@
 
 use App\Http\Middleware\EnsureMfaEnrollment;
 use App\Http\Middleware\EnsureSessionCredentialsCurrent;
+use App\Http\Middleware\EnsureSignatureOnboarding;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\OfflineSupport;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -26,11 +28,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         $middleware->web(append: [
+            SetLocale::class,
             HandleInertiaRequests::class,
             SecurityHeaders::class,
             EnsureUserIsActive::class,
             EnsureSessionCredentialsCurrent::class,
             EnsureMfaEnrollment::class,
+            EnsureSignatureOnboarding::class,
             OfflineSupport::class,
         ]);
 

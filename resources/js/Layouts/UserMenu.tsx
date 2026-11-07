@@ -2,18 +2,33 @@ import { confirmOfflineLogout } from "../lib/offline";
 import { clearDeviceDrafts } from "../lib/offlineDrafts";
 import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useRef } from "react";
-import { roleLabels } from "./navigation";
+import { useT } from "../Hooks/useT";
+
+const ROLE_KEYS: Record<string, string> = {
+    beacon_admin: "role.beacon_admin",
+    beacon_advisor: "role.beacon_advisor",
+    sme_user: "role.sme_user",
+    mfi_user: "role.mfi_user",
+    technical_admin: "role.technical_admin",
+};
 
 export function UserMenu({ compact = false }: { compact?: boolean }) {
     const {
         props: { auth },
         url,
     } = usePage();
+    const t = useT();
     const menu = useRef<HTMLDetailsElement>(null);
-    const name = auth.user?.name.trim() || "زائر";
-    const role = roleLabels[auth.user?.role ?? ""] ?? "مساحة العمل";
+    const name = auth.user?.name.trim() || t("shell.guest_user");
+    const roleKey = ROLE_KEYS[auth.user?.role ?? ""];
+    const role = roleKey ? t(roleKey) : t("role.workspace");
     const unread = auth.notifications?.unread_count ?? 0;
     const badge = unread > 99 ? "99+" : String(unread);
+    const menuAria =
+        unread > 0
+            ? t("shell.account_menu_unread", { name, count: unread })
+            : t("shell.account_menu", { name });
+
     useEffect(() => {
         if (menu.current) menu.current.open = false;
     }, [url]);
@@ -41,11 +56,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
                 className={
                     compact ? "app-profile app-profile--compact" : "app-profile"
                 }
-                aria-label={
-                    unread > 0
-                        ? `قائمة الحساب، ${name}، ${unread} إشعار غير مقروء`
-                        : `قائمة الحساب، ${name}`
-                }
+                aria-label={menuAria}
             >
                 <span className="app-avatar-wrap">
                     <span className="app-avatar" aria-hidden="true">
@@ -78,21 +89,21 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
                 <Link href="/notifications/page" className="dropdown-item d-flex align-items-center justify-content-between gap-2">
                     <span className="d-inline-flex align-items-center gap-2">
                         <i className="bi bi-bell" aria-hidden="true" />
-                        الإشعارات
+                        {t("common.notifications")}
                     </span>
                     {unread > 0 ? (
-                        <span className="app-notification-badge app-notification-badge--inline" aria-label={`${unread} غير مقروء`}>
+                        <span className="app-notification-badge app-notification-badge--inline" aria-label={t("shell.unread_count", { count: unread })}>
                             {badge}
                         </span>
                     ) : null}
                 </Link>
                 <Link href="/account" className="dropdown-item">
                     <i className="bi bi-person-gear" aria-hidden="true" />
-                    حسابي
+                    {t("common.account")}
                 </Link>
                 <Link href="/account/sessions" className="dropdown-item">
                     <i className="bi bi-laptop" aria-hidden="true" />
-                    جلسات الدخول
+                    {t("nav.account.sessions")}
                 </Link>
                 <Link
                     onBefore={() => { if (!confirmOfflineLogout()) return false; clearDeviceDrafts(); }}
@@ -102,7 +113,7 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
                     className="dropdown-item text-danger"
                 >
                     <i className="bi bi-box-arrow-left" aria-hidden="true" />
-                    تسجيل الخروج
+                    {t("common.logout")}
                 </Link>
             </div>
         </details>

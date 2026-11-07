@@ -1,3 +1,5 @@
+import { useT } from "../../Hooks/useT";
+
 export type ExportFormat = "pdf" | "xlsx" | "csv";
 
 const LABELS: Record<ExportFormat, { label: string; icon: string }> = {
@@ -13,6 +15,7 @@ const LABELS: Record<ExportFormat, { label: string; icon: string }> = {
 export function ExportButton({ baseUrl, formats = ["pdf", "xlsx", "csv"], disabled = false }: {
     baseUrl: string; formats?: ExportFormat[]; disabled?: boolean;
 }) {
+    const t = useT();
     const href = (f: ExportFormat) => {
         const qs = window.location.search;
         return `${baseUrl.replace(/\/$/, "")}/${f}${qs}`;
@@ -20,7 +23,7 @@ export function ExportButton({ baseUrl, formats = ["pdf", "xlsx", "csv"], disabl
     return (
         <div className="dropdown">
             <button type="button" className="btn btn-outline-primary dropdown-toggle" style={{ minHeight: 48 }} data-bs-toggle="dropdown" aria-expanded="false" disabled={disabled}>
-                <i className="bi bi-download me-1" aria-hidden="true" />تصدير
+                <i className="bi bi-download me-1" aria-hidden="true" />{t("common.export", undefined, "تصدير")}
             </button>
             <ul className="dropdown-menu dropdown-menu-end">
                 {formats.map((f) => (

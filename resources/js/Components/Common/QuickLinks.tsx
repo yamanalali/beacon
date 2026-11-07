@@ -1,12 +1,14 @@
 import { Link } from "@inertiajs/react";
+import { useT } from "../../Hooks/useT";
 
 export function QuickLinks({
     items,
 }: {
     items: { href: string; label: string; description: string; icon: string }[];
 }) {
+    const t = useT();
     return (
-        <nav className="app-quick-links" aria-label="الوصول السريع">
+        <nav className="app-quick-links" aria-label={t("common.quick_links", undefined, "الوصول السريع")}>
             {items.map((item) => (
                 <Link
                     key={item.href}

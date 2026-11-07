@@ -27,8 +27,8 @@ class CorrectTransactionRequest extends StoreTransactionRequest
     public function messages(): array
     {
         return parent::messages() + [
-            'correction_reason.required' => 'اكتب سبب التصحيح.',
-            'correction_reason.min' => 'اكتب سبب التصحيح بشكل أوضح.',
+            'correction_reason.required' => ui('validation.correction_reason_required'),
+            'correction_reason.min' => ui('validation.correction_reason_min'),
         ];
     }
 }

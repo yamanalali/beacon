@@ -23,18 +23,45 @@ const tx = {
     corrects_public_id: null, corrected_by_public_id: null,
 } as const;
 
-describe("Transactions/Show items", () => {
-    it("renders the read-only items with total and mismatch warning", () => {
-        const props = { enterprise: { public_id: "E1", business_name: "x" }, transaction: { ...tx, items: [{ id: 1, description: "قماش", quantity: 2, unit_price: 1500, total: 3000 }], items_total: 3000, items_mismatch: true }, settlements: [], documents: [], can_correct: false, can_settle: false, can_upload: false };
+describe("Transactions/Show invoice", () => {
+    it("renders invoice line items and mismatch warning", () => {
+        const props = {
+            enterprise: { public_id: "E1", business_name: "ورشة" },
+            transaction: {
+                ...tx,
+                items: [{ id: 1, description: "قماش", quantity: 2, unit_price: 1500, total: 3000 }],
+                items_total: 3000,
+                items_mismatch: true,
+            },
+            settlements: [],
+            documents: [],
+            can_correct: false,
+            can_settle: false,
+            can_upload: false,
+            invoice_pdf_url: "/transactions/T1/invoice.pdf",
+        };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         render(<Show {...(props as any)} />);
         expect(screen.getByTestId("items-table")).toBeTruthy();
+        expect(screen.getByText("قماش")).toBeTruthy();
         expect(screen.getByTestId("items-mismatch")).toBeTruthy();
+        expect(screen.getByRole("link", { name: /تنزيل PDF|Download PDF/i })).toBeTruthy();
     });
-    it("is safe when the server sends no items props", () => {
-        const props = { enterprise: { public_id: "E1", business_name: "x" }, transaction: tx, settlements: [], documents: [], can_correct: false, can_settle: false, can_upload: false };
+
+    it("falls back to category when the server sends no items", () => {
+        const props = {
+            enterprise: { public_id: "E1", business_name: "ورشة" },
+            transaction: tx,
+            settlements: [],
+            documents: [],
+            can_correct: false,
+            can_settle: false,
+            can_upload: false,
+            invoice_pdf_url: "/transactions/T1/invoice.pdf",
+        };
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         render(<Show {...(props as any)} />);
-        expect(screen.getByText("لا توجد بنود لهذه العملية")).toBeTruthy();
+        expect(screen.getByTestId("items-table")).toBeTruthy();
+        expect(screen.getByText("مواد")).toBeTruthy();
     });
 });

@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { useT } from "../../Hooks/useT";
 import { SelectInput } from "../Forms/SelectInput";
 import { TextInput } from "../Forms/TextInput";
 import type { BookkeepingOptions, SuggestedTransactionItem } from "../../types/bookkeeping";
@@ -141,16 +142,17 @@ export function isPrefilled(suggested: string | null | undefined, current: strin
 }
 
 function Suggested({ show }: { show: boolean }) {
+    const t = useT();
     return show ? (
         <span className="app-status app-status--warning ms-2" style={{ fontSize: "12px" }}>
-            <i className="bi bi-stars" aria-hidden="true" /> مقترح
+            <i className="bi bi-stars" aria-hidden="true" /> {t("transactions.review.suggested", undefined, "مقترح")}
         </span>
     ) : null;
 }
 
 /** Review/confirm form. Reusable for any draft source; owns no network logic. */
 export function ReviewForm({
-    draft, data, setData, options, suggestion, errors = {}, processing = false, onSubmit, onReject, sourceLabel = "الإيصال", typeOptions,
+    draft, data, setData, options, suggestion, errors = {}, processing = false, onSubmit, onReject, sourceLabel, typeOptions,
 }: {
     draft: TransactionDraft;
     data: ReviewFormData;
@@ -165,6 +167,8 @@ export function ReviewForm({
     /** `transaction_type_options` from the server when provided; defaults to options.types. */
     typeOptions?: { value: string; label: string }[];
 }) {
+    const t = useT();
+    const source = sourceLabel ?? t("transactions.review.source_receipt", undefined, "الإيصال");
     const manual = !hasSuggestions(draft);
     const pct = confidencePercent(draft.confidence);
     // Server decides (needs_review); no client-side confidence threshold.
@@ -172,7 +176,7 @@ export function ReviewForm({
     const categories = options.categories[data.type] ?? [];
     const missing = missingRequired(data);
     const submit = (e: FormEvent) => { e.preventDefault(); if (missing.length === 0) onSubmit(); };
-    const missingLabels = missing.map((k) => (k === "currency" ? "العملة" : "التاريخ")).join("، ");
+    const missingLabels = missing.map((k) => (k === "currency" ? t("transactions.review.field_currency", undefined, "العملة") : t("common.date", undefined, "التاريخ"))).join("، ");
     const amountUntouched = isPrefilled(draft.suggested_amount, data.amount);
     // Server date warning (#87, e.g. an old date): hint only while the suggested date is unchanged; never blocks save.
     const dateWarning = draft.suggested_date_warning && draft.suggested_date_warning.trim() !== "" && isPrefilled(draft.suggested_date, data.transaction_date) ? draft.suggested_date_warning : null;
@@ -188,15 +192,15 @@ export function ReviewForm({
                 <div>
                     {manual ? (
                         <>
-                            <strong>إدخال يدوي</strong>
-                            <div className="small">لم نتمكن من قراءة {sourceLabel} تلقائياً. أدخل البيانات كما تظهر فيه ثم احفظ.</div>
+                            <strong>{t("transactions.review.manual_entry", undefined, "إدخال يدوي")}</strong>
+                            <div className="small">{t("transactions.review.manual_body", { source }, `لم نتمكن من قراءة ${source} تلقائياً. أدخل البيانات كما تظهر فيه ثم احفظ.`)}</div>
                         </>
                     ) : (
                         <>
-                            <strong>{low ? "راجع القيم بعناية" : "تمت القراءة"}</strong>
+                            <strong>{low ? t("transactions.review.review_carefully", undefined, "راجع القيم بعناية") : t("transactions.review.read_ok", undefined, "تمت القراءة")}</strong>
                             <div className="small">
-                                القيم المعلّمة بـ «مقترح» قُرئت تلقائياً من {sourceLabel}، صحّحها إن لزم.
-                                {pct !== null ? <> درجة الثقة: <bdi dir="ltr">{pct}%</bdi>.</> : null}
+                                {t("transactions.review.auto_read_body", { source }, `القيم المعلّمة بـ «مقترح» قُرئت تلقائياً من ${source}، صحّحها إن لزم.`)}
+                                {pct !== null ? <> {t("transactions.review.confidence", undefined, "درجة الثقة:")} <bdi dir="ltr">{pct}%</bdi>.</> : null}
                             </div>
                         </>
                     )}
@@ -204,7 +208,7 @@ export function ReviewForm({
             </div>
 
             <fieldset className="mb-3">
-                <legend className="form-label mb-1 fw-semibold" style={{ fontSize: "0.9375rem" }}>نوع العملية</legend>
+                <legend className="form-label mb-1 fw-semibold" style={{ fontSize: "0.9375rem" }}>{t("transactions.type", undefined, "نوع العملية")}</legend>
                 <div className="d-flex flex-wrap gap-2" role="radiogroup">
                     {(typeOptions?.length ? typeOptions : options.types).map((t) => (
                         <label key={t.value} className={`btn ${data.type === t.value ? "btn-primary" : "btn-outline-primary"}`} style={{ minHeight: "44px" }}>
@@ -220,7 +224,7 @@ export function ReviewForm({
 
             <div className="row g-2">
                 <div className="col-7">
-                    <TextInput id="amount" name="amount" label="المبلغ" value={data.amount} onChange={(v) => setData({ amount: v })} error={errors.amount} inputMode="decimal" />
+                    <TextInput id="amount" name="amount" label={t("common.amount", undefined, "المبلغ")} value={data.amount} onChange={(v) => setData({ amount: v })} error={errors.amount} inputMode="decimal" />
                     <Suggested show={isPrefilled(draft.suggested_amount, data.amount)} />
                     {amountWarning ? (
                         <div className="alert alert-warning d-flex gap-2 align-items-start py-2 px-3 mt-1 mb-2 small" role="status" data-testid="amount-warning">
@@ -230,22 +234,22 @@ export function ReviewForm({
                     ) : null}
                     {data.currency && parseAmount(data.amount) !== null ? (
                         <div className="form-text mt-n2" data-testid="amount-preview">
-                            سيُحفظ: <Money amount={data.amount} currency={data.currency} />
+                            {t("transactions.review.will_save", undefined, "سيُحفظ:")} <Money amount={data.amount} currency={data.currency} />
                         </div>
                     ) : null}
                 </div>
                 <div className="col-5">
-                    <SelectInput id="currency" label="العملة" required placeholder="اختر" value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />
+                    <SelectInput id="currency" label={t("transactions.review.field_currency", undefined, "العملة")} required placeholder={t("transactions.review.choose", undefined, "اختر")} value={data.currency} options={options.currencies} onChange={(v) => setData({ currency: v })} error={errors.currency} />
                     <Suggested show={isPrefilled(draft.suggested_currency, data.currency)} />
                 {draft.suggested_currency_source === "default" && isPrefilled(draft.suggested_currency, data.currency) ? (
-                    <div className="form-text" data-testid="currency-default-hint">العملة الافتراضية، تأكد منها</div>
+                    <div className="form-text" data-testid="currency-default-hint">{t("transactions.review.currency_default_hint", undefined, "العملة الافتراضية، تأكد منها")}</div>
                 ) : null}
                 </div>
             </div>
-            <TextInput id="transaction_date" name="transaction_date" type="date" label="التاريخ" required placeholder="اختر" value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
+            <TextInput id="transaction_date" name="transaction_date" type="date" label={t("common.date", undefined, "التاريخ")} required placeholder={t("transactions.review.choose", undefined, "اختر")} value={data.transaction_date} onChange={(v) => setData({ transaction_date: v })} error={errors.transaction_date} />
             <Suggested show={isPrefilled(draft.suggested_date, data.transaction_date)} />
             {draft.date_defaulted_today && isPrefilled(draft.suggested_date, data.transaction_date) ? (
-                <div className="form-text" data-testid="date-default-hint">ما انذكر تاريخ، انحط اليوم</div>
+                <div className="form-text" data-testid="date-default-hint">{t("transactions.review.date_default_hint", undefined, "ما انذكر تاريخ، انحط اليوم")}</div>
             ) : null}
                     {dateWarning ? (
                         <div className="alert alert-warning d-flex gap-2 align-items-start py-2 px-3 mt-1 mb-2 small" role="status" data-testid="date-warning">
@@ -253,41 +257,41 @@ export function ReviewForm({
                             <span>{dateWarning}</span>
                         </div>
                     ) : null}
-            <TextInput id="counterparty" name="counterparty" label="المورد أو الزبون" value={data.counterparty} onChange={(v) => setData({ counterparty: v })} error={errors.counterparty} />
+            <TextInput id="counterparty" name="counterparty" label={t("transactions.review.counterparty", undefined, "المورد أو الزبون")} value={data.counterparty} onChange={(v) => setData({ counterparty: v })} error={errors.counterparty} />
             <Suggested show={isPrefilled(draft.suggested_counterparty, data.counterparty)} />
-            <SelectInput id="category" label="التصنيف" value={data.category} options={categories} placeholder="اختر التصنيف" onChange={(v) => setData({ category: v })} error={errors.category} />
+            <SelectInput id="category" label={t("transactions.category", undefined, "التصنيف")} value={data.category} options={categories} placeholder={t("transactions.review.choose_category", undefined, "اختر التصنيف")} onChange={(v) => setData({ category: v })} error={errors.category} />
             {suggestion && isPrefilled(suggestion.category, data.category) ? (
                 <p className="small text-body-secondary mt-n2">
                     <Suggested show />
-                    <span className="ms-1">{suggestion.label}{suggestion.needs_review ? " (يحتاج مراجعة)" : ""}</span>
+                    <span className="ms-1">{suggestion.label}{suggestion.needs_review ? ` ${t("transactions.review.needs_review_paren", undefined, "(يحتاج مراجعة)")}` : ""}</span>
                 </p>
             ) : null}
-            <SelectInput id="payment_status" label="هل تم الدفع؟" value={data.payment_status} options={options.payment_statuses} onChange={(v) => setData({ payment_status: v })} error={errors.payment_status} />
+            <SelectInput id="payment_status" label={t("transactions.review.payment_question", undefined, "هل تم الدفع؟")} value={data.payment_status} options={options.payment_statuses} onChange={(v) => setData({ payment_status: v })} error={errors.payment_status} />
             {data.payment_status === "partially_paid" ? (
-                <TextInput id="paid_amount" name="paid_amount" label="المبلغ المدفوع الآن" value={data.paid_amount} onChange={(v) => setData({ paid_amount: v })} error={errors.paid_amount} inputMode="decimal" />
+                <TextInput id="paid_amount" name="paid_amount" label={t("transactions.review.paid_now", undefined, "المبلغ المدفوع الآن")} value={data.paid_amount} onChange={(v) => setData({ paid_amount: v })} error={errors.paid_amount} inputMode="decimal" />
             ) : null}
             {showMismatch ? <MismatchNote total={itemsTotal(data.items)} amount={data.amount} currency={data.currency} className="mb-2" testId="review-items-mismatch" /> : null}
             <ItemsEditor rows={data.items} onChange={(items) => setData({ items })} currency={data.currency} amount={data.amount} errors={errors} disabled={processing} hideMismatch />
-            <TextInput id="invoice_number" name="invoice_number" label="رقم الفاتورة" value={data.invoice_number}
+            <TextInput id="invoice_number" name="invoice_number" label={t("transactions.review.invoice_number", undefined, "رقم الفاتورة")} value={data.invoice_number}
                 onChange={(v) => setData({ invoice_number: v, description: withInvoicePrefix(data.description, v) })} />
             <Suggested show={isPrefilled(draft.suggested_invoice_number, data.invoice_number)} />
-            <TextInput id="description" name="description" label="ملاحظة (اختياري)" value={data.description} onChange={(v) => setData({ description: v })} error={errors.description} />
+            <TextInput id="description" name="description" label={t("transactions.review.note_optional", undefined, "ملاحظة (اختياري)")} value={data.description} onChange={(v) => setData({ description: v })} error={errors.description} />
             <Suggested show={isPrefilled(draft.suggested_note, data.description)} />
 
             {missing.length > 0 ? (
                 <p id="review-missing" className="small text-danger mb-2" role="status">
                     <i className="bi bi-exclamation-circle me-1" aria-hidden="true" />
-                    أكمل الحقول المطلوبة قبل التأكيد: {missingLabels}
+                    {t("transactions.review.complete_required", undefined, "أكمل الحقول المطلوبة قبل التأكيد:")} {missingLabels}
                 </p>
             ) : null}
             <div className="d-flex flex-column flex-sm-row gap-2 mt-2">
                 <button type="submit" className="btn btn-primary flex-grow-1 flex-sm-grow-0" style={{ minHeight: "48px" }} disabled={processing || missing.length > 0} aria-describedby={missing.length > 0 ? "review-missing" : undefined}>
                     <i className="bi bi-check2 me-2" aria-hidden="true" />
-                    {processing ? "جارٍ الحفظ..." : "تأكيد وحفظ العملية"}
+                    {processing ? t("transactions.review.saving", undefined, "جارٍ الحفظ...") : t("transactions.review.confirm_save", undefined, "تأكيد وحفظ العملية")}
                 </button>
                 {onReject ? (
                     <button type="button" className="btn btn-outline-secondary" style={{ minHeight: "48px" }} disabled={processing} onClick={onReject}>
-                        تجاهل
+                        {t("transactions.review.dismiss", undefined, "تجاهل")}
                     </button>
                 ) : null}
             </div>

@@ -1,5 +1,6 @@
 import { router } from "@inertiajs/react";
 import { useState, type ReactNode } from "react";
+import { useT } from "../../Hooks/useT";
 
 export type FilterValues = Record<string, string>;
 
@@ -13,6 +14,7 @@ export function FilterBar({ initial, url, children, only }: {
     only?: string[];
     children: (values: FilterValues, set: (key: string, v: string) => void) => ReactNode;
 }) {
+    const t = useT();
     const [values, setValues] = useState<FilterValues>(initial);
     const [open, setOpen] = useState(false);
     const set = (key: string, v: string) => setValues((p) => ({ ...p, [key]: v }));
@@ -31,17 +33,17 @@ export function FilterBar({ initial, url, children, only }: {
         <div className="app-filter-bar">
             <button type="button" className="btn app-filter-bar__toggle p-0 d-lg-none" aria-expanded={open} onClick={() => setOpen(!open)}>
                 <i className="bi bi-funnel me-1" aria-hidden="true" />
-                التصفية {active > 0 ? <span className="badge text-bg-primary ms-1">{active}</span> : null}
+                {t("common.filter", undefined, "تصفية")} {active > 0 ? <span className="badge text-bg-primary ms-1">{active}</span> : null}
             </button>
             <form className={`${open ? "" : "d-none"} d-lg-block mt-3 mt-lg-0`} onSubmit={(e) => { e.preventDefault(); apply(); }}>
                 <div className="row g-3 align-items-end">
                     {children(values, set)}
                     <div className="col-12 col-lg-auto d-flex gap-2">
                         <button type="submit" className="btn btn-primary flex-fill" style={{ minHeight: 48 }}>
-                            <i className="bi bi-check2 me-1" aria-hidden="true" />تطبيق
+                            <i className="bi bi-check2 me-1" aria-hidden="true" />{t("filters.apply", undefined, "تطبيق")}
                         </button>
                         <button type="button" className="btn btn-outline-secondary flex-fill" style={{ minHeight: 48 }} onClick={reset}>
-                            مسح
+                            {t("filters.clear_short", undefined, "مسح")}
                         </button>
                     </div>
                 </div>

@@ -4,6 +4,7 @@ import { TextInput } from "../../Components/Forms/TextInput";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import AppLayout from "../../Layouts/AppLayout";
+import { useT } from "../../Hooks/useT";
 
 type AccountPageProps = {
     account: {
@@ -14,6 +15,7 @@ type AccountPageProps = {
 };
 
 export default function Index({ account }: AccountPageProps) {
+    const t = useT();
     const { flash } = usePage().props as { flash?: { status?: string } };
     const form = useForm({
         current_password: "",
@@ -27,27 +29,27 @@ export default function Index({ account }: AccountPageProps) {
     }
 
     return (
-        <AppLayout title="حسابي">
+        <AppLayout title={t("account.title", undefined, "حسابي")}>
             <div className="app-page">
                 <PageHeader
-                    title="حسابي"
-                    description="بيانات الدخول الخاصة بهذا الحساب."
+                    title={t("account.title", undefined, "حسابي")}
+                    description={t("account.description", undefined, "بيانات الدخول الخاصة بهذا الحساب.")}
                 />
                 <div className="row g-3">
                     <div className="col-12 col-lg-6">
-                        <SectionCard title="البيانات">
+                        <SectionCard title={t("account.details_section", undefined, "البيانات")}>
                             <dl className="mb-0">
-                                <dt>الاسم</dt>
+                                <dt>{t("account.name", undefined, "الاسم")}</dt>
                                 <dd>{account.name}</dd>
-                                <dt>البريد الإلكتروني</dt>
+                                <dt>{t("account.email", undefined, "البريد الإلكتروني")}</dt>
                                 <dd>{account.email}</dd>
-                                <dt>الدور</dt>
+                                <dt>{t("account.role", undefined, "الدور")}</dt>
                                 <dd className="mb-0">{account.role_label}</dd>
                             </dl>
                         </SectionCard>
                     </div>
                     <div className="col-12 col-lg-6">
-                        <SectionCard title="تغيير كلمة المرور">
+                        <SectionCard title={t("account.password", undefined, "تغيير كلمة المرور")}>
                             {flash?.status ? (
                                 <p
                                     className="alert alert-success"
@@ -62,7 +64,7 @@ export default function Index({ account }: AccountPageProps) {
                                     name="current_password"
                                     type="password"
                                     autoComplete="current-password"
-                                    label="كلمة المرور الحالية"
+                                    label={t("account.current_password", undefined, "كلمة المرور الحالية")}
                                     value={form.data.current_password}
                                     error={form.errors.current_password}
                                     onChange={(value) =>
@@ -74,7 +76,7 @@ export default function Index({ account }: AccountPageProps) {
                                     name="password"
                                     type="password"
                                     autoComplete="new-password"
-                                    label="كلمة المرور الجديدة"
+                                    label={t("auth.reset.password", undefined, "كلمة المرور الجديدة")}
                                     value={form.data.password}
                                     error={form.errors.password}
                                     onChange={(value) =>
@@ -86,7 +88,7 @@ export default function Index({ account }: AccountPageProps) {
                                     name="password_confirmation"
                                     type="password"
                                     autoComplete="new-password"
-                                    label="تأكيد كلمة المرور"
+                                    label={t("auth.reset.confirm", undefined, "تأكيد كلمة المرور")}
                                     value={form.data.password_confirmation}
                                     error={form.errors.password_confirmation}
                                     onChange={(value) =>
@@ -102,7 +104,7 @@ export default function Index({ account }: AccountPageProps) {
                                     style={{ minHeight: "48px" }}
                                     disabled={form.processing}
                                 >
-                                    حفظ كلمة المرور
+                                    {t("account.save_password", undefined, "حفظ كلمة المرور")}
                                 </button>
                             </form>
                         </SectionCard>

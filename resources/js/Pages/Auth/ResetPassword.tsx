@@ -1,6 +1,7 @@
 import { useForm } from "@inertiajs/react";
 import { FormEvent } from "react";
 import { TextInput } from "../../Components/Forms/TextInput";
+import { useT } from "../../Hooks/useT";
 import { GuestAuthLayout } from "./GuestAuthLayout";
 
 type ResetPasswordProps = {
@@ -9,6 +10,7 @@ type ResetPasswordProps = {
 };
 
 export default function ResetPassword({ token, email }: ResetPasswordProps) {
+    const t = useT();
     const form = useForm({
         token,
         email,
@@ -22,13 +24,13 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
     }
 
     return (
-        <GuestAuthLayout title="تعيين كلمة مرور جديدة">
+        <GuestAuthLayout title={t("auth.reset.title")}>
             <form onSubmit={submit} noValidate>
                 <TextInput
                     id="email"
                     name="email"
                     type="email"
-                    label="البريد الإلكتروني"
+                    label={t("auth.login.email")}
                     value={form.data.email}
                     error={form.errors.email}
                     onChange={(value) => form.setData("email", value)}
@@ -38,7 +40,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                     name="password"
                     type="password"
                     autoComplete="new-password"
-                    label="كلمة المرور"
+                    label={t("auth.reset.password")}
                     value={form.data.password}
                     error={form.errors.password}
                     onChange={(value) => form.setData("password", value)}
@@ -48,7 +50,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                     name="password_confirmation"
                     type="password"
                     autoComplete="new-password"
-                    label="تأكيد كلمة المرور"
+                    label={t("auth.reset.confirm")}
                     value={form.data.password_confirmation}
                     error={form.errors.password_confirmation}
                     onChange={(value) =>
@@ -61,7 +63,7 @@ export default function ResetPassword({ token, email }: ResetPasswordProps) {
                     style={{ minHeight: "48px" }}
                     disabled={form.processing}
                 >
-                    حفظ كلمة المرور
+                    {t("auth.reset.submit")}
                 </button>
             </form>
         </GuestAuthLayout>

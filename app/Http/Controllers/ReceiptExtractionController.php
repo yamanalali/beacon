@@ -150,7 +150,7 @@ class ReceiptExtractionController extends Controller
 
         $transaction = $action->confirm($request->user(), $extraction, $request->validated());
 
-        return TransactionController::withItemsWarning(redirect()->route('transactions.show', $transaction)->with('success', 'تم حفظ العملية بعد مراجعتك.'), $transaction);
+        return TransactionController::withItemsWarning(redirect()->route('transactions.show', $transaction)->with('success', ui('flash.extraction_transaction_saved')), $transaction);
     }
 
     public function reject(Request $request, ReceiptExtraction $extraction, ConfirmReceiptExtractionAction $action): RedirectResponse
@@ -160,6 +160,6 @@ class ReceiptExtractionController extends Controller
 
         $action->reject($request->user(), $extraction);
 
-        return redirect()->route('enterprises.documents.index', $extraction->enterprise)->with('success', 'تم تجاهل الاقتراح.');
+        return redirect()->route('enterprises.documents.index', $extraction->enterprise)->with('success', ui('flash.extraction_suggestion_dismissed'));
     }
 }

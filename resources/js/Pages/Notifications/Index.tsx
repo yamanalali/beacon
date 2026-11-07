@@ -7,6 +7,7 @@ import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { FilterChips, Pager, shortDate, withQuery, type PaginatedProps } from "../../Components/Ai/aiShared";
 import { postJson } from "../../Components/Ai/http";
 import { notificationHref, notificationIcon, type NotificationData } from "../../Components/Notifications/notificationDisplay";
+import { useT } from "../../Hooks/useT";
 
 export type NotificationRow = {
     id: string;
@@ -18,6 +19,7 @@ export type NotificationRow = {
 type Props = { notifications: PaginatedProps<NotificationRow>; unread_count: number; filters: { filter?: string | null }; fetchImpl?: typeof fetch };
 
 export default function Index({ notifications, unread_count, filters, fetchImpl }: Props) {
+    const t = useT();
     const [readIds, setReadIds] = useState<Set<string>>(new Set());
     const [error, setError] = useState<string | null>(null);
     useEffect(() => { setReadIds(new Set()); }, [notifications]);
@@ -34,15 +36,22 @@ export default function Index({ notifications, unread_count, filters, fetchImpl 
     }
 
     return (
-        <AppLayout title="الإشعارات">
+        <AppLayout title={t("notifications.title", undefined, "الإشعارات")}>
             <div className="app-page d-flex flex-column gap-3">
-                <PageHeader title="الإشعارات" description={unread > 0 ? `لديك ${unread} إشعار غير مقروء.` : "لا توجد إشعارات غير مقروءة."} />
+                <PageHeader
+                    title={t("notifications.title", undefined, "الإشعارات")}
+                    description={
+                        unread > 0
+                            ? t("notifications.unread_description", { count: unread }, `لديك ${unread} إشعار غير مقروء.`)
+                            : t("notifications.all_read_description", undefined, "لا توجد إشعارات غير مقروءة.")
+                    }
+                />
                 <FilterChips
-                    label="تصفية الإشعارات"
+                    label={t("notifications.filter_label", undefined, "تصفية الإشعارات")}
                     current={filters.filter ?? null}
                     options={[
-                        { value: null, label: "الكل" },
-                        { value: "unread", label: "غير المقروءة" },
+                        { value: null, label: t("common.all", undefined, "الكل") },
+                        { value: "unread", label: t("notifications.unread", undefined, "غير المقروءة") },
                     ]}
                     hrefFor={(v) => withQuery("/notifications/page", { filter: v })}
                 />
@@ -53,7 +62,14 @@ export default function Index({ notifications, unread_count, filters, fetchImpl 
                 ) : null}
                 <SectionCard>
                     {notifications.data.length === 0 ? (
-                        <EmptyState icon="bi-bell" title={filters.filter === "unread" ? "لا توجد إشعارات غير مقروءة" : "لا توجد إشعارات بعد"} />
+                        <EmptyState
+                            icon="bi-bell"
+                            title={
+                                filters.filter === "unread"
+                                    ? t("notifications.empty_unread", undefined, "لا توجد إشعارات غير مقروءة")
+                                    : t("notifications.empty_all", undefined, "لا توجد إشعارات بعد")
+                            }
+                        />
                     ) : (
                         <ul className="list-group list-group-flush">
                             {notifications.data.map((n) => {
@@ -67,8 +83,10 @@ export default function Index({ notifications, unread_count, filters, fetchImpl 
                                         <div className="flex-grow-1 min-w-0">
                                             <div className="d-flex flex-wrap justify-content-between gap-2">
                                                 <strong className={isRead ? "fw-normal" : undefined}>
-                                                    {isRead ? null : <span className="visually-hidden">غير مقروء: </span>}
-                                                    {n.data.title ?? "إشعار"}
+                                                    {isRead ? null : (
+                                                        <span className="visually-hidden">{t("notifications.unread_prefix", undefined, "غير مقروء: ")}</span>
+                                                    )}
+                                                    {n.data.title ?? t("notifications.default_title", undefined, "إشعار")}
                                                 </strong>
                                                 <bdi dir="ltr" className="small text-body-secondary">{shortDate(n.created_at)}</bdi>
                                             </div>
@@ -76,12 +94,12 @@ export default function Index({ notifications, unread_count, filters, fetchImpl 
                                             <div className="d-flex flex-wrap gap-2">
                                                 {href ? (
                                                     <Link href={href} className="btn btn-sm btn-outline-secondary">
-                                                        فتح
+                                                        {t("notifications.open", undefined, "فتح")}
                                                     </Link>
                                                 ) : null}
                                                 {!isRead ? (
                                                     <button type="button" className="btn btn-sm btn-link px-0" onClick={() => markRead(n)}>
-                                                        تعليم كمقروء
+                                                        {t("notifications.mark_read", undefined, "تعليم كمقروء")}
                                                     </button>
                                                 ) : null}
                                             </div>

@@ -1,4 +1,6 @@
 import { Link, usePage } from "@inertiajs/react";
+import { useMemo } from "react";
+import { useT } from "../../Hooks/useT";
 import { QuickLinks } from "../../Components/Common/QuickLinks";
 import { visibleLinks } from "../../Layouts/navigationModel";
 import AppLayout from "../../Layouts/AppLayout";
@@ -47,17 +49,18 @@ const REFERRAL_TONE: Record<ReferralStatus, StatusTone> = {
 
 /** Programme KPIs from the server; null KPIs (pending business decision) are hidden, never guessed. */
 export function ProgrammeOverview({ programme }: { programme: BeaconProgrammeData }) {
+    const t = useT();
     const k = programme.kpis;
     const stats: { label: string; value: number | null; tone?: "amber" }[] = [
-        { label: programme.scope === "all" ? "كل المنشآت" : "المنشآت المسندة إليك", value: k.enterprises_count },
-        { label: "منشآت نشطة", value: k.active_enterprises_count },
-        { label: "استفسارات مفتوحة", value: k.open_escalations_count },
-        { label: "مواعيد امتثال متأخرة", value: k.overdue_compliance_count, tone: "amber" },
+        { label: programme.scope === "all" ? t("dashboard.beacon.all_enterprises", undefined, "كل المنشآت") : t("dashboard.beacon.assigned_enterprises", undefined, "المنشآت المسندة إليك"), value: k.enterprises_count },
+        { label: t("dashboard.beacon.active_enterprises", undefined, "منشآت نشطة"), value: k.active_enterprises_count },
+        { label: t("dashboard.beacon.open_escalations", undefined, "استفسارات مفتوحة"), value: k.open_escalations_count },
+        { label: t("dashboard.beacon.overdue_compliance", undefined, "مواعيد امتثال متأخرة"), value: k.overdue_compliance_count, tone: "amber" },
     ];
     const visible = stats.filter((s) => s.value !== null);
     return (
         <div className="d-flex flex-column gap-3">
-            <section aria-label="مؤشرات البرنامج">
+            <section aria-label={t("dashboard.beacon.programme_indicators", undefined, "مؤشرات البرنامج")}>
                 <div className="row g-3">
                     {visible.map((s) => (
                         <div key={s.label} className="col-6 col-md-4 col-xl-3">
@@ -68,9 +71,9 @@ export function ProgrammeOverview({ programme }: { programme: BeaconProgrammeDat
             </section>
             <div className="row g-3">
                 <div className="col-12 col-lg-5 d-flex flex-column gap-3">
-                    <SectionCard title="الإحالات حسب الحالة">
+                    <SectionCard title={t("dashboard.beacon.referrals_by_status", undefined, "الإحالات حسب الحالة")}>
                         {k.referrals_by_status.every((r) => r.count === 0) ? (
-                            <EmptyState title="لا توجد إحالات بعد" icon="bi-send" />
+                            <EmptyState title={t("dashboard.beacon.no_referrals", undefined, "لا توجد إحالات بعد")} icon="bi-send" />
                         ) : (
                             <ul className="list-group list-group-flush">
                                 {k.referrals_by_status.map((r) => (
@@ -83,7 +86,7 @@ export function ProgrammeOverview({ programme }: { programme: BeaconProgrammeDat
                         )}
                     </SectionCard>
                     {k.enterprises_by_readiness_band && k.enterprises_by_readiness_band.length > 0 ? (
-                        <SectionCard title="المنشآت حسب الجاهزية">
+                        <SectionCard title={t("dashboard.beacon.by_readiness", undefined, "المنشآت حسب الجاهزية")}>
                             <ul className="list-group list-group-flush" data-testid="readiness-bands">
                                 {k.enterprises_by_readiness_band.map((r) => (
                                     <li key={r.band} className="list-group-item px-0 d-flex justify-content-between">
@@ -96,17 +99,17 @@ export function ProgrammeOverview({ programme }: { programme: BeaconProgrammeDat
                     ) : null}
                 </div>
                 <div className="col-12 col-lg-7">
-                    <SectionCard title="آخر الإحالات">
+                    <SectionCard title={t("dashboard.beacon.recent_referrals", undefined, "آخر الإحالات")}>
                         {programme.recent_referrals.length === 0 ? (
-                            <EmptyState title="لا توجد إحالات حديثة" icon="bi-send" />
+                            <EmptyState title={t("dashboard.beacon.no_recent_referrals", undefined, "لا توجد إحالات حديثة")} icon="bi-send" />
                         ) : (
                             <ul className="list-group list-group-flush">
                                 {programme.recent_referrals.map((r) => (
                                     <li key={r.public_id} className="list-group-item px-0 d-flex justify-content-between align-items-center gap-2">
                                         <span>
-                                            <span className="d-block fw-semibold">{r.enterprise.business_name ?? "منشأة غير معروفة"}</span>
+                                            <span className="d-block fw-semibold">{r.enterprise.business_name ?? t("dashboard.beacon.unknown_enterprise", undefined, "منشأة غير معروفة")}</span>
                                             <small className="text-body-secondary">
-                                                {r.institution ?? "بدون جهة"}
+                                                {r.institution ?? t("dashboard.beacon.no_institution", undefined, "بدون جهة")}
                                                 {r.updated_at ? (
                                                     <>
                                                         {" · "}
@@ -127,56 +130,62 @@ export function ProgrammeOverview({ programme }: { programme: BeaconProgrammeDat
     );
 }
 
-const SECTION_38: { group: string; items: [string, string][] }[] = [
-    {
-        group: "المنشآت والاستخدام",
-        items: [
-            ["onboarding", "تسجيل المنشآت"],
-            ["usage", "استخدام المنصة"],
-            ["progress", "تقدّم المنشآت"],
-            ["outstanding", "الإجراءات المعلّقة"],
+function useSection38() {
+    const t = useT();
+    return useMemo(
+        (): { group: string; items: [string, string][] }[] => [
+            {
+                group: t("dashboard.beacon.group.enterprises", undefined, "المنشآت والاستخدام"),
+                items: [
+                    ["onboarding", t("dashboard.beacon.indicator.onboarding", undefined, "تسجيل المنشآت")],
+                    ["usage", t("dashboard.beacon.indicator.usage", undefined, "استخدام المنصة")],
+                    ["progress", t("dashboard.beacon.indicator.progress", undefined, "تقدّم المنشآت")],
+                    ["outstanding", t("dashboard.beacon.indicator.outstanding", undefined, "الإجراءات المعلّقة")],
+                ],
+            },
+            {
+                group: t("dashboard.beacon.group.finance", undefined, "السجلات المالية والتقارير"),
+                items: [
+                    ["completeness", t("dashboard.beacon.indicator.completeness", undefined, "اكتمال السجلات المالية")],
+                    ["reporting", t("dashboard.beacon.indicator.reporting", undefined, "نشاط التقارير")],
+                ],
+            },
+            {
+                group: t("dashboard.beacon.group.compliance", undefined, "الامتثال والجاهزية"),
+                items: [
+                    ["compliance", t("dashboard.beacon.indicator.compliance", undefined, "حالة الامتثال")],
+                    ["deadlines", t("dashboard.beacon.indicator.deadlines", undefined, "مواعيد امتثال قريبة")],
+                    ["readiness", t("dashboard.beacon.indicator.readiness", undefined, "درجات الجاهزية")],
+                    ["assessments", t("dashboard.beacon.indicator.assessments", undefined, "سجل التقييمات")],
+                ],
+            },
+            {
+                group: t("dashboard.beacon.group.support", undefined, "التدريب والدعم الفني"),
+                items: [
+                    ["training", t("dashboard.beacon.indicator.training", undefined, "نشاط التدريب")],
+                    ["ta", t("dashboard.beacon.indicator.ta", undefined, "نشاط الدعم الفني")],
+                ],
+            },
+            {
+                group: t("dashboard.beacon.group.participation", undefined, "المشاركة"),
+                items: [
+                    ["gender", t("dashboard.beacon.indicator.gender", undefined, "حسب الجنس")],
+                    ["geography", t("dashboard.beacon.indicator.geography", undefined, "حسب المنطقة")],
+                    ["sector", t("dashboard.beacon.indicator.sector", undefined, "حسب القطاع")],
+                ],
+            },
+            {
+                group: t("dashboard.beacon.group.financing", undefined, "التمويل والإحالات"),
+                items: [
+                    ["referrals", t("dashboard.beacon.indicator.referrals", undefined, "إحالات التمويل")],
+                    ["decisions", t("dashboard.beacon.indicator.decisions", undefined, "قرارات الإحالة")],
+                    ["outcomes", t("dashboard.beacon.indicator.outcomes", undefined, "نتائج التمويل")],
+                ],
+            },
         ],
-    },
-    {
-        group: "السجلات المالية والتقارير",
-        items: [
-            ["completeness", "اكتمال السجلات المالية"],
-            ["reporting", "نشاط التقارير"],
-        ],
-    },
-    {
-        group: "الامتثال والجاهزية",
-        items: [
-            ["compliance", "حالة الامتثال"],
-            ["deadlines", "مواعيد امتثال قريبة"],
-            ["readiness", "درجات الجاهزية"],
-            ["assessments", "سجل التقييمات"],
-        ],
-    },
-    {
-        group: "التدريب والدعم الفني",
-        items: [
-            ["training", "نشاط التدريب"],
-            ["ta", "نشاط الدعم الفني"],
-        ],
-    },
-    {
-        group: "المشاركة",
-        items: [
-            ["gender", "حسب الجنس"],
-            ["geography", "حسب المنطقة"],
-            ["sector", "حسب القطاع"],
-        ],
-    },
-    {
-        group: "التمويل والإحالات",
-        items: [
-            ["referrals", "إحالات التمويل"],
-            ["decisions", "قرارات الإحالة"],
-            ["outcomes", "نتائج التمويل"],
-        ],
-    },
-];
+        [t],
+    );
+}
 
 export default function Beacon({
     indicators = [],
@@ -185,15 +194,17 @@ export default function Beacon({
     exportUrl = null,
     programme = null,
 }: Props) {
+    const t = useT();
+    const section38 = useSection38();
     const can = usePage().props.auth?.can;
     const byKey = new Map(indicators.map((i) => [i.key, i.value]));
     return (
-        <AppLayout title="لوحة المتابعة">
+        <AppLayout title={t("dashboard.beacon.monitoring", undefined, "لوحة المتابعة")}>
             <div className="app-page">
                 <div className="d-flex flex-wrap justify-content-between align-items-start gap-2">
                     <PageHeader
-                        title="لوحة متابعة البرنامج"
-                        description="مؤشرات المتابعة والتقييم لبرنامج Beacon."
+                        title={t("dashboard.beacon.title", undefined, "لوحة متابعة البرنامج")}
+                        description={t("dashboard.beacon.description", undefined, "مؤشرات المتابعة والتقييم لبرنامج Beacon.")}
                     />
                     {exportUrl ? <ExportButton baseUrl={exportUrl} formats={["csv"]} /> : null}
                 </div>
@@ -203,15 +214,12 @@ export default function Beacon({
                             <i className="bi bi-compass" aria-hidden="true" />
                         </span>
                         <div>
-                            <h2>رؤية شاملة، وخطوة تالية أوضح</h2>
-                            <p>
-                                تابع المنشآت والجاهزية والتمويل من مساحة عمل
-                                واحدة.
-                            </p>
+                            <h2>{t("dashboard.beacon.banner_title", undefined, "رؤية شاملة، وخطوة تالية أوضح")}</h2>
+                            <p>{t("dashboard.beacon.banner_body", undefined, "تابع المنشآت والجاهزية والتمويل من مساحة عمل واحدة.")}</p>
                         </div>
                     </div>
                     <Link href="/enterprises" className="btn btn-primary">
-                        استعراض المنشآت{" "}
+                        {t("dashboard.beacon.browse_enterprises", undefined, "استعراض المنشآت")}{" "}
                         <i
                             className="bi bi-arrow-left ms-2"
                             aria-hidden="true"
@@ -223,20 +231,20 @@ export default function Beacon({
                     items={visibleLinks(can, [
                         {
                             href: "/enterprises",
-                            label: "المنشآت",
-                            description: "الملفات ومتابعة التقدّم",
+                            label: t("nav.enterprises", undefined, "المنشآت"),
+                            description: t("dashboard.beacon.link.enterprises", undefined, "الملفات ومتابعة التقدّم"),
                             icon: "bi-buildings",
                         },
                         {
                             href: "/transactions",
-                            label: "السجلات المالية",
-                            description: "المعاملات والدفعات",
+                            label: t("dashboard.beacon.link.transactions", undefined, "السجلات المالية"),
+                            description: t("dashboard.beacon.link.transactions_desc", undefined, "المعاملات والدفعات"),
                             icon: "bi-wallet2",
                         },
                         {
                             href: "/documents",
-                            label: "المستندات",
-                            description: "الوثائق والإيصالات",
+                            label: t("nav.documents", undefined, "المستندات"),
+                            description: t("dashboard.beacon.link.documents_desc", undefined, "الوثائق والإيصالات"),
                             icon: "bi-folder2-open",
                         },
                     ])}
@@ -266,7 +274,7 @@ export default function Beacon({
                             <div className="col-12 col-sm-4 col-lg-2">
                                 <SelectFilter
                                     id="sector"
-                                    label="القطاع"
+                                    label={t("smes.sector", undefined, "القطاع")}
                                     value={v.sector}
                                     options={filterOptions.sectors ?? []}
                                     onChange={(x) => set("sector", x)}
@@ -275,7 +283,7 @@ export default function Beacon({
                             <div className="col-12 col-sm-4 col-lg-2">
                                 <SelectFilter
                                     id="region"
-                                    label="المنطقة"
+                                    label={t("dashboard.beacon.region", undefined, "المنطقة")}
                                     value={v.region}
                                     options={filterOptions.regions ?? []}
                                     onChange={(x) => set("region", x)}
@@ -284,7 +292,7 @@ export default function Beacon({
                             <div className="col-12 col-sm-4 col-lg-2">
                                 <SelectFilter
                                     id="gender"
-                                    label="الجنس"
+                                    label={t("dashboard.beacon.gender", undefined, "الجنس")}
                                     value={v.gender}
                                     options={filterOptions.genders ?? []}
                                     onChange={(x) => set("gender", x)}
@@ -294,16 +302,16 @@ export default function Beacon({
                     )}
                 </FilterBar>
                 {indicators.length === 0 ? (
-                    <SectionCard title="مؤشرات المتابعة والتقييم">
+                    <SectionCard title={t("dashboard.beacon.indicators_section", undefined, "مؤشرات المتابعة والتقييم")}>
                         <EmptyState
                             icon="bi-clipboard-data"
-                            title="لم تُعتمد مؤشرات المتابعة بعد"
-                            description="ستظهر هنا عند اعتماد تعريفات المؤشرات."
+                            title={t("dashboard.beacon.indicators_pending", undefined, "لم تُعتمد مؤشرات المتابعة بعد")}
+                            description={t("dashboard.beacon.indicators_pending_hint", undefined, "ستظهر هنا عند اعتماد تعريفات المؤشرات.")}
                         />
                     </SectionCard>
                 ) : (
                 <div className="app-indicator-groups">
-                    {SECTION_38.map((g) => (
+                    {section38.map((g) => (
                         <SectionCard key={g.group} title={g.group}>
                             <div className="row g-2">
                                 {g.items.map(([key, label]) => {
@@ -328,7 +336,7 @@ export default function Beacon({
                                                 </div>
                                                 {value === null ? (
                                                     <div className="app-indicator__note">
-                                                        بانتظار تعريف المؤشر
+                                                        {t("dashboard.beacon.indicator_pending", undefined, "بانتظار تعريف المؤشر")}
                                                     </div>
                                                 ) : null}
                                             </div>

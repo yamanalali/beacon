@@ -25,13 +25,13 @@ class ScoreBandRequest extends ReadinessAdminRequest
             $min = $this->input('min', $band?->min);
             $max = $this->input('max', $band?->max);
             if (is_numeric($min) && is_numeric($max) && (float) $min > (float) $max) {
-                $validator->errors()->add('min', 'الحد الأدنى يجب ألا يتجاوز الحد الأعلى.');
+                $validator->errors()->add('min', ui('validation.min_lte_max'));
             }
         }];
     }
 
     public function messages(): array
     {
-        return parent::messages() + ['color_token.regex' => 'رمز اللون يجب أن يكون من ألوان نظام التصميم.'];
+        return parent::messages() + ['color_token.regex' => ui('validation.color_token_design_system')];
     }
 }

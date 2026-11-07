@@ -42,8 +42,8 @@ class StoreAdvisoryActivityRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'activity_date.required' => 'تاريخ النشاط مطلوب.',
-            'activity_date.date' => 'تاريخ النشاط غير صالح.',
+            'activity_date.required' => ui('validation.activity_date_required'),
+            'activity_date.date' => ui('validation.activity_date_invalid'),
         ];
     }
 }

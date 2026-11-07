@@ -6,18 +6,19 @@ import type { AuthCan, NavigationItem } from "../types/shared";
  * No role logic here.
  */
 
-export type NavGroupView = { key: string; label: string | null; items: NavigationItem[] };
+export type NavGroupView = { key: string; labelKey: string | null; items: NavigationItem[] };
 
 /** Group order and headings (keyed by the stable `group` value). Unknown groups go last, untitled. */
 export const GROUP_ORDER = ["main", "enterprise", "mfi", "ai", "admin", "operations", "account"] as const;
-export const GROUP_LABELS: Record<string, string | null> = {
+/** i18n keys resolved where group labels are rendered (e.g. DesktopSidebar). */
+export const GROUP_LABEL_KEYS: Record<string, string | null> = {
     main: null,
-    enterprise: "مساحة العمل",
-    mfi: "التمويل",
-    ai: "المساعد والمعرفة",
-    admin: "إدارة البرنامج",
-    operations: "إدارة النظام",
-    account: "الحساب",
+    enterprise: "nav.group.enterprise",
+    mfi: "nav.group.mfi",
+    ai: "nav.group.ai",
+    admin: "nav.group.admin",
+    operations: "nav.group.operations",
+    account: "nav.group.account",
 };
 
 /** Bootstrap icon per stable item key; then per server icon name; then a neutral fallback. */
@@ -83,7 +84,7 @@ export function groupNavigation(items: NavigationItem[] | null | undefined): Nav
     });
     return keys.map((g) => ({
         key: g,
-        label: GROUP_LABELS[g] ?? null,
+        labelKey: GROUP_LABEL_KEYS[g] ?? null,
         items: list
             .map((item, i) => ({ item, i }))
             .filter((x) => x.item.group === g)

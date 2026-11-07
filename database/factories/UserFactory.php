@@ -33,7 +33,17 @@ class UserFactory extends Factory
             'role' => UserRole::SmeUser,
             'is_active' => true,
             'remember_token' => Str::random(10),
+            // Tests skip onboarding by default; real invited users still hit /onboarding.
+            'signature_skipped_at' => now(),
         ];
+    }
+
+    public function needsOnboarding(): static
+    {
+        return $this->state(fn () => [
+            'signature_path' => null,
+            'signature_skipped_at' => null,
+        ]);
     }
 
     /**

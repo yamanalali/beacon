@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { router, useForm } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
+import { useT } from "../../Hooks/useT";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
@@ -57,6 +58,7 @@ function tone(item: Item): StatusTone {
 }
 
 function UploadForm({ enterpriseId, requirementId }: { enterpriseId: string; requirementId: string }) {
+    const t = useT();
     const form = useForm<{ file: File | null; title: string }>({ file: null, title: "" });
 
     return (
@@ -71,8 +73,8 @@ function UploadForm({ enterpriseId, requirementId }: { enterpriseId: string; req
                 });
             }}
         >
-            <p className="small text-body-secondary mb-2">ارفع الوثيقة المطلوبة للمراجعة. لن تُعتمد إلا بعد موافقة المستشار.</p>
-            <label className="form-label fw-semibold" htmlFor={`file-${requirementId}`}>الملف (صورة أو PDF)</label>
+            <p className="small text-body-secondary mb-2">{t("compliance.enterprise.upload_hint", undefined, "ارفع الوثيقة المطلوبة للمراجعة. لن تُعتمد إلا بعد موافقة المستشار.")}</p>
+            <label className="form-label fw-semibold" htmlFor={`file-${requirementId}`}>{t("compliance.enterprise.file_label", undefined, "الملف (صورة أو PDF)")}</label>
             <input
                 id={`file-${requirementId}`}
                 type="file"
@@ -84,7 +86,7 @@ function UploadForm({ enterpriseId, requirementId }: { enterpriseId: string; req
             {form.errors.file ? <div className="invalid-feedback d-block" role="alert">{form.errors.file}</div> : null}
             <button type="submit" className="btn btn-primary w-100" style={{ minHeight: "48px" }} disabled={form.processing || form.data.file === null}>
                 <i className="bi bi-upload me-2" aria-hidden="true" />
-                {form.processing ? "جارٍ الرفع..." : "رفع للمراجعة"}
+                {form.processing ? t("compliance.enterprise.uploading", undefined, "جارٍ الرفع...") : t("compliance.enterprise.upload_submit", undefined, "رفع للمراجعة")}
             </button>
         </form>
     );
@@ -99,6 +101,7 @@ function ReviewActions({
     requirementId: string;
     submissionId: number;
 }) {
+    const t = useT();
     const [note, setNote] = useState("");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -119,8 +122,8 @@ function ReviewActions({
 
     return (
         <div className="border rounded-3 p-3 mt-3 bg-body-tertiary">
-            <p className="fw-semibold mb-2">مراجعة الوثيقة</p>
-            <label className="form-label" htmlFor={`note-${submissionId}`}>ملاحظة للمستفيد (اختياري)</label>
+            <p className="fw-semibold mb-2">{t("compliance.enterprise.review_title", undefined, "مراجعة الوثيقة")}</p>
+            <label className="form-label" htmlFor={`note-${submissionId}`}>{t("compliance.enterprise.review_note", undefined, "ملاحظة للمستفيد (اختياري)")}</label>
             <textarea
                 id={`note-${submissionId}`}
                 className="form-control mb-3"
@@ -131,13 +134,13 @@ function ReviewActions({
             />
             <div className="d-grid gap-2">
                 <button type="button" className="btn btn-success" style={{ minHeight: "48px" }} disabled={saving} onClick={() => review("approve")}>
-                    اعتماد
+                    {t("compliance.enterprise.approve", undefined, "اعتماد")}
                 </button>
                 <button type="button" className="btn btn-outline-danger" style={{ minHeight: "48px" }} disabled={saving} onClick={() => review("reject")}>
-                    رفض
+                    {t("compliance.enterprise.reject", undefined, "رفض")}
                 </button>
                 <button type="button" className="btn btn-outline-warning" style={{ minHeight: "48px" }} disabled={saving} onClick={() => review("request_resubmission")}>
-                    طلب وثيقة أخرى
+                    {t("compliance.enterprise.request_resubmission", undefined, "طلب وثيقة أخرى")}
                 </button>
             </div>
             {error ? <p className="text-danger mt-2 mb-0" role="alert">{error}</p> : null}
@@ -154,6 +157,7 @@ function StaffStatusForm({
     enterprise: Props["enterprise"];
     statuses: Record<string, string>;
 }) {
+    const t = useT();
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [status, setStatus] = useState(item.status);
@@ -165,7 +169,7 @@ function StaffStatusForm({
         <div className="row g-2 align-items-end pt-3">
             {!documentLocked ? (
                 <div className="col-12 col-md-5">
-                    <label className="form-label" htmlFor={`status-${id}`}>الحالة</label>
+                    <label className="form-label" htmlFor={`status-${id}`}>{t("common.status", undefined, "الحالة")}</label>
                     <select id={`status-${id}`} className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}>
                         {Object.entries(statuses).map(([k, l]) => (
                             <option key={k} value={k}>{l}</option>
@@ -174,7 +178,7 @@ function StaffStatusForm({
                 </div>
             ) : null}
             <div className={documentLocked ? "col-12 col-md-8" : "col-12 col-md-4"}>
-                <label className="form-label" htmlFor={`due-${id}`}>الموعد</label>
+                <label className="form-label" htmlFor={`due-${id}`}>{t("readiness.target_date", undefined, "الموعد")}</label>
                 <input id={`due-${id}`} type="date" className="form-control" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
             <div className="col-12 col-md-3 d-grid">
@@ -204,12 +208,12 @@ function StaffStatusForm({
                         )
                     }
                 >
-                    {documentLocked ? "حفظ الموعد" : "حفظ"}
+                    {documentLocked ? t("compliance.enterprise.save_due", undefined, "حفظ الموعد") : t("common.save", undefined, "حفظ")}
                 </button>
             </div>
             {documentLocked ? (
                 <div className="col-12">
-                    <p className="small text-body-secondary mb-0">الاكتمال يتم عبر اعتماد الوثيقة بعد رفعها من المنشأة.</p>
+                    <p className="small text-body-secondary mb-0">{t("compliance.enterprise.document_completion", undefined, "الاكتمال يتم عبر اعتماد الوثيقة بعد رفعها من المنشأة.")}</p>
                 </div>
             ) : null}
             {error ? <p className="text-danger mt-2 mb-0" role="alert">{error}</p> : null}
@@ -218,6 +222,7 @@ function StaffStatusForm({
 }
 
 function Row({ item, enterprise, statuses, canUpdate }: { item: Item; enterprise: Props["enterprise"]; statuses: Record<string, string>; canUpdate: boolean }) {
+    const t = useT();
     const submission = item.latest_submission;
 
     return (
@@ -225,33 +230,41 @@ function Row({ item, enterprise, statuses, canUpdate }: { item: Item; enterprise
             <div className="fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <span>{item.version.title_ar}</span>
                 <span className="d-flex flex-wrap gap-2">
-                    {item.action_needed ? <StatusBadge label="إجراء مطلوب" tone="danger" /> : null}
+                    {item.action_needed ? <StatusBadge label={t("compliance.enterprise.action_needed", undefined, "إجراء مطلوب")} tone="danger" /> : null}
                     <StatusBadge label={item.status_label} tone={tone(item)} />
                 </span>
             </div>
-            <p className="app-record-line"><span>التصنيف</span><span>{item.category_label} - نسخة {item.version.version_number}</span></p>
-            <p className="app-record-line"><span>الإرشاد</span><span>{item.version.guidance_pending ? "الإرشاد بانتظار مدخلات بيكون" : item.version.guidance_ar ?? "-"}</span></p>
-            {item.version.deadline_note_ar ? <p className="app-record-line"><span>ملاحظة الموعد</span><span>{item.version.deadline_note_ar}</span></p> : null}
+            <p className="app-record-line"><span>{t("compliance.admin.category", undefined, "التصنيف")}</span><span>{item.category_label} - {t("compliance.enterprise.version", { n: item.version.version_number }, `نسخة ${item.version.version_number}`)}</span></p>
+            <p className="app-record-line"><span>{t("compliance.enterprise.guidance", undefined, "الإرشاد")}</span><span>{item.version.guidance_pending ? t("compliance.admin.guidance_pending", undefined, "الإرشاد بانتظار مدخلات بيكون") : item.version.guidance_ar ?? "-"}</span></p>
+            {item.version.deadline_note_ar ? <p className="app-record-line"><span>{t("compliance.enterprise.deadline_note", undefined, "ملاحظة الموعد")}</span><span>{item.version.deadline_note_ar}</span></p> : null}
             {item.due_date ? (
                 <p className="app-record-line">
-                    <span>الموعد</span>
-                    <span><bdi dir="ltr">{item.due_date}</bdi>{item.overdue ? " (متأخر)" : item.approaching ? " (قريب)" : ""}</span>
+                    <span>{t("readiness.target_date", undefined, "الموعد")}</span>
+                    <span><bdi dir="ltr">{item.due_date}</bdi>{item.overdue ? t("compliance.enterprise.overdue_suffix", undefined, " (متأخر)") : item.approaching ? t("compliance.enterprise.approaching_suffix", undefined, " (قريب)") : ""}</span>
                 </p>
             ) : null}
-            {item.needs_version_review ? <div className="alert alert-warning py-2" role="status">صدر إصدار جديد يحتاج مراجعة. حالة الإصدار {item.recorded_version_number}: {item.recorded_status_label}؛ لم تُعتمد للإصدار الحالي.</div> : null}
-            {item.missing_document ? <p className="app-record-line"><span>الوثائق</span><span className="text-danger">وثيقة مطلوبة لم تُستكمل</span></p> : null}
+            {item.needs_version_review ? (
+                <div className="alert alert-warning py-2" role="status">
+                    {t(
+                        "compliance.enterprise.version_review",
+                        { recorded: item.recorded_version_number, status: item.recorded_status_label },
+                        `صدر إصدار جديد يحتاج مراجعة. حالة الإصدار ${item.recorded_version_number}: ${item.recorded_status_label}؛ لم تُعتمد للإصدار الحالي.`,
+                    )}
+                </div>
+            ) : null}
+            {item.missing_document ? <p className="app-record-line"><span>{t("nav.documents", undefined, "الوثائق")}</span><span className="text-danger">{t("compliance.enterprise.missing_document", undefined, "وثيقة مطلوبة لم تُستكمل")}</span></p> : null}
 
             {submission ? (
                 <div className="rounded-3 border p-3 mt-2">
-                    <p className="mb-1 fw-semibold">{submission.title || submission.original_name || "وثيقة مرفوعة"}</p>
+                    <p className="mb-1 fw-semibold">{submission.title || submission.original_name || t("compliance.enterprise.uploaded_document", undefined, "وثيقة مرفوعة")}</p>
                     <p className="small text-body-secondary mb-2">
                         {submission.review_status_label}
                         {submission.submitted_at ? <> · <bdi dir="ltr">{new Date(submission.submitted_at).toLocaleDateString("ar")}</bdi></> : null}
                     </p>
-                    {submission.review_note ? <p className="small mb-2">ملاحظة المراجعة: {submission.review_note}</p> : null}
+                    {submission.review_note ? <p className="small mb-2">{t("compliance.enterprise.review_note_display", undefined, "ملاحظة المراجعة")}: {submission.review_note}</p> : null}
                     {submission.document_url ? (
                         <a className="btn btn-outline-primary btn-sm" style={{ minHeight: "44px" }} href={submission.document_url}>
-                            تنزيل الوثيقة
+                            {t("compliance.enterprise.download_document", undefined, "تنزيل الوثيقة")}
                         </a>
                     ) : null}
                 </div>
@@ -267,24 +280,28 @@ function Row({ item, enterprise, statuses, canUpdate }: { item: Item; enterprise
 }
 
 export default function Enterprise({ enterprise, items, statuses, canUpdate }: Props) {
+    const t = useT();
     const actionCount = items.filter((i) => i.action_needed).length;
     const doneCount = items.filter((i) => i.status === "completed").length;
 
     return (
-        <AppLayout title="الامتثال">
+        <AppLayout title={t("compliance.title", undefined, "الامتثال")}>
             <div className="app-page">
-                <PageHeader title="الامتثال" description={`${enterprise.business_name} - المتطلبات المطبقة وحالتها.`} />
+                <PageHeader
+                    title={t("compliance.title", undefined, "الامتثال")}
+                    description={t("compliance.enterprise.page_description", { name: enterprise.business_name }, `${enterprise.business_name} - المتطلبات المطبقة وحالتها.`)}
+                />
                 {items.length > 0 ? (
                     <div className="app-page-toolbar" data-testid="compliance-summary">
                         <span className="d-flex flex-wrap gap-2">
-                            <StatusBadge label={`${doneCount} من ${items.length} مكتمل`} tone="success" />
-                            {actionCount > 0 ? <StatusBadge label={`${actionCount} يحتاج إجراء`} tone="danger" /> : null}
+                            <StatusBadge label={t("compliance.enterprise.completed_count", { done: doneCount, total: items.length }, `${doneCount} من ${items.length} مكتمل`)} tone="success" />
+                            {actionCount > 0 ? <StatusBadge label={t("compliance.enterprise.action_count", { count: actionCount }, `${actionCount} يحتاج إجراء`)} tone="danger" /> : null}
                         </span>
                     </div>
                 ) : null}
-                <SectionCard title="المتطلبات">
+                <SectionCard title={t("compliance.enterprise.requirements", undefined, "المتطلبات")}>
                     {items.length === 0 ? (
-                        <EmptyState icon="bi-shield-check" title="لا توجد متطلبات منشورة بعد" description="ستظهر هنا المتطلبات التي تنطبق على منشأتك عند نشرها من بيكون." />
+                        <EmptyState icon="bi-shield-check" title={t("compliance.enterprise.empty", undefined, "لا توجد متطلبات منشورة بعد")} description={t("compliance.enterprise.empty_hint", undefined, "ستظهر هنا المتطلبات التي تنطبق على منشأتك عند نشرها من بيكون.")} />
                     ) : (
                         <div className="d-flex flex-column gap-3">
                             {items.map((item) => (

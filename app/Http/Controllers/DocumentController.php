@@ -82,14 +82,14 @@ class DocumentController extends Controller
                 // Suggestion only: no transaction is created until the user confirms.
                 $extraction = $extractor->execute($request->user(), $document);
 
-                return redirect()->route('extractions.show', $extraction)->with('success', 'تم رفع المستند وقراءته. راجع الاقتراح قبل الحفظ.');
+                return redirect()->route('extractions.show', $extraction)->with('success', ui('flash.document_uploaded_ocr_review'));
             }
 
-            return back()->with('success', 'تم رفع المستند.')
-                ->with('info', 'تم حفظ المستند، لكن لا يمكنك قراءته كفاتورة.');
+            return back()->with('success', ui('flash.document_uploaded'))
+                ->with('info', ui('flash.document_uploaded_no_invoice_ocr'));
         }
 
-        return back()->with('success', 'تم رفع المستند.');
+        return back()->with('success', ui('flash.document_uploaded'));
     }
 
     public function preview(Request $request, Document $document, RecordAuditLog $audit): StreamedResponse
@@ -173,7 +173,7 @@ class DocumentController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:150'],
             'transaction' => ['nullable', 'string', 'size:26'],
-        ], ['title.required' => 'عنوان المستند مطلوب.']);
+        ], ['title.required' => ui('validation.document_title_required')]);
 
         $transaction = filled($data['transaction'] ?? null)
             ? FinancialTransaction::query()->where('public_id', $data['transaction'])->where('enterprise_id', $document->enterprise_id)->firstOrFail()
@@ -181,7 +181,7 @@ class DocumentController extends Controller
 
         $action->execute($request->user(), $document, $data['title'], $transaction);
 
-        return back()->with('success', 'تم حفظ بيانات المستند.');
+        return back()->with('success', ui('flash.document_metadata_saved'));
     }
 
     public function archive(Request $request, Document $document, ArchiveDocumentAction $action): RedirectResponse
@@ -191,11 +191,11 @@ class DocumentController extends Controller
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'min:3', 'max:255'],
-        ], ['reason.required' => 'اكتب سبب الأرشفة.', 'reason.min' => 'اكتب سبب الأرشفة بشكل أوضح.']);
+        ], ['reason.required' => ui('validation.archive_reason_required'), 'reason.min' => ui('validation.archive_reason_min')]);
 
         $action->execute($request->user(), $document, $data['reason']);
 
-        return redirect()->route('enterprises.documents.index', $document->enterprise)->with('success', 'تمت أرشفة المستند. الملف ما زال محفوظاً.');
+        return redirect()->route('enterprises.documents.index', $document->enterprise)->with('success', ui('flash.document_archived'));
     }
 
     /**

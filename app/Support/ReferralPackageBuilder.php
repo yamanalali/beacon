@@ -45,7 +45,7 @@ class ReferralPackageBuilder
                 'band' => $a->frozenBand(),
                 'finalized_at' => $a->finalized_at?->toDateTimeString(),
                 'rule_set_version' => $a->ruleSet?->version_number,
-                'disclaimer' => 'نتيجة الجاهزية أداة استشارية وليست موافقة على التمويل.',
+                'disclaimer' => ui('disclaimer.readiness_in_referral_package'),
             ];
         }
 
@@ -72,9 +72,9 @@ class ReferralPackageBuilder
                 ->get(['title', 'original_name', 'mime_type', 'created_at'])
                 ->map(fn (Document $d) => [
                     'name' => $d->title ?: $d->original_name,
-                    'type' => Lang::has('referrals.document_types.'.$d->mime_type, 'ar')
-                        ? __('referrals.document_types.'.$d->mime_type, [], 'ar')
-                        : __('referrals.document_types.other', [], 'ar'),
+                    'type' => Lang::has('referrals.document_types.'.$d->mime_type)
+                        ? __('referrals.document_types.'.$d->mime_type)
+                        : __('referrals.document_types.other'),
                     'date' => $d->created_at?->toDateString(),
                 ])->values()->all();
         }
@@ -90,7 +90,7 @@ class ReferralPackageBuilder
         }
         $key = "referrals.$group.".strtolower(trim($value));
 
-        return Lang::has($key, 'ar') ? (string) __($key, [], 'ar') : $value;
+        return Lang::has($key) ? (string) __($key) : $value;
     }
 
     /**
