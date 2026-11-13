@@ -213,8 +213,16 @@ class EnterpriseController extends Controller
     {
         $this->authorize('update', $enterprise);
 
+        $enterprise->loadMissing('baselineProfile');
+
         return Inertia::render('SMEs/Edit', [
             'enterprise' => $this->profilePayload($enterprise),
+            'incomplete_fields' => $enterprise->incompleteFieldNames(),
+            'baseline' => [
+                'has_profile' => $enterprise->baselineProfile !== null,
+                'external_mse_id' => $enterprise->baselineProfile?->external_mse_id,
+                'imported_at' => $enterprise->baselineProfile?->imported_at?->toDateTimeString(),
+            ],
         ]);
     }
 

@@ -26,6 +26,7 @@ class UpdateEnterpriseProfileAction
         'contact_name',
         'contact_phone',
         'contact_email',
+        'address_line',
         'registration_status',
         'initial_digital_readiness_note',
         'initial_financial_readiness_note',

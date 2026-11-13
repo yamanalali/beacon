@@ -30,6 +30,7 @@ class UpdateEnterpriseProfileRequest extends FormRequest
             'contact_name' => ['nullable', 'string', 'max:255'],
             'contact_phone' => ['nullable', 'string', 'max:50', 'required_without:contact_email'],
             'contact_email' => ['nullable', 'email', 'max:255', 'required_without:contact_phone'],
+            'address_line' => ['nullable', 'string', 'max:500'],
             'registration_status' => ['nullable', 'string', 'max:255'],
             'initial_digital_readiness_note' => ['nullable', 'string'],
             'initial_financial_readiness_note' => ['nullable', 'string'],
