@@ -9,7 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->string('signature_path')->nullable()->after('locale');
+            // Do not use after('locale'): locale migration is dated later (2026_11_08).
+            $table->string('signature_path')->nullable();
             $table->timestamp('signature_skipped_at')->nullable()->after('signature_path');
         });
 
