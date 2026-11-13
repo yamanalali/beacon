@@ -1,9 +1,10 @@
-import { Link, useForm } from "@inertiajs/react";
-import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Link, useForm, usePage } from "@inertiajs/react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import AppLayout from "../../Layouts/AppLayout";
 import { useT } from "../../Hooks/useT";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { FormError } from "../../Components/Forms/FormError";
+import { TextInput } from "../../Components/Forms/TextInput";
 import {
     BaselineSurveyPanel,
     type BaselinePayload,
@@ -149,12 +150,39 @@ export default function Show({
         }),
         [t],
     );
+    const page = usePage<{
+        flash?: { success?: string; created_member?: { name: string; email: string } };
+        ziggy?: { query?: Record<string, string> };
+    }>();
+    const flash = page.props.flash;
     const advisorForm = useForm({ user_id: "" });
     const memberForm = useForm({ user_id: "" });
-    const [selectedTab, setSelectedTab] = useState<Tab>("overview");
+    const createMemberForm = useForm({
+        name: enterprise.owner_name || enterprise.contact_name || "",
+        email: enterprise.contact_email || "",
+        password: "",
+        password_confirmation: "",
+    });
+    const [selectedTab, setSelectedTab] = useState<Tab>(() => {
+        if (typeof window !== "undefined") {
+            const tab = new URLSearchParams(window.location.search).get("tab");
+            if (tab === "team" || tab === "baseline" || tab === "details" || tab === "readiness" || tab === "overview") {
+                return tab;
+            }
+        }
+        return "overview";
+    });
+    const [showCreateMember, setShowCreateMember] = useState(false);
     const tabList = useRef<HTMLDivElement>(null);
     const prefix = useId();
     const base = `/enterprises/${enterprise.public_id}`;
+
+    useEffect(() => {
+        if (flash?.created_member || flash?.success) {
+            setSelectedTab("team");
+            setShowCreateMember(false);
+        }
+    }, [flash?.created_member, flash?.success]);
     const location = enterprise.location
         ? (locationLabels[enterprise.location as keyof typeof locationLabels] ?? enterprise.location)
         : null;
@@ -294,14 +322,57 @@ export default function Show({
                             </div>
                         </div>
                     </div>
-                    <Link
-                        href={`${base}/edit`}
-                        className="btn btn-primary enterprise-profile__edit"
-                    >
-                        <i className="bi bi-pencil-square" aria-hidden="true" />
-                        {t("smes.edit_title", undefined, "تعديل الملف")}
-                    </Link>
+                    <div className="enterprise-profile__hero-actions">
+                        {can_assign ? (
+                            <button
+                                type="button"
+                                className="btn btn-outline-primary enterprise-profile__edit"
+                                onClick={() => {
+                                    setSelectedTab("team");
+                                    setShowCreateMember(true);
+                                    window.setTimeout(() => {
+                                        document.getElementById("member_name")?.focus();
+                                    }, 80);
+                                }}
+                            >
+                                <i className="bi bi-person-plus" aria-hidden="true" />
+                                {t("smes.show.add_user", undefined, "إضافة مستخدم")}
+                            </button>
+                        ) : null}
+                        <Link
+                            href={`${base}/edit`}
+                            className="btn btn-primary enterprise-profile__edit"
+                        >
+                            <i className="bi bi-pencil-square" aria-hidden="true" />
+                            {t("smes.edit_title", undefined, "تعديل الملف")}
+                        </Link>
+                    </div>
                 </header>
+
+                {flash?.success ? (
+                    <div className="alert alert-success" role="status">
+                        {flash.success}
+                        {flash.created_member ? (
+                            <div className="mt-2 small">
+                                <div>
+                                    {t("smes.show.created_user_name", undefined, "الاسم")}:{" "}
+                                    <strong>{flash.created_member.name}</strong>
+                                </div>
+                                <div>
+                                    {t("smes.show.created_user_email", undefined, "البريد")}:{" "}
+                                    <bdi dir="ltr"><strong>{flash.created_member.email}</strong></bdi>
+                                </div>
+                                <div className="text-muted mt-1">
+                                    {t(
+                                        "smes.show.created_user_password_hint",
+                                        undefined,
+                                        "كلمة المرور هي التي أدخلتها عند الإنشاء — احفظها وأبلغ المستخدم بها.",
+                                    )}
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
 
                 {incomplete_fields.length ? (
                     <aside
@@ -725,73 +796,141 @@ export default function Show({
                                                 empty={t("smes.show.no_members", undefined, "لا يوجد مستخدم مرتبط بالمنشأة بعد.")}
                                             />
                                         ) : null}
+
                                         {can_assign ? (
-                                            <form
-                                                className="enterprise-profile__assign-form"
-                                                onSubmit={(event) => {
-                                                    event.preventDefault();
-                                                    memberForm.post(
-                                                        `${base}/members`,
-                                                    );
-                                                }}
-                                            >
-                                                <label
-                                                    htmlFor="member_user_id"
-                                                    className="form-label"
-                                                >
-                                                    {t("smes.show.link_member", undefined, "ربط مستخدم منشأة")}
-                                                </label>
-                                                <select
-                                                    id="member_user_id"
-                                                    className={`form-select${memberForm.errors.user_id ? " is-invalid" : ""}`}
-                                                    aria-invalid={
-                                                        memberForm.errors
-                                                            .user_id
-                                                            ? true
-                                                            : undefined
-                                                    }
-                                                    value={
-                                                        memberForm.data.user_id
-                                                    }
-                                                    onChange={(event) =>
-                                                        memberForm.setData(
-                                                            "user_id",
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                >
-                                                    <option value="">
-                                                        {t("smes.show.choose_user", undefined, "اختر مستخدماً")}
-                                                    </option>
-                                                    {member_options.map(
-                                                        (option) => (
-                                                            <option
-                                                                key={option.id}
-                                                                value={
-                                                                    option.id
-                                                                }
+                                            <div className="enterprise-profile__assign-form">
+                                                {!showCreateMember ? (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-primary w-100"
+                                                        style={{ minHeight: 48 }}
+                                                        onClick={() => setShowCreateMember(true)}
+                                                    >
+                                                        <i className="bi bi-person-plus ms-1" aria-hidden="true" />
+                                                        {t("smes.show.add_user", undefined, "إضافة مستخدم")}
+                                                    </button>
+                                                ) : (
+                                                    <form
+                                                        onSubmit={(event) => {
+                                                            event.preventDefault();
+                                                            createMemberForm.post(`${base}/members/create`);
+                                                        }}
+                                                    >
+                                                        <p className="enterprise-profile__quiet mb-3">
+                                                            {t(
+                                                                "smes.show.add_user_help",
+                                                                undefined,
+                                                                "أنشئ حساب دخول للمنشأة واربطه مباشرة. سلّم الإيميل وكلمة المرور لصاحب المنشأة.",
+                                                            )}
+                                                        </p>
+                                                        <TextInput
+                                                            id="member_name"
+                                                            name="name"
+                                                            label={t("smes.show.member_name", undefined, "اسم المستخدم")}
+                                                            value={createMemberForm.data.name}
+                                                            error={createMemberForm.errors.name}
+                                                            required
+                                                            onChange={(value) => createMemberForm.setData("name", value)}
+                                                        />
+                                                        <TextInput
+                                                            id="member_email"
+                                                            name="email"
+                                                            type="email"
+                                                            label={t("smes.show.member_email", undefined, "البريد الإلكتروني")}
+                                                            value={createMemberForm.data.email}
+                                                            error={createMemberForm.errors.email}
+                                                            required
+                                                            onChange={(value) => createMemberForm.setData("email", value)}
+                                                        />
+                                                        <TextInput
+                                                            id="member_password"
+                                                            name="password"
+                                                            type="password"
+                                                            label={t("smes.show.member_password", undefined, "كلمة المرور")}
+                                                            value={createMemberForm.data.password}
+                                                            error={createMemberForm.errors.password}
+                                                            required
+                                                            onChange={(value) => createMemberForm.setData("password", value)}
+                                                        />
+                                                        <TextInput
+                                                            id="member_password_confirmation"
+                                                            name="password_confirmation"
+                                                            type="password"
+                                                            label={t("smes.show.member_password_confirm", undefined, "تأكيد كلمة المرور")}
+                                                            value={createMemberForm.data.password_confirmation}
+                                                            error={createMemberForm.errors.password_confirmation}
+                                                            required
+                                                            onChange={(value) =>
+                                                                createMemberForm.setData("password_confirmation", value)
+                                                            }
+                                                        />
+                                                        <div className="d-flex flex-wrap gap-2 mt-2">
+                                                            <button
+                                                                type="submit"
+                                                                className="btn btn-primary"
+                                                                style={{ minHeight: 48 }}
+                                                                disabled={createMemberForm.processing}
                                                             >
-                                                                {option.name}
+                                                                {createMemberForm.processing
+                                                                    ? t("common.saving", undefined, "جارٍ الحفظ...")
+                                                                    : t("smes.show.create_and_link", undefined, "إنشاء وربط")}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-outline-secondary"
+                                                                style={{ minHeight: 48 }}
+                                                                onClick={() => {
+                                                                    setShowCreateMember(false);
+                                                                    createMemberForm.clearErrors();
+                                                                }}
+                                                            >
+                                                                {t("common.cancel", undefined, "إلغاء")}
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                )}
+
+                                                {member_options.length > 0 ? (
+                                                    <form
+                                                        className="mt-4 pt-3 border-top"
+                                                        onSubmit={(event) => {
+                                                            event.preventDefault();
+                                                            memberForm.post(`${base}/members`);
+                                                        }}
+                                                    >
+                                                        <label htmlFor="member_user_id" className="form-label">
+                                                            {t("smes.show.link_existing_member", undefined, "أو ربط مستخدم موجود")}
+                                                        </label>
+                                                        <select
+                                                            id="member_user_id"
+                                                            className={`form-select${memberForm.errors.user_id ? " is-invalid" : ""}`}
+                                                            aria-invalid={memberForm.errors.user_id ? true : undefined}
+                                                            value={memberForm.data.user_id}
+                                                            onChange={(event) =>
+                                                                memberForm.setData("user_id", event.target.value)
+                                                            }
+                                                        >
+                                                            <option value="">
+                                                                {t("smes.show.choose_user", undefined, "اختر مستخدماً")}
                                                             </option>
-                                                        ),
-                                                    )}
-                                                </select>
-                                                <FormError
-                                                    message={
-                                                        memberForm.errors
-                                                            .user_id
-                                                    }
-                                                />
-                                                <button
-                                                    type="submit"
-                                                    className="btn btn-primary mt-3"
-                                                    disabled={
-                                                        memberForm.processing
-                                                    }
-                                                >
-                                                    {t("smes.show.link_member_submit", undefined, "ربط المستخدم")}
-                                                </button>
-                                            </form>
+                                                            {member_options.map((option) => (
+                                                                <option key={option.id} value={option.id}>
+                                                                    {option.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <FormError message={memberForm.errors.user_id} />
+                                                        <button
+                                                            type="submit"
+                                                            className="btn btn-outline-primary mt-3"
+                                                            style={{ minHeight: 48 }}
+                                                            disabled={memberForm.processing}
+                                                        >
+                                                            {t("smes.show.link_member_submit", undefined, "ربط المستخدم")}
+                                                        </button>
+                                                    </form>
+                                                ) : null}
+                                            </div>
                                         ) : null}
                                     </SectionCard>
                                 </div>

@@ -69,6 +69,7 @@ class HandleInertiaRequests extends Middleware
                 'info' => fn () => $request->session()->get('info'),
                 'invitation_link' => fn () => $request->session()->get('invitation_link'),
                 'created_document_id' => fn () => $request->session()->get('created_document_id'),
+                'created_member' => fn () => $request->session()->get('created_member'),
             ],
         ];
     }

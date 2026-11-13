@@ -75,6 +75,13 @@
 .enterprise-profile__meta .bi {
     color: #82a295;
 }
+.enterprise-profile__hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-end;
+}
 .enterprise-profile__edit {
     flex-shrink: 0;
     gap: 8px;
@@ -534,6 +541,9 @@
     .enterprise-profile__hero h1 {
         font-size: 21px;
         margin-block: 4px 8px;
+    }
+    .enterprise-profile__hero-actions {
+        width: 100%;
     }
     .enterprise-profile__edit {
         width: 100%;

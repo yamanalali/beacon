@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Actions\Audit\RecordAuditLog;
 use App\Actions\Enterprises\AssignAdvisorAction;
 use App\Actions\Enterprises\AttachSmeUserAction;
+use App\Actions\Enterprises\CreateAndAttachSmeUserAction;
 use App\Actions\Enterprises\CreateEnterpriseAction;
 use App\Actions\Enterprises\UpdateEnterpriseProfileAction;
 use App\Enums\EnterpriseProgrammeStage;
 use App\Enums\EnterpriseRegistrationStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\Enterprises\AssignEnterpriseUserRequest;
+use App\Http\Requests\Enterprises\StoreEnterpriseMemberRequest;
 use App\Http\Requests\Enterprises\StoreEnterpriseRequest;
 use App\Http\Requests\Enterprises\UpdateEnterpriseProfileRequest;
 use App\Models\Enterprise;
@@ -280,7 +282,25 @@ class EnterpriseController extends Controller
         $member = User::query()->findOrFail($request->validated('user_id'));
         $action->execute($request->user(), $enterprise, $member);
 
-        return redirect()->route('enterprises.show', $enterprise);
+        return redirect()
+            ->route('enterprises.show', $enterprise)
+            ->with('success', 'تم ربط المستخدم بالمنشأة.');
+    }
+
+    public function storeCreatedMember(
+        StoreEnterpriseMemberRequest $request,
+        Enterprise $enterprise,
+        CreateAndAttachSmeUserAction $action,
+    ): RedirectResponse {
+        $user = $action->execute($request->user(), $enterprise, $request->validated());
+
+        return redirect()
+            ->route('enterprises.show', ['enterprise' => $enterprise, 'tab' => 'team'])
+            ->with('success', 'تم إنشاء مستخدم المنشأة وربطه بنجاح.')
+            ->with('created_member', [
+                'name' => $user->name,
+                'email' => $user->email,
+            ]);
     }
 
     /**

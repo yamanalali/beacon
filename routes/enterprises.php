@@ -15,4 +15,5 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/enterprises/{enterprise:public_id}', [EnterpriseController::class, 'update'])->name('enterprises.update');
     Route::post('/enterprises/{enterprise:public_id}/advisors', [EnterpriseController::class, 'storeAdvisor'])->name('enterprises.advisors.store');
     Route::post('/enterprises/{enterprise:public_id}/members', [EnterpriseController::class, 'storeMember'])->name('enterprises.members.store');
+    Route::post('/enterprises/{enterprise:public_id}/members/create', [EnterpriseController::class, 'storeCreatedMember'])->name('enterprises.members.create');
 });
