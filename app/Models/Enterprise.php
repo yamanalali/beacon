@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Enterprise extends Model
@@ -25,6 +26,7 @@ class Enterprise extends Model
         'contact_name',
         'contact_phone',
         'contact_email',
+        'address_line',
         'registration_status',
         'initial_digital_readiness_note',
         'initial_financial_readiness_note',
@@ -70,6 +72,11 @@ class Enterprise extends Model
     public function advisors(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'advisor_assignments')->withTimestamps();
+    }
+
+    public function baselineProfile(): HasOne
+    {
+        return $this->hasOne(EnterpriseBaselineProfile::class);
     }
 
     /**

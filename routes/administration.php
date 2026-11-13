@@ -3,6 +3,7 @@
 use App\Http\Controllers\Administration\AccessController;
 use App\Http\Controllers\Administration\AdministrationController;
 use App\Http\Controllers\Administration\AuditLogController;
+use App\Http\Controllers\Administration\BaselineFieldController;
 use App\Http\Controllers\Administration\CurrencyController;
 use App\Http\Controllers\Administration\InvitationController;
 use App\Http\Controllers\Administration\UserRoleController;
@@ -10,6 +11,11 @@ use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', EnsureUserIsActive::class, 'role:beacon_admin'])->group(function () {
+    Route::get('/admin/baseline-fields', [BaselineFieldController::class, 'index'])->name('admin.baseline-fields.index');
+    Route::put('/admin/baseline-fields/visibility', [BaselineFieldController::class, 'updateVisibility'])->name('admin.baseline-fields.visibility');
+    Route::get('/admin/baseline/import', [BaselineFieldController::class, 'importForm'])->name('admin.baseline.import');
+    Route::post('/admin/baseline/import', [BaselineFieldController::class, 'import'])->middleware('throttle:10,1')->name('admin.baseline.import.store');
+
     Route::get('/admin/currencies', [CurrencyController::class, 'index'])->name('admin.currencies.index');
     Route::post('/admin/currencies', [CurrencyController::class, 'store'])->name('admin.currencies.store');
     Route::put('/admin/currencies/{currency}', [CurrencyController::class, 'update'])->name('admin.currencies.update');

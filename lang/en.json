@@ -73,6 +73,7 @@
     "nav.admin.compliance": "Compliance requirements",
     "nav.admin.readiness": "Readiness rules",
     "nav.admin.mfis": "MFIs",
+    "nav.admin.baseline": "Baseline profile",
     "nav.admin.knowledge": "Manage knowledge base",
     "nav.operations.security": "Security checklist",
     "nav.operations.backups": "Backups",

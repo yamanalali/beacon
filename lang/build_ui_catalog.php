@@ -81,6 +81,7 @@ $catalog = [
     'nav.admin.compliance' => ['ar' => 'متطلبات الامتثال', 'en' => 'Compliance requirements'],
     'nav.admin.readiness' => ['ar' => 'قواعد الجاهزية', 'en' => 'Readiness rules'],
     'nav.admin.mfis' => ['ar' => 'مؤسسات التمويل الأصغر', 'en' => 'MFIs'],
+    'nav.admin.baseline' => ['ar' => 'بروفايل Baseline', 'en' => 'Baseline profile'],
     'nav.admin.knowledge' => ['ar' => 'إدارة قاعدة المعرفة', 'en' => 'Manage knowledge base'],
     'nav.operations.security' => ['ar' => 'قائمة الأمان', 'en' => 'Security checklist'],
     'nav.operations.backups' => ['ar' => 'النسخ الاحتياطي', 'en' => 'Backups'],

@@ -68,6 +68,7 @@ class NavigationBuilder
             ['key' => 'admin.compliance', 'route' => 'admin.compliance.index', 'label' => $label('admin.compliance'), 'icon' => 'shield-check', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
             ['key' => 'admin.readiness', 'route' => 'admin.readiness.index', 'label' => $label('admin.readiness'), 'icon' => 'gauge', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
             ['key' => 'admin.mfis', 'route' => 'admin.mfis.index', 'label' => $label('admin.mfis'), 'icon' => 'landmark', 'group' => 'admin', 'ability' => fn (User $u) => ReadinessAccess::isAdmin($u)],
+            ['key' => 'admin.baseline-fields', 'route' => 'admin.baseline-fields.index', 'label' => $label('admin.baseline'), 'icon' => 'clipboard-list', 'group' => 'admin', 'ability' => null, 'active' => ['admin.baseline*']],
             ['key' => 'admin.knowledge', 'route' => 'ai.pages.knowledge.index', 'label' => $label('admin.knowledge'), 'icon' => 'book-open', 'group' => 'admin', 'ability' => null],
 
             ['key' => 'operations.security', 'route' => 'operations.security', 'label' => $label('operations.security'), 'icon' => 'shield', 'group' => 'operations', 'ability' => fn (User $u) => Gate::forUser($u)->allows(PageAccess::OPERATIONS_TECHNICAL)],

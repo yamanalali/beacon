@@ -13,6 +13,7 @@ use App\Http\Requests\Enterprises\StoreEnterpriseRequest;
 use App\Http\Requests\Enterprises\UpdateEnterpriseProfileRequest;
 use App\Models\Enterprise;
 use App\Models\User;
+use App\Services\Baseline\BaselineProfilePresenter;
 use App\Support\TabularListExporter;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -133,7 +134,7 @@ class EnterpriseController extends Controller
         return redirect()->route('enterprises.show', $enterprise);
     }
 
-    public function show(Request $request, Enterprise $enterprise): Response
+    public function show(Request $request, Enterprise $enterprise, BaselineProfilePresenter $baselinePresenter): Response
     {
         $this->authorize('view', $enterprise);
 
@@ -141,9 +142,12 @@ class EnterpriseController extends Controller
         $isStaff = $user->role === UserRole::BeaconAdmin || $user->role === UserRole::BeaconAdvisor;
         $isAdmin = $user->role === UserRole::BeaconAdmin && $user->isActive();
 
+        $enterprise->loadMissing('baselineProfile');
+
         $payload = [
             'enterprise' => $this->profilePayload($enterprise),
             'incomplete_fields' => $enterprise->incompleteFieldNames(),
+            'baseline' => $baselinePresenter->forEnterprise($enterprise),
             'members' => null,
             'assignments' => null,
             'advisor_options' => [],
@@ -264,6 +268,7 @@ class EnterpriseController extends Controller
             'contact_name' => $enterprise->contact_name,
             'contact_phone' => $enterprise->contact_phone,
             'contact_email' => $enterprise->contact_email,
+            'address_line' => $enterprise->address_line,
             'registration_status' => $enterprise->registration_status,
             'initial_digital_readiness_note' => $enterprise->initial_digital_readiness_note,
             'initial_financial_readiness_note' => $enterprise->initial_financial_readiness_note,

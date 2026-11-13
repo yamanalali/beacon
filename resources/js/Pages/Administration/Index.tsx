@@ -50,6 +50,8 @@ export default function Index({ stats, roles }: Props) {
             { href: "/admin/compliance", label: t("admin.index.setting.compliance", undefined, "متطلبات الامتثال وإصداراتها"), icon: "bi-patch-check" },
             { href: "/admin/readiness", label: t("admin.index.setting.readiness", undefined, "معايير الجاهزية وإصداراتها"), icon: "bi-sliders" },
             { href: "/admin/mfis", label: t("admin.index.setting.mfis", undefined, "مؤسسات التمويل ومعايير الأهلية"), icon: "bi-bank" },
+            { href: "/admin/baseline-fields", label: t("admin.index.setting.baseline", undefined, "حقول بروفايل Baseline وإظهارها"), icon: "bi-clipboard-data" },
+            { href: "/admin/baseline/import", label: t("admin.index.setting.baseline_import", undefined, "استيراد استبيان Baseline"), icon: "bi-upload" },
         ],
         [t],
     );
