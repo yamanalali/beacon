@@ -6,6 +6,89 @@
     padding-block-end: 96px;
 }
 
+.choice-cards {
+    border: 0;
+    min-inline-size: 0;
+    padding: 0;
+    margin: 0 0 12px;
+}
+.choice-cards__legend {
+    float: none;
+    width: 100%;
+    margin-block-end: 10px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--app-text);
+}
+.choice-cards__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.choice-cards--cols-1 .choice-cards__grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+.choice-cards__option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-height: 72px;
+    margin: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    background: var(--app-surface);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.choice-cards__option:hover {
+    border-color: color-mix(in srgb, var(--app-primary) 35%, var(--app-border));
+    background: var(--app-primary-50);
+}
+.choice-cards__option.is-selected {
+    border-color: var(--app-primary);
+    background: var(--app-primary-soft);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-primary) 14%, transparent);
+}
+.choice-cards__option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.choice-cards__check {
+    color: var(--app-text-muted);
+    font-size: 18px;
+    line-height: 1;
+    margin-block-start: 2px;
+}
+.choice-cards__option.is-selected .choice-cards__check {
+    color: var(--app-primary);
+}
+.choice-cards__copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.choice-cards__copy strong {
+    font-size: 14px;
+    font-weight: 650;
+    color: var(--app-text);
+}
+.choice-cards__copy small {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--app-text-muted);
+}
+@media (max-width: 767.98px) {
+    .choice-cards__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .choice-cards__option {
+        min-height: 64px;
+    }
+}
+
 .enterprise-edit__crumb {
     display: inline-flex;
     align-items: center;

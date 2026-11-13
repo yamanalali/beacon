@@ -4,6 +4,7 @@ import AppLayout from "../../Layouts/AppLayout";
 import { useT } from "../../Hooks/useT";
 import { TextInput } from "../../Components/Forms/TextInput";
 import { SelectInput } from "../../Components/Forms/SelectInput";
+import { ChoiceCards, type ChoiceOption } from "../../Components/Forms/ChoiceCards";
 import { FormError } from "../../Components/Forms/FormError";
 import "../../../css/enterprise-edit.css";
 
@@ -107,14 +108,38 @@ function TextAreaField({
     );
 }
 
+const defaultRegistrationOptions: ChoiceOption[] = [
+    { value: "unregistered", label: "غير مسجّلة", hint: "لا يوجد سجل أو ترخيص ساري حتى الآن" },
+    { value: "in_progress", label: "قيد التسجيل", hint: "بدأت إجراءات التسجيل ولم تكتمل" },
+    { value: "partial", label: "مسجّلة جزئياً", hint: "بعض الوثائق أو التسجيلات موجودة فقط" },
+    { value: "registered", label: "مسجّلة", hint: "التسجيل الأساسي مكتمل قدر الإمكان" },
+];
+
+const defaultProgrammeOptions: ChoiceOption[] = [
+    { value: "onboarding", label: "التسجيل الأولي", hint: "المنشأة دخلت البرنامج وملء الملف الأساسي" },
+    { value: "baseline", label: "تقييم Baseline", hint: "استبيان Baseline قيد الاستكمال أو المراجعة" },
+    { value: "baseline_eligible", label: "مؤهلة بعد Baseline", hint: "اجتازت فحوصات أهلية Baseline" },
+    { value: "baseline_ineligible", label: "غير مؤهلة بعد Baseline", hint: "لم تستوفِ شروط الأهلية الحالية" },
+    { value: "records", label: "بناء السجلات المالية", hint: "التركيز على المعاملات والسجلات المالية" },
+    { value: "compliance", label: "الامتثال والوثائق", hint: "استكمال المتطلبات والوثائق النظامية" },
+    { value: "readiness", label: "الجاهزية للإحالة", hint: "التحضير لملف الإحالة والتمويل" },
+    { value: "referral", label: "الإحالة التمويلية", hint: "إحالة فعّالة أو قيد المتابعة مع جهة تمويل" },
+    { value: "active_support", label: "متابعة ودعم", hint: "دعم استشاري مستمر بعد التقدم" },
+];
+
 export default function Edit({
     enterprise,
     incomplete_fields = [],
     baseline,
+    options,
 }: {
     enterprise: EnterpriseProfile;
     incomplete_fields?: string[];
     baseline?: BaselineMeta;
+    options?: {
+        registration_status?: ChoiceOption[];
+        programme_stage?: ChoiceOption[];
+    };
 }) {
     const t = useT();
     const [activeSection, setActiveSection] = useState<SectionId>("business");
@@ -124,6 +149,12 @@ export default function Edit({
         { value: "rural_damascus", label: t("smes.location.rural_damascus", undefined, "ريف دمشق") },
         { value: "daraa", label: t("smes.location.daraa", undefined, "درعا") },
     ];
+    const registrationOptions = options?.registration_status?.length
+        ? options.registration_status
+        : defaultRegistrationOptions;
+    const programmeOptions = options?.programme_stage?.length
+        ? options.programme_stage
+        : defaultProgrammeOptions;
 
     const form = useForm({
         business_name: enterprise.business_name,
@@ -550,29 +581,29 @@ export default function Edit({
                             </Section>
 
                             <Section id="programme" title={sections[3].title} description={sections[3].description}>
-                                <div className={mark("registration_status") ? "enterprise-edit__field-mark" : undefined}>
-                                    <TextInput
+                                <div
+                                    className={`enterprise-edit__span-2${mark("registration_status") ? " enterprise-edit__field-mark" : ""}`}
+                                >
+                                    <ChoiceCards
                                         id="registration_status"
-                                        name="registration_status"
                                         label={t("smes.registration_status", undefined, "حالة التسجيل")}
                                         value={form.data.registration_status}
+                                        options={registrationOptions}
                                         error={form.errors.registration_status}
-                                        help={t(
-                                            "smes.edit.registration_help",
-                                            undefined,
-                                            "مثال: غير مسجّلة، قيد التسجيل، مسجّلة",
-                                        )}
                                         onChange={(value) => form.setData("registration_status", value)}
                                     />
                                 </div>
-                                <TextInput
-                                    id="programme_stage"
-                                    name="programme_stage"
-                                    label={t("smes.programme_stage", undefined, "مرحلة البرنامج")}
-                                    value={form.data.programme_stage}
-                                    error={form.errors.programme_stage}
-                                    onChange={(value) => form.setData("programme_stage", value)}
-                                />
+                                <div className="enterprise-edit__span-2">
+                                    <ChoiceCards
+                                        id="programme_stage"
+                                        label={t("smes.programme_stage", undefined, "مرحلة البرنامج")}
+                                        value={form.data.programme_stage}
+                                        options={programmeOptions}
+                                        error={form.errors.programme_stage}
+                                        columns={1}
+                                        onChange={(value) => form.setData("programme_stage", value)}
+                                    />
+                                </div>
                                 <TextAreaField
                                     id="progress_summary"
                                     label={t("smes.progress_summary", undefined, "ملخص التقدم")}

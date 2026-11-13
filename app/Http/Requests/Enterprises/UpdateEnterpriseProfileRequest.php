@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Enterprises;
 
+use App\Enums\EnterpriseProgrammeStage;
+use App\Enums\EnterpriseRegistrationStatus;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateEnterpriseProfileRequest extends FormRequest
 {
@@ -11,6 +14,15 @@ class UpdateEnterpriseProfileRequest extends FormRequest
         $enterprise = $this->route('enterprise');
 
         return $enterprise !== null && ($this->user()?->can('update', $enterprise) ?? false);
+    }
+
+    protected function prepareForValidation(): void
+    {
+        foreach (['registration_status', 'programme_stage', 'address_line'] as $field) {
+            if ($this->input($field) === '') {
+                $this->merge([$field => null]);
+            }
+        }
     }
 
     /**
@@ -31,10 +43,10 @@ class UpdateEnterpriseProfileRequest extends FormRequest
             'contact_phone' => ['nullable', 'string', 'max:50', 'required_without:contact_email'],
             'contact_email' => ['nullable', 'email', 'max:255', 'required_without:contact_phone'],
             'address_line' => ['nullable', 'string', 'max:500'],
-            'registration_status' => ['nullable', 'string', 'max:255'],
+            'registration_status' => ['nullable', 'string', Rule::in(EnterpriseRegistrationStatus::values())],
             'initial_digital_readiness_note' => ['nullable', 'string'],
             'initial_financial_readiness_note' => ['nullable', 'string'],
-            'programme_stage' => ['nullable', 'string', 'max:255'],
+            'programme_stage' => ['nullable', 'string', Rule::in(EnterpriseProgrammeStage::values())],
             'progress_summary' => ['nullable', 'string'],
         ];
     }
@@ -51,6 +63,8 @@ class UpdateEnterpriseProfileRequest extends FormRequest
             'contact_phone.required_without' => ui('validation.contact_phone_or_email'),
             'contact_email.required_without' => ui('validation.contact_phone_or_email'),
             'contact_email.email' => ui('validation.contact_email_invalid'),
+            'registration_status.in' => 'اختر حالة تسجيل من القائمة.',
+            'programme_stage.in' => 'اختر مرحلة البرنامج من القائمة.',
         ];
     }
 }

@@ -7,6 +7,8 @@ use App\Actions\Enterprises\AssignAdvisorAction;
 use App\Actions\Enterprises\AttachSmeUserAction;
 use App\Actions\Enterprises\CreateEnterpriseAction;
 use App\Actions\Enterprises\UpdateEnterpriseProfileAction;
+use App\Enums\EnterpriseProgrammeStage;
+use App\Enums\EnterpriseRegistrationStatus;
 use App\Enums\UserRole;
 use App\Http\Requests\Enterprises\AssignEnterpriseUserRequest;
 use App\Http\Requests\Enterprises\StoreEnterpriseRequest;
@@ -215,13 +217,36 @@ class EnterpriseController extends Controller
 
         $enterprise->loadMissing('baselineProfile');
 
+        $payload = $this->profilePayload($enterprise);
+        // Edit form stores stable codes only; unknown legacy free-text is cleared for re-selection.
+        $payload['registration_status'] = EnterpriseRegistrationStatus::tryFromMixed($enterprise->registration_status)?->value ?? '';
+        $payload['programme_stage'] = EnterpriseProgrammeStage::tryFromMixed($enterprise->programme_stage)?->value ?? '';
+
         return Inertia::render('SMEs/Edit', [
-            'enterprise' => $this->profilePayload($enterprise),
+            'enterprise' => $payload,
             'incomplete_fields' => $enterprise->incompleteFieldNames(),
             'baseline' => [
                 'has_profile' => $enterprise->baselineProfile !== null,
                 'external_mse_id' => $enterprise->baselineProfile?->external_mse_id,
                 'imported_at' => $enterprise->baselineProfile?->imported_at?->toDateTimeString(),
+            ],
+            'options' => [
+                'registration_status' => array_map(
+                    fn (EnterpriseRegistrationStatus $status) => [
+                        'value' => $status->value,
+                        'label' => $status->label(),
+                        'hint' => $status->hint(),
+                    ],
+                    EnterpriseRegistrationStatus::cases(),
+                ),
+                'programme_stage' => array_map(
+                    fn (EnterpriseProgrammeStage $stage) => [
+                        'value' => $stage->value,
+                        'label' => $stage->label(),
+                        'hint' => $stage->hint(),
+                    ],
+                    EnterpriseProgrammeStage::cases(),
+                ),
             ],
         ]);
     }
@@ -278,9 +303,13 @@ class EnterpriseController extends Controller
             'contact_email' => $enterprise->contact_email,
             'address_line' => $enterprise->address_line,
             'registration_status' => $enterprise->registration_status,
+            'registration_status_label' => EnterpriseRegistrationStatus::tryFromMixed($enterprise->registration_status)?->label()
+                ?? $enterprise->registration_status,
             'initial_digital_readiness_note' => $enterprise->initial_digital_readiness_note,
             'initial_financial_readiness_note' => $enterprise->initial_financial_readiness_note,
             'programme_stage' => $enterprise->programme_stage,
+            'programme_stage_label' => EnterpriseProgrammeStage::tryFromMixed($enterprise->programme_stage)?->label()
+                ?? $enterprise->programme_stage,
             'progress_summary' => $enterprise->progress_summary,
         ];
     }

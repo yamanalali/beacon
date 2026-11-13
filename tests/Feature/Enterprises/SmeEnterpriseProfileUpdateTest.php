@@ -110,4 +110,44 @@ class SmeEnterpriseProfileUpdateTest extends TestCase
             'location' => 'damascus',
         ])->assertSessionHasErrors(['contact_phone', 'contact_email']);
     }
+
+    public function test_registration_and_programme_must_use_allowed_options(): void
+    {
+        $sme = User::factory()->create(['role' => UserRole::SmeUser]);
+        $enterprise = $this->enterpriseFor($sme);
+
+        $this->actingAs($sme)->put(route('enterprises.update', $enterprise), [
+            'business_name' => 'محل الاختبار',
+            'location' => 'damascus',
+            'contact_phone' => '0944000000',
+            'registration_status' => 'نص حر غير مسموح',
+            'programme_stage' => 'مرحلة وهمية',
+        ])->assertSessionHasErrors(['registration_status', 'programme_stage']);
+
+        $this->actingAs($sme)->put(route('enterprises.update', $enterprise), [
+            'business_name' => 'محل الاختبار',
+            'location' => 'damascus',
+            'contact_phone' => '0944000000',
+            'registration_status' => 'partial',
+            'programme_stage' => 'records',
+        ])->assertRedirect();
+
+        $enterprise->refresh();
+        $this->assertSame('partial', $enterprise->registration_status);
+        $this->assertSame('records', $enterprise->programme_stage);
+    }
+
+    public function test_edit_page_exposes_registration_and_programme_options(): void
+    {
+        $sme = User::factory()->create(['role' => UserRole::SmeUser]);
+        $enterprise = $this->enterpriseFor($sme);
+
+        $this->actingAs($sme)
+            ->get(route('enterprises.edit', $enterprise))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('SMEs/Edit')
+                ->has('options.registration_status')
+                ->has('options.programme_stage'));
+    }
 }

@@ -27,9 +27,11 @@ type EnterpriseProfile = {
     contact_email: string | null;
     address_line: string | null;
     registration_status: string | null;
+    registration_status_label?: string | null;
     initial_digital_readiness_note: string | null;
     initial_financial_readiness_note: string | null;
     programme_stage: string | null;
+    programme_stage_label?: string | null;
     progress_summary: string | null;
 };
 type Props = {
@@ -575,11 +577,11 @@ export default function Show({
                                 <dl className="enterprise-profile__fields">
                                     <Field
                                         label={t("smes.registration_status", undefined, "حالة التسجيل")}
-                                        value={enterprise.registration_status}
+                                        value={enterprise.registration_status_label ?? enterprise.registration_status}
                                     />
                                     <Field
                                         label={t("smes.programme_stage", undefined, "مرحلة البرنامج")}
-                                        value={enterprise.programme_stage}
+                                        value={enterprise.programme_stage_label ?? enterprise.programme_stage}
                                     />
                                     <Field
                                         label={t("smes.progress_summary", undefined, "ملخص التقدم")}
