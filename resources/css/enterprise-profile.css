@@ -629,3 +629,252 @@
         -webkit-line-clamp: unset;
     }
 }
+
+/* —— Baseline survey panel —— */
+.baseline-survey {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.baseline-survey__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.baseline-survey__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 36px;
+    padding: 6px 12px;
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    background: var(--app-surface);
+    font-size: 13px;
+    color: var(--app-text-muted);
+}
+.baseline-survey__chip bdi,
+.baseline-survey__chip strong {
+    color: var(--app-text);
+    font-weight: 600;
+}
+.baseline-survey__chip--soft {
+    background: var(--app-primary-soft);
+    border-color: color-mix(in srgb, var(--app-primary) 18%, var(--app-border));
+    color: var(--app-primary-dark);
+}
+.baseline-survey__highlight {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    background: linear-gradient(180deg, var(--app-primary-50), var(--app-surface));
+}
+.baseline-survey__highlight-item {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.baseline-survey__highlight-item > span {
+    font-size: 12px;
+    color: var(--app-text-muted);
+}
+.baseline-survey__highlight-item > strong {
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.baseline-survey__toc {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    padding-block: 2px 6px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+.baseline-survey__toc-item {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 1px solid var(--app-border);
+    border-radius: 999px;
+    background: var(--app-surface);
+    color: var(--app-text);
+    font-size: 13px;
+    white-space: nowrap;
+}
+.baseline-survey__toc-item.is-active {
+    border-color: color-mix(in srgb, var(--app-primary) 35%, var(--app-border));
+    background: var(--app-primary-soft);
+    color: var(--app-primary-dark);
+}
+.baseline-survey__sections {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.baseline-survey__section {
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    background: var(--app-surface);
+    overflow: hidden;
+}
+.baseline-survey__section-head {
+    margin: 0;
+}
+.baseline-survey__section-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 52px;
+    padding: 12px 16px;
+    border: 0;
+    background: transparent;
+    text-align: start;
+}
+.baseline-survey__section.is-open .baseline-survey__section-toggle {
+    background: var(--app-surface-alt);
+    border-bottom: 1px solid var(--app-border);
+}
+.baseline-survey__section-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 650;
+    color: var(--app-text);
+}
+.baseline-survey__section-title > .bi {
+    color: var(--app-primary);
+}
+.baseline-survey__section-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--app-text-muted);
+}
+.baseline-survey__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding-inline: 8px;
+    border-radius: 999px;
+    background: var(--app-primary-soft);
+    color: var(--app-primary-dark);
+    font-size: 12px;
+    font-weight: 650;
+}
+.baseline-survey__section-body {
+    padding: 8px 8px 12px;
+}
+.baseline-survey__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    margin: 0;
+}
+.baseline-survey__item {
+    min-width: 0;
+    padding: 12px;
+    border-radius: var(--app-radius-sm);
+}
+.baseline-survey__item--wide {
+    grid-column: 1 / -1;
+}
+.baseline-survey__item:hover {
+    background: var(--app-surface-alt);
+}
+.baseline-survey__item dt {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 8px;
+    margin-block-end: 6px;
+    font-size: 12px;
+    line-height: 1.55;
+    font-weight: 500;
+    color: var(--app-text-muted);
+}
+.baseline-survey__label-clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+.baseline-survey__label-more {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--app-primary);
+    font-size: 12px;
+    font-weight: 600;
+    min-height: 24px;
+}
+.baseline-survey__item dd {
+    margin: 0 !important;
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--app-text);
+    overflow-wrap: anywhere;
+}
+.baseline-survey__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 650;
+}
+.baseline-survey__badge--yes {
+    background: color-mix(in srgb, var(--app-success, #1f8a5b) 14%, #fff);
+    color: #146645;
+}
+.baseline-survey__badge--no {
+    background: var(--app-surface-alt);
+    color: var(--app-text-muted);
+}
+.baseline-survey__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.baseline-survey__chips > li > span {
+    display: inline-block;
+    max-width: 100%;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--app-primary-soft);
+    color: var(--app-primary-dark);
+    font-size: 13px;
+    line-height: 1.4;
+}
+@media (max-width: 991.98px) {
+    .baseline-survey__highlight {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .baseline-survey__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+@media (max-width: 575.98px) {
+    .baseline-survey__highlight {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .baseline-survey__section-title {
+        font-size: 15px;
+    }
+}

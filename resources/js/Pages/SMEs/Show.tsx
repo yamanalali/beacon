@@ -4,6 +4,10 @@ import AppLayout from "../../Layouts/AppLayout";
 import { useT } from "../../Hooks/useT";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { FormError } from "../../Components/Forms/FormError";
+import {
+    BaselineSurveyPanel,
+    type BaselinePayload,
+} from "../../Components/SMEs/BaselineSurveyPanel";
 import "../../../css/enterprise-profile.css";
 
 type Person = { id: number; name: string; email?: string };
@@ -27,14 +31,6 @@ type EnterpriseProfile = {
     initial_financial_readiness_note: string | null;
     programme_stage: string | null;
     progress_summary: string | null;
-};
-type BaselineField = { key: string; label: string; value: string | number; kind: string };
-type BaselineSection = { key: string; label: string; fields: BaselineField[] };
-type BaselinePayload = {
-    has_profile: boolean;
-    external_mse_id: string | null;
-    imported_at: string | null;
-    sections: BaselineSection[];
 };
 type Props = {
     enterprise: EnterpriseProfile;
@@ -125,7 +121,13 @@ export default function Show({
     can_assign,
 }: Props) {
     const t = useT();
-    const baselineData = baseline ?? { has_profile: false, external_mse_id: null, imported_at: null, sections: [] };
+    const baselineData: BaselinePayload = baseline ?? {
+        has_profile: false,
+        external_mse_id: null,
+        imported_at: null,
+        highlight: [],
+        sections: [],
+    };
     const locationLabels = useMemo(
         () => ({
             damascus: t("smes.location.damascus", undefined, "دمشق"),
@@ -607,62 +609,8 @@ export default function Show({
                                 "بيانات تقييم المنشأة من استبيان Baseline. تظهر فقط الحقول التي فعّلها الأدمن.",
                             )}
                         </p>
-                        {baselineData.external_mse_id || baselineData.imported_at ? (
-                            <p className="enterprise-profile__quiet mb-0">
-                                {baselineData.external_mse_id ? (
-                                    <>
-                                        <span className="me-2">{t("smes.show.baseline_mse_id", undefined, "رقم المنشأة")}:</span>
-                                        <bdi dir="ltr">{baselineData.external_mse_id}</bdi>
-                                    </>
-                                ) : null}
-                                {baselineData.imported_at ? (
-                                    <span className="ms-3">
-                                        {t("smes.show.baseline_imported_at", undefined, "آخر استيراد")}:{" "}
-                                        <bdi dir="ltr">{baselineData.imported_at}</bdi>
-                                    </span>
-                                ) : null}
-                            </p>
-                        ) : null}
                     </div>
-                    {!baselineData.has_profile ? (
-                        <SectionCard title={t("smes.show.baseline_empty_title", undefined, "لا توجد بيانات Baseline")}>
-                            <p className="enterprise-profile__quiet mb-0">
-                                {t(
-                                    "smes.show.baseline_empty",
-                                    undefined,
-                                    "لم يُستورد استبيان Baseline لهذه المنشأة بعد.",
-                                )}
-                            </p>
-                        </SectionCard>
-                    ) : baselineData.sections.length === 0 ? (
-                        <SectionCard title={t("smes.show.baseline_hidden_title", undefined, "لا حقول ظاهرة")}>
-                            <p className="enterprise-profile__quiet mb-0">
-                                {t(
-                                    "smes.show.baseline_hidden",
-                                    undefined,
-                                    "يوجد بروفايل مستورد، لكن الأدمن أخفى كل الأقسام الظاهرة حالياً.",
-                                )}
-                            </p>
-                        </SectionCard>
-                    ) : (
-                        <div className="d-flex flex-column gap-3">
-                            {baselineData.sections.map((section) => (
-                                <SectionCard key={section.key} title={section.label}>
-                                    <dl className="enterprise-profile__fields">
-                                        {section.fields.map((field) => (
-                                            <Field
-                                                key={field.key}
-                                                label={field.label}
-                                                value={field.value}
-                                                wide
-                                                ltr={typeof field.value === "number" || /^[\d+.\-]+$/.test(String(field.value))}
-                                            />
-                                        ))}
-                                    </dl>
-                                </SectionCard>
-                            ))}
-                        </div>
-                    )}
+                    <BaselineSurveyPanel baseline={baselineData} />
                 </section>
 
                 <section

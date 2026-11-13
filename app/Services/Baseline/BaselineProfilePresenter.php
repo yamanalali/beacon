@@ -12,7 +12,13 @@ class BaselineProfilePresenter
     /**
      * Visible sections/fields only — never send hidden catalog fields to the client.
      *
-     * @return array{has_profile:bool,external_mse_id:?string,imported_at:?string,sections:list<array{key:string,label:string,fields:list<array{key:string,label:string,value:mixed,kind:string}>}>}
+     * @return array{
+     *   has_profile:bool,
+     *   external_mse_id:?string,
+     *   imported_at:?string,
+     *   highlight:list<array{key:string,label:string,value:string}>,
+     *   sections:list<array{key:string,label:string,fields:list<array{key:string,label:string,value:mixed,kind:string,values?:list<string>}>}>
+     * }
      */
     public function forEnterprise(Enterprise $enterprise): array
     {
@@ -27,6 +33,14 @@ class BaselineProfilePresenter
             ->get();
 
         $grouped = [];
+        foreach (BaselineProfileSection::cases() as $sectionCase) {
+            $grouped[$sectionCase->value] = [
+                'key' => $sectionCase->value,
+                'label' => $sectionCase->label(),
+                'fields' => [],
+            ];
+        }
+
         foreach ($fields as $field) {
             $section = $field->section instanceof BaselineProfileSection
                 ? $field->section
@@ -36,26 +50,24 @@ class BaselineProfilePresenter
                 continue;
             }
 
-            $key = $section->value;
-            if (! isset($grouped[$key])) {
-                $grouped[$key] = [
-                    'key' => $key,
-                    'label' => $section->label(),
-                    'fields' => [],
-                ];
-            }
-
             $value = $answers[$field->key] ?? null;
             if ($value === null || $value === '') {
                 continue;
             }
 
-            $grouped[$key]['fields'][] = [
+            $entry = [
                 'key' => $field->key,
-                'label' => $field->label_ar,
+                'label' => $this->displayLabel($field->label_ar),
                 'value' => $value,
                 'kind' => $field->input_kind,
             ];
+
+            $values = $this->splitMultiValues($field->input_kind, $value);
+            if ($values !== null) {
+                $entry['values'] = $values;
+            }
+
+            $grouped[$section->value]['fields'][] = $entry;
         }
 
         $sections = array_values(array_filter($grouped, fn ($s) => $s['fields'] !== []));
@@ -64,8 +76,66 @@ class BaselineProfilePresenter
             'has_profile' => $profile !== null,
             'external_mse_id' => $profile?->external_mse_id,
             'imported_at' => $profile?->imported_at?->toDateTimeString(),
+            'highlight' => $this->highlightFromAnswers($answers),
             'sections' => $sections,
         ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $answers
+     * @return list<array{key:string,label:string,value:string}>
+     */
+    private function highlightFromAnswers(array $answers): array
+    {
+        $map = [
+            'col_s' => 'اسم المنشأة',
+            'col_t' => 'المالك',
+            'col_u' => 'الهاتف',
+            'col_v' => 'العنوان',
+            'col_ah' => 'نوع النشاط',
+            'col_ai' => 'النشاط الرئيسي',
+        ];
+
+        $items = [];
+        foreach ($map as $key => $label) {
+            $value = $answers[$key] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $items[] = [
+                'key' => $key,
+                'label' => $label,
+                'value' => is_scalar($value) ? (string) $value : '',
+            ];
+        }
+
+        return $items;
+    }
+
+    private function displayLabel(string $label): string
+    {
+        $label = trim($label);
+        if ($label === 'أخرى (حدّد)') {
+            return 'تفاصيل إضافية';
+        }
+
+        // Drop truncated ellipsis leftovers from KoBo label export.
+        return rtrim($label, "….");
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private function splitMultiValues(string $kind, mixed $value): ?array
+    {
+        if ($kind !== 'multi_choice' || ! is_string($value)) {
+            return null;
+        }
+
+        $parts = preg_split('/\n+|؛\s*|;\s*|\s*\|\s*/u', $value) ?: [];
+        $parts = array_values(array_filter(array_map('trim', $parts), fn ($p) => $p !== ''));
+
+        return count($parts) > 1 ? $parts : null;
     }
 
     /**
