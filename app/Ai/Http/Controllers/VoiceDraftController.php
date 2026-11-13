@@ -3,7 +3,7 @@
 namespace App\Ai\Http\Controllers;
 
 use App\Ai\Voice\SpeechToText;
-use App\Ai\Voice\VoiceDraftParser;
+use App\Ai\Voice\VoiceDraftStructurer;
 use App\Contracts\TransactionCategorizer;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionType;
@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
+use App\Services\Ai\CategorySuggestion;
 use App\Support\Currencies;
 use App\Support\SuggestedDateWarning;
 use Illuminate\Http\JsonResponse;
@@ -20,10 +21,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Voice draft transaction: short audio -> transcript -> SUGGESTED transaction in
- * the same field shape as receipt extractions. Nothing is saved; the user reviews
- * and submits the normal transaction form (enterprises.transactions.store).
- * The recording is deleted right after transcription, also on failure.
+ * Voice draft transaction:
+ * Preferred: browser Web Speech transcript -> ChatGPT structures fields -> user reviews.
+ * Legacy: uploaded audio -> local/provider STT -> same structuring path.
+ * Nothing is saved until the user submits enterprises.transactions.store.
  */
 class VoiceDraftController extends Controller
 {
@@ -33,13 +34,19 @@ class VoiceDraftController extends Controller
 
     public const TRANSCRIPT_SOURCES = ['browser_speech'];
 
-    public function store(Request $request, Enterprise $enterprise, SpeechToText $stt, VoiceDraftParser $parser, TransactionCategorizer $categorizer, TransactionTypeSuggester $typeSuggester, ReceiptTextCategorizer $textCategorizer): JsonResponse
-    {
+    public function store(
+        Request $request,
+        Enterprise $enterprise,
+        SpeechToText $stt,
+        VoiceDraftStructurer $structurer,
+        TransactionCategorizer $categorizer,
+        TransactionTypeSuggester $typeSuggester,
+        ReceiptTextCategorizer $textCategorizer,
+    ): JsonResponse {
         abort_unless(config('ai.voice.enabled'), 404);
         abort_unless($request->user()->isActive(), 403);
         Gate::authorize('create', [FinancialTransaction::class, $enterprise]);
 
-        // Either a recording (whisper) or a browser-made transcript (Chrome ar-SY, opt-in).
         if (is_string($request->input('transcript'))) {
             $request->merge(['transcript' => trim($request->input('transcript'))]);
         }
@@ -52,7 +59,7 @@ class VoiceDraftController extends Controller
         $fromTranscript = $request->has('transcript');
         $inputSource = $fromTranscript ? (string) $request->input('source') : 'audio';
         if ($fromTranscript) {
-            // Text goes straight to the parser: no recording, no whisper call.
+            // Browser speech: text only — no recording, no STT API cost.
             $text = (string) $request->input('transcript');
         } else {
             $file = $request->file('audio');
@@ -68,24 +75,34 @@ class VoiceDraftController extends Controller
         }
         $extractor = $fromTranscript ? $inputSource : $stt->name();
 
-        $p = $text !== null ? $parser->parse($text) : ['amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null, 'note' => null, 'items' => [], 'items_mismatch' => false, 'amount_warning' => null, 'confidence' => null];
-        // Voice-normalized text (e.g. «ليرائي جر محل» -> «ليرائي اجار محل») feeds the suggesters.
+        $p = $text !== null
+            ? $structurer->structure($text)
+            : [
+                'amount' => null, 'date' => null, 'counterparty' => null, 'currency' => null,
+                'note' => null, 'items' => [], 'items_mismatch' => false, 'amount_warning' => null,
+                'confidence' => null, 'normalized' => null, 'transaction_type' => null, 'category' => null,
+                'structure_source' => 'none',
+            ];
+
         $catText = $text !== null ? ($p['normalized'] ?? $text) : null;
-        $suggestedType = $typeSuggester->suggest($catText);
-        // Categories follow the suggested type (as Extractions/Show does).
+        $suggestedType = $p['transaction_type'] ?? $typeSuggester->suggest($catText);
         $type = $suggestedType ?? 'expense';
         $allowed = config('bookkeeping.categories.'.$type, []);
-        $suggestion = $text !== null ? $categorizer->suggest($type, $catText, $p['counterparty'], $allowed) : null;
-        // Fall back to the keyword categorizer used for receipts (e.g. «اجار» -> rent).
-        if ($suggestion === null && $text !== null) {
-            $suggestion = $textCategorizer->suggest($catText, $allowed);
+
+        $suggestion = null;
+        if ($text !== null && isset($p['category']) && is_string($p['category']) && array_key_exists($p['category'], $allowed)) {
+            $suggestion = new CategorySuggestion($p['category'], $p['confidence'] ?? null, true);
+        } elseif ($text !== null) {
+            $suggestion = $categorizer->suggest($type, $catText, $p['counterparty'], $allowed);
+            if ($suggestion === null) {
+                $suggestion = $textCategorizer->suggest($catText, $allowed);
+            }
         }
         if ($suggestion !== null && ! array_key_exists($suggestion->category, $allowed)) {
             $suggestion = null;
         }
+
         $currencies = array_keys(app(Currencies::class)->enabled());
-        // Manager decision (voice only, not OCR): no spoken currency => suggest the
-        // business base currency (bookkeeping.default_currency, same as the forms), else SYP.
         $spoken = in_array($p['currency'], $currencies, true) ? $p['currency'] : null;
         $base = app(Currencies::class)->default() ?: 'SYP';
         $currency = $spoken ?? ($text !== null && in_array($base, $currencies, true) ? $base : null);
@@ -95,7 +112,12 @@ class VoiceDraftController extends Controller
         AuditLog::query()->create([
             'actor_id' => $request->user()->id, 'action' => 'ai.voice_draft.created',
             'target_type' => Enterprise::class, 'target_id' => $enterprise->id,
-            'context' => ['stt' => $extractor, 'input_source' => $inputSource, 'transcribed' => $text !== null], // no transcript stored
+            'context' => [
+                'stt' => $extractor,
+                'input_source' => $inputSource,
+                'structure_source' => $p['structure_source'] ?? 'local',
+                'transcribed' => $text !== null,
+            ],
         ]);
 
         return response()->json([
@@ -103,27 +125,21 @@ class VoiceDraftController extends Controller
             'draft' => [
                 'source' => 'voice',
                 'extractor' => $extractor,
-                // 'audio' (whisper) or 'browser_speech' (transcript sent by the browser).
                 'input_source' => $inputSource,
+                'structure_source' => $p['structure_source'] ?? 'local',
                 'is_manual' => false,
                 'needs_review' => true,
                 'confidence' => $p['confidence'],
                 'suggested_date' => $p['date'],
                 'suggested_amount' => $p['amount'] !== null && preg_match('/^\d{1,16}(\.\d{1,2})?$/', $p['amount']) ? $p['amount'] : null,
                 'suggested_currency' => $currency,
-                // 'spoken' or 'default' (base currency suggested because none was said); null when no currency.
                 'suggested_currency_source' => $currencySource,
                 'suggested_counterparty' => $p['counterparty'],
                 'suggested_transaction_type' => $suggestedType,
-                // e.g. 'لمدة ثلاثة اشهر': prefill the transaction note; never changes the amount.
                 'suggested_note' => $p['note'] ?? null,
-                // Same shape as OCR: [{description, quantity, unit_price, total}], [] when none.
                 'suggested_items' => $p['items'] ?? [],
-                // Items' sum differs from the spoken total (non-blocking, same rule as transactions).
                 'items_mismatch' => (bool) ($p['items_mismatch'] ?? false),
-                // Arabic hint when the amount wording is ambiguous («3000 الاف») or items ≠ total.
                 'suggested_amount_warning' => $p['amount_warning'] ?? null,
-                // Arabic hint when the date is in the future or older than ai.review.old_date_days; never blocks.
                 'suggested_date_warning' => SuggestedDateWarning::for($p['date'] ?? null),
                 'raw_text' => $text,
             ],

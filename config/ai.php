@@ -2,10 +2,14 @@
 
 /*
  * AI provider driver. Default remains "null" until Beacon approves a vendor DPA
- * (rules §0, §36, §54). Supported drivers: null | fake | openrouter.
- * OpenRouter is OpenAI-compatible and replaceable without rewriting business
- * modules (rules §71). Production still requires BEACON_DPA_*_APPROVED +
- * allowed_data before any outbound call.
+ * (rules §0, §36, §54). Supported drivers: null | fake | openrouter | openai.
+ * Adapters are replaceable without rewriting business modules (rules §71).
+ * Production still requires BEACON_DPA_*_APPROVED + allowed_data before any outbound call.
+ *
+ * Low-cost OpenAI defaults (voice structuring + receipt vision):
+ * - gpt-6-luna for chat/vision/voice-text structuring (detail=low + reasoning_effort=none)
+ * - Preferred voice path: browser Web Speech (free) then Luna structures the transcript
+ * - Optional legacy audio STT: gpt-4o-mini-transcribe (not used by the normal UI)
  */
 // Empty values in .env (e.g. `AI_OCR_DRIVER=` copied from .env.example) mean
 // "not set": fall back to the default instead of using ''. Explicit "false" stays false.
@@ -46,9 +50,35 @@ return [
         'ca_bundle' => $env('OPENROUTER_CA_BUNDLE', is_file(storage_path('certs/cacert.pem')) ? storage_path('certs/cacert.pem') : null),
     ],
 
+    /*
+     * Official OpenAI API — set AI_DRIVER=openai and OPENAI_API_KEY.
+     * Defaults favour the cheapest suitable models for Arabic SME voice notes
+     * and receipt photos. Tighten max_tokens / image size further if needed.
+     */
+    'openai' => [
+        'api_key' => (string) $env('OPENAI_API_KEY', ''),
+        'base_url' => (string) $env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+        'chat_model' => (string) $env('OPENAI_CHAT_MODEL', 'gpt-6-luna'),
+        'vision_model' => (string) $env('OPENAI_VISION_MODEL', 'gpt-6-luna'),
+        // Luna has no /audio/transcriptions; keep the cheap dedicated STT model.
+        'transcription_model' => (string) $env('OPENAI_TRANSCRIPTION_MODEL', 'gpt-4o-mini-transcribe'),
+        'timeout' => (int) $env('OPENAI_TIMEOUT', 60),
+        // Vision cost knobs: smaller edge + low detail + JPEG quality.
+        'vision_max_edge' => (int) $env('OPENAI_VISION_MAX_EDGE', 1280),
+        'vision_jpeg_quality' => (int) $env('OPENAI_VISION_JPEG_QUALITY', 72),
+        'vision_detail' => (string) $env('OPENAI_VISION_DETAIL', 'low'),
+        'max_tokens_chat' => (int) $env('OPENAI_MAX_TOKENS_CHAT', 400),
+        'max_tokens_vision' => (int) $env('OPENAI_MAX_TOKENS_VISION', 220),
+        'ca_bundle' => $env('OPENAI_CA_BUNDLE', is_file(storage_path('certs/cacert.pem')) ? storage_path('certs/cacert.pem') : null),
+    ],
+
     // Max assistant questions per user per minute (rules beacon-platform §75).
     // TODO: BUSINESS DECISION REQUIRED — approved rate/cost limit.
-    'assistant_rate_per_minute' => (int) $env('AI_ASSISTANT_RATE', 10),
+    'assistant_rate_per_minute' => (int) $env('AI_ASSISTANT_RATE', 8),
+    // Receipt OCR / extraction calls (AI path). Keep low to control spend.
+    'ocr_rate_per_minute' => (int) $env('AI_OCR_RATE', 6),
+    // Voice draft uploads that hit the provider STT path.
+    'voice_rate_per_minute' => (int) $env('AI_VOICE_RATE', 6),
 
     // Max published knowledge snippets sent as context (data minimisation §74).
     'max_context_articles' => 3,

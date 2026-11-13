@@ -15,7 +15,7 @@ Route::middleware('auth')->group(function () {
         ->name('enterprises.reports.export');
 
     Route::post('/documents/{document:public_id}/extractions', [ReceiptExtractionController::class, 'store'])
-        ->middleware('throttle:20,1')
+        ->middleware('throttle:ai-ocr')
         ->name('documents.extractions.store');
     Route::get('/enterprises/{enterprise:public_id}/extractions/pending', [ReceiptExtractionController::class, 'pending'])
         ->name('enterprises.extractions.pending');

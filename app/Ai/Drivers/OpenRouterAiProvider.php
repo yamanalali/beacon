@@ -197,6 +197,75 @@ class OpenRouterAiProvider implements AiProvider
         return $this->transcribeViaAudioApi($audio, $format);
     }
 
+    public function structureVoiceDraft(string $transcript): array
+    {
+        $today = now()->toDateString();
+        $typeKeys = ['income', 'expense', 'sale', 'purchase'];
+        $categoryMap = config('bookkeeping.categories', []);
+        $flatCategories = [];
+        foreach ($categoryMap as $type => $cats) {
+            if (! is_array($cats)) {
+                continue;
+            }
+            foreach ($cats as $key => $label) {
+                $flatCategories[] = ['type' => (string) $type, 'key' => (string) $key, 'label' => (string) $label];
+            }
+        }
+
+        $payload = $this->chatJson($this->chatModel, [
+            [
+                'role' => 'system',
+                'content' => 'Structure one Arabic SME voice note into a draft transaction. JSON only: '
+                    .'{"amount":"decimal"|null,"date":"YYYY-MM-DD"|null,"currency":"ISO-4217"|null,'
+                    .'"counterparty":string|null,"note":string|null,'
+                    .'"transaction_type":"income"|"expense"|"sale"|"purchase"|null,'
+                    .'"category":string|null,'
+                    .'"items":[{"description":string,"quantity":number,"unit_price":number,"total":number}],'
+                    .'"items_mismatch":boolean,"amount_warning":string|null,"confidence":0..1}. '
+                    .'Western digits. Prefer SYP for Syrian pounds/ليرة. '
+                    .'Relative dates use today='.$today.' (اليوم/مبارح). '
+                    .'Periods like لمدة 3 أشهر go to note only — never multiply amount. '
+                    .'category must be a key from allowed list for that type, else null. '
+                    .'items empty when not clearly listed. No invention. Suggestions only.',
+            ],
+            [
+                'role' => 'user',
+                'content' => json_encode([
+                    'transcript' => mb_substr($transcript, 0, 1000),
+                    'allowed_transaction_types' => $typeKeys,
+                    'allowed_categories' => array_slice($flatCategories, 0, 80),
+                ], JSON_UNESCAPED_UNICODE),
+            ],
+        ]);
+
+        $items = [];
+        foreach ($payload['items'] ?? [] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $items[] = [
+                'description' => (string) ($row['description'] ?? ''),
+                'quantity' => $row['quantity'] ?? 0,
+                'unit_price' => $row['unit_price'] ?? 0,
+                'total' => $row['total'] ?? 0,
+            ];
+        }
+
+        return [
+            'amount' => isset($payload['amount']) ? (string) $payload['amount'] : null,
+            'date' => isset($payload['date']) ? (string) $payload['date'] : null,
+            'currency' => isset($payload['currency']) ? (string) $payload['currency'] : null,
+            'counterparty' => isset($payload['counterparty']) ? (string) $payload['counterparty'] : null,
+            'note' => isset($payload['note']) ? (string) $payload['note'] : null,
+            'transaction_type' => isset($payload['transaction_type']) ? (string) $payload['transaction_type'] : null,
+            'category' => isset($payload['category']) ? (string) $payload['category'] : null,
+            'items' => $items,
+            'items_mismatch' => (bool) ($payload['items_mismatch'] ?? false),
+            'amount_warning' => isset($payload['amount_warning']) ? (string) $payload['amount_warning'] : null,
+            'confidence' => isset($payload['confidence']) ? (float) $payload['confidence'] : null,
+        ];
+    }
+
     private function transcribeViaChat(string $audio, string $format): string
     {
         $text = $this->chatText($this->transcriptionModel, [

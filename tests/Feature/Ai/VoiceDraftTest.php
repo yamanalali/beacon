@@ -15,6 +15,7 @@ use App\Services\Ai\CategorySuggestion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\RateLimiter;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
@@ -30,7 +31,15 @@ class VoiceDraftTest extends TestCase
     {
         parent::setUp();
         $this->setUpFakeAi();
-        config(['ai.voice.enabled' => true]);
+        // Isolate from local .env (AI_STT_DRIVER=provider / low AI_VOICE_RATE).
+        config([
+            'ai.voice.enabled' => true,
+            'ai.voice.stt_driver' => 'whisper',
+            'ai.voice_rate_per_minute' => 1000,
+            'operations.data_processors.speech_to_text.approved' => false,
+            'operations.data_processors.speech_to_text.allowed_data' => [],
+        ]);
+        $this->app->forgetInstance(SpeechToText::class);
         $this->enterprise = Enterprise::query()->create(['business_name' => 'منشأة', 'location' => 'damascus']);
         $this->sme = $this->userWithRole(UserRole::SmeUser);
         $this->enterprise->members()->attach($this->sme->id);
@@ -277,6 +286,10 @@ class VoiceDraftTest extends TestCase
     public function test_external_provider_denied_sharing_makes_no_provider_call(): void
     {
         $this->approveAiSharing(false);
+        config([
+            'operations.data_processors.speech_to_text.approved' => false,
+            'operations.data_processors.speech_to_text.allowed_data' => [],
+        ]);
         $this->app->instance(SpeechToText::class, app(ProviderTranscriber::class));
         $this->send()->assertOk()->assertJsonPath('ai_available', false);
         $this->assertSame([], $this->fakeAi->calls);
@@ -287,8 +300,9 @@ class VoiceDraftTest extends TestCase
         config(['operations.data_processors.speech_to_text.approved' => true, 'operations.data_processors.speech_to_text.allowed_data' => ['voice_recording']]);
         $this->app->instance(SpeechToText::class, app(ProviderTranscriber::class));
         $this->send()->assertOk()->assertJsonPath('draft.extractor', 'provider')->assertJsonPath('draft.suggested_amount', '5000');
-        $this->assertCount(1, $this->fakeAi->calls);
+        $this->assertGreaterThanOrEqual(1, count($this->fakeAi->calls));
         $this->assertArrayHasKey('transcribe', $this->fakeAi->calls[0]);
+        $this->assertTrue(collect($this->fakeAi->calls)->contains(fn ($c) => array_key_exists('structureVoiceDraft', $c)));
     }
 
     public function test_local_whisper_driver_builds_command_and_handles_missing_binary(): void
@@ -439,9 +453,22 @@ class VoiceDraftTest extends TestCase
         $this->assertArrayHasKey('suggested_amount_warning', $d);
         $this->assertSame('browser_speech', $d['input_source']);
         $this->assertSame('voice', $d['source']);
+        $this->assertSame('ai', $d['structure_source']);
         $this->assertSame('دفعت ايجار محل 3000 الاف لمدة 3 اشهر كل شهر الف', $d['raw_text']);
+        $this->assertTrue(collect($this->fakeAi->calls)->contains(fn ($c) => array_key_exists('structureVoiceDraft', $c)));
         $log = AuditLog::query()->where('action', 'ai.voice_draft.created')->latest('id')->first();
         $this->assertSame('browser_speech', $log->context['input_source']);
+        $this->assertSame('ai', $log->context['structure_source']);
+    }
+
+    public function test_transcript_falls_back_to_local_parser_when_ai_denied(): void
+    {
+        $this->neverStt();
+        $this->approveAiSharing(false);
+        $r = $this->sendText(['transcript' => 'دفعت ايجار محل 3000', 'source' => 'browser_speech'])->assertOk();
+        $this->assertSame('local', $r->json('draft.structure_source'));
+        $this->assertSame('3000', $r->json('draft.suggested_amount'));
+        $this->assertFalse(collect($this->fakeAi->calls)->contains(fn ($c) => array_key_exists('structureVoiceDraft', $c)));
     }
 
     public function test_transcript_validation(): void
@@ -470,6 +497,8 @@ class VoiceDraftTest extends TestCase
     public function test_transcript_shares_voice_rate_limit(): void
     {
         $this->neverStt();
+        RateLimiter::for('ai-voice', fn ($r) => \Illuminate\Cache\RateLimiting\Limit::perMinute(10)
+            ->by('voice-draft-test-'.$this->sme->id));
         $ok = ['transcript' => 'دفعت الف', 'source' => 'browser_speech'];
         for ($i = 0; $i < 10; $i++) {
             $this->sendText($ok)->assertOk();

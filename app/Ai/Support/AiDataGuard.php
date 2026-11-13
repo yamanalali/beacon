@@ -24,6 +24,12 @@ class AiDataGuard
     /** Categorization (§16): sends type, description, counterparty and allowed list. */
     public const CATEGORIZATION = ['ai_assistant', ['transaction_type', 'transaction_description', 'counterparty']];
 
+    /**
+     * Voice draft structuring: browser STT text only (no audio).
+     * Field name reuses transaction_description (the spoken note is the description).
+     */
+    public const VOICE_STRUCTURE = ['ai_assistant', ['transaction_description']];
+
     /** Assistant (§33–36): sends the question and approved knowledge articles. */
     public const ASSISTANT = ['ai_assistant', ['user_question', 'approved_knowledge']];
 

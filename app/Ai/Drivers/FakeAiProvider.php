@@ -5,6 +5,7 @@ namespace App\Ai\Drivers;
 use App\Ai\Contracts\AiProvider;
 use App\Ai\Data\AiAnswer;
 use App\Ai\Exceptions\AiUnavailableException;
+use App\Ai\Voice\VoiceDraftParser;
 
 /**
  * Deterministic driver for tests/local dev. Answers with the first supplied
@@ -80,5 +81,30 @@ class FakeAiProvider implements AiProvider
         }
 
         return 'ملاحظة تجريبية حول الأرقام المعروضة للفترة '.($figures['period'] ?? '').'.';
+    }
+
+    public function structureVoiceDraft(string $transcript): array
+    {
+        $this->calls[] = ['structureVoiceDraft' => mb_substr($transcript, 0, 100)];
+        if ($this->failing) {
+            throw new AiUnavailableException('Fake failure.');
+        }
+
+        // Deterministic: reuse local heuristics so feature tests stay stable.
+        $p = (new VoiceDraftParser)->parse($transcript);
+
+        return [
+            'amount' => $p['amount'],
+            'date' => $p['date'],
+            'currency' => $p['currency'],
+            'counterparty' => $p['counterparty'],
+            'note' => $p['note'],
+            'transaction_type' => null,
+            'category' => null,
+            'items' => $p['items'],
+            'items_mismatch' => $p['items_mismatch'],
+            'amount_warning' => $p['amount_warning'],
+            'confidence' => $p['confidence'],
+        ];
     }
 }

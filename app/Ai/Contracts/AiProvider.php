@@ -53,8 +53,32 @@ interface AiProvider
     /**
      * Speech-to-text for a short voice note (voice draft transaction).
      * External providers are only called after AiDataGuard::SPEECH approval.
+     * Preferred product path uses browser Web Speech instead, then
+     * structureVoiceDraft() on the transcript (no audio to the provider).
      *
      * @throws AiUnavailableException
      */
     public function transcribe(string $audio, string $mimeType): string;
+
+    /**
+     * Structure a short Arabic voice transcript into draft transaction fields.
+     * Suggestions only — caller must keep needs_review and never auto-post.
+     *
+     * @return array{
+     *     amount:?string,
+     *     date:?string,
+     *     currency:?string,
+     *     counterparty:?string,
+     *     note:?string,
+     *     transaction_type:?string,
+     *     category:?string,
+     *     items:list<array{description:string,quantity:float|int,unit_price:float|int,total:float|int}>,
+     *     items_mismatch:bool,
+     *     amount_warning:?string,
+     *     confidence:?float
+     * }
+     *
+     * @throws AiUnavailableException
+     */
+    public function structureVoiceDraft(string $transcript): array;
 }

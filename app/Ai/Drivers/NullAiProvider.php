@@ -33,4 +33,9 @@ class NullAiProvider implements AiProvider
     {
         throw new AiUnavailableException('No AI provider configured.');
     }
+
+    public function structureVoiceDraft(string $transcript): array
+    {
+        throw new AiUnavailableException('No AI provider configured.');
+    }
 }
