@@ -1,6 +1,7 @@
 import { Link, router } from "@inertiajs/react";
 import { useState, type FormEvent } from "react";
 import { ExportButton } from "../../Components/Data/ExportButton";
+import { Pagination } from "../../Components/Data/Pagination";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
@@ -17,6 +18,11 @@ type EnterpriseRow = {
 type Paginator = {
     data: EnterpriseRow[];
     links: { url: string | null; label: string; active: boolean }[];
+    current_page?: number;
+    last_page?: number;
+    total?: number;
+    from?: number | null;
+    to?: number | null;
 };
 
 const locationLabels: Record<string, string> = {
@@ -162,6 +168,20 @@ export default function Index({
                                 </tbody>
                             </table>
                         </div>
+                        {typeof enterprises.total === "number" && enterprises.total > 0 ? (
+                            <p className="text-muted small mt-3 mb-0 text-center">
+                                {t(
+                                    "smes.index_count",
+                                    {
+                                        from: String(enterprises.from ?? 1),
+                                        to: String(enterprises.to ?? enterprises.data.length),
+                                        total: String(enterprises.total),
+                                    },
+                                    "عرض {from}–{to} من أصل {total}",
+                                )}
+                            </p>
+                        ) : null}
+                        <Pagination links={enterprises.links} />
                     </>
                 )}
             </div>
