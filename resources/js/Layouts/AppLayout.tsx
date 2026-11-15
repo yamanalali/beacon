@@ -2,6 +2,7 @@ import { Head, usePage } from "@inertiajs/react";
 import { useEffect } from "react";
 import type React from "react";
 import { useT } from "../Hooks/useT";
+import { PwaInstallPrompt } from "../Components/Common/PwaInstallPrompt";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { DesktopTopbar } from "./DesktopTopbar";
 import { MobileAppHeader } from "./MobileAppHeader";
@@ -64,6 +65,7 @@ export default function AppLayout({
                 </main>
             </div>
             <MobileBottomNavigation />
+            <PwaInstallPrompt />
         </div>
     );
 }

@@ -2,6 +2,7 @@ import { Head, Link, usePage } from "@inertiajs/react";
 import { useEffect, type ReactNode } from "react";
 import { Brand } from "../../Components/Common/Brand";
 import { LanguageSwitcher } from "../../Components/Common/LanguageSwitcher";
+import { PwaInstallPrompt } from "../../Components/Common/PwaInstallPrompt";
 import { useT } from "../../Hooks/useT";
 
 export function GuestAuthLayout({
@@ -93,6 +94,7 @@ export function GuestAuthLayout({
                 </section>
                 <p className="app-auth-footer">{t("auth.guest.platform_footer", { app: appName })}</p>
             </main>
+            <PwaInstallPrompt />
         </div>
     );
 }

@@ -89,17 +89,10 @@ class DemoSeederTest extends TestCase
         $this->seed(DemoSeeder::class);
     }
 
-    public function test_login_demo_box_hidden_when_not_local(): void
-    {
-        config(['demo.password' => 'x']);
-        $this->get('/login')->assertOk()->assertInertia(fn ($page) => $page->where('demoAccounts', null));
-    }
-
-    public function test_login_demo_box_shown_when_local(): void
+    public function test_login_never_exposes_demo_accounts(): void
     {
         $this->asLocal();
-        $this->get('/login')->assertOk()->assertInertia(fn ($page) => $page
-            ->where('demoAccounts.password', 'test-demo-pass')
-            ->has('demoAccounts.accounts', 5));
+        config(['demo.password' => 'test-demo-pass']);
+        $this->get('/login')->assertOk()->assertInertia(fn ($page) => $page->where('demoAccounts', null));
     }
 }

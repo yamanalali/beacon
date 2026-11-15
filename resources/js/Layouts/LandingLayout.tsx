@@ -2,6 +2,7 @@ import { Head, Link, usePage } from "@inertiajs/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Brand } from "../Components/Common/Brand";
 import { LanguageSwitcher } from "../Components/Common/LanguageSwitcher";
+import { PwaInstallPrompt } from "../Components/Common/PwaInstallPrompt";
 import { useT } from "../Hooks/useT";
 
 const NAV = [
@@ -124,6 +125,7 @@ export function LandingLayout({ title, children }: Props) {
                     </nav>
                 </div>
             </footer>
+            <PwaInstallPrompt />
         </div>
     );
 }

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Support\AccountSecurity;
@@ -18,18 +17,8 @@ class AuthenticatedSessionController extends Controller
 {
     public function create(): Response
     {
-        // Demo credentials: local + staging share only — never production.
-        $demo = app()->environment(['local', 'staging']) && filled(config('demo.password'))
-            ? [
-                'password' => (string) config('demo.password'),
-                'accounts' => collect(config('demo.accounts'))
-                    ->map(fn (array $a): array => ['email' => $a['email'], 'role' => UserRole::from($a['role'])->label()])
-                    ->values()
-                    ->all(),
-            ]
-            : null;
-
-        return Inertia::render('Auth/Login', ['demoAccounts' => $demo]);
+        // Demo logins stay out of the UI — share credentials privately when needed.
+        return Inertia::render('Auth/Login', ['demoAccounts' => null]);
     }
 
     public function store(LoginRequest $request): RedirectResponse
