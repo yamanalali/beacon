@@ -88,18 +88,46 @@ export function rowsFromItems(items: TransactionItem[] | null | undefined): Item
     });
 }
 
-/** Draft suggestions → rows. Null values stay empty (no guessing); all-null items are skipped. */
+/** Fill qty/unit price from a printed line total when the receipt omitted one side. */
+export function completeSuggestedItem(i: SuggestedTransactionItem): {
+    description: string | null;
+    quantity: string | null;
+    unit_price: string | null;
+    total: string | null;
+} {
+    let quantity = i.quantity === null || i.quantity === undefined ? null : String(i.quantity);
+    let unit_price = i.unit_price === null || i.unit_price === undefined ? null : String(i.unit_price);
+    const total = i.total === null || i.total === undefined ? null : String(i.total);
+    const t = total === null ? null : parseAmount(total);
+    const q = quantity === null ? null : parseAmount(quantity);
+    const p = unit_price === null ? null : parseAmount(unit_price);
+
+    if (t !== null) {
+        if ((quantity === null || quantity.trim() === "") && (unit_price === null || unit_price.trim() === "")) {
+            quantity = "1";
+            unit_price = String(t);
+        } else if ((unit_price === null || unit_price.trim() === "") && q !== null && q > 0) {
+            unit_price = String(Math.round((t / q + Number.EPSILON) * 100) / 100);
+        } else if ((quantity === null || quantity.trim() === "") && p !== null && p > 0) {
+            quantity = "1";
+        }
+    }
+
+    return {
+        description: i.description ?? null,
+        quantity,
+        unit_price,
+        total,
+    };
+}
+
+/** Draft suggestions → rows. Completes qty/price from total when the receipt omitted them. */
 export function rowsFromSuggested(items: SuggestedTransactionItem[] | null | undefined): ItemRow[] {
     if (!Array.isArray(items)) return [];
     return items
         .filter((i) => i && [i.description, i.quantity, i.unit_price, i.total].some((v) => v !== null && v !== undefined && String(v).trim() !== ""))
         .map((i, n) => {
-            const s = {
-                description: i.description ?? null,
-                quantity: i.quantity === null || i.quantity === undefined ? null : String(i.quantity),
-                unit_price: i.unit_price === null || i.unit_price === undefined ? null : String(i.unit_price),
-                total: i.total === null || i.total === undefined ? null : String(i.total),
-            };
+            const s = completeSuggestedItem(i);
             return {
                 key: `suggested-${n}`,
                 description: s.description ?? "",

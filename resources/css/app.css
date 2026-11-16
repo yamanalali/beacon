@@ -4948,3 +4948,38 @@ a.sme-tx:active { background: var(--app-surface-alt); }
     }
 }
 
+/* Receipt rear-camera capture overlay */
+.receipt-camera {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    background: rgba(12, 24, 28, 0.92);
+    padding: env(safe-area-inset-top) 12px calc(12px + env(safe-area-inset-bottom));
+}
+.receipt-camera__panel {
+    width: min(100%, 520px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.receipt-camera__video {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 280px;
+    max-height: calc(100dvh - 140px);
+    object-fit: cover;
+    border-radius: 18px;
+    background: #000;
+}
+.receipt-camera__actions {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 10px;
+}
+.receipt-camera__shutter {
+    font-weight: 600;
+}
+

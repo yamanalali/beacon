@@ -24,7 +24,15 @@ interface AiProvider
      * Suggest receipt fields from a document image/PDF. Returns raw suggestions;
      * callers must keep them as review-only suggestions (rules §15).
      *
-     * @return array{transaction_date:?string,amount:?string,currency:?string,counterparty:?string,confidence:?float}
+     * @return array{
+     *     transaction_date:?string,
+     *     amount:?string,
+     *     currency:?string,
+     *     counterparty:?string,
+     *     confidence:?float,
+     *     invoice_number?:?string,
+     *     items?:list<array{description:?string,quantity:int|float|null,unit_price:int|float|null,total:int|float|null}>
+     * }
      *
      * @throws AiUnavailableException
      */

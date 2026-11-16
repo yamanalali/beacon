@@ -30,15 +30,19 @@ describe("items model", () => {
         expect(itemsMismatch(rows, "")).toBe(false);
         expect(itemsMismatch([], "250")).toBe(false);
     });
-    it("suggested items: nulls stay empty, all-null items skipped, non-array safe", () => {
+    it("suggested items: completes qty/price from total, skips all-null, non-array safe", () => {
         const r = rowsFromSuggested([
             { description: "خبز", quantity: 2, unit_price: null, total: null },
             { description: null, quantity: null, unit_price: null, total: null },
             { description: null, quantity: null, unit_price: 5, total: 10 },
+            { description: "كولا", quantity: 2, unit_price: null, total: 1000 },
+            { description: "ضريبة", quantity: null, unit_price: null, total: 22 },
         ]);
-        expect(r).toHaveLength(2);
+        expect(r).toHaveLength(4);
         expect(r[0]).toMatchObject({ description: "خبز", quantity: "2", unit_price: "", total: "", total_manual: false });
-        expect(r[1]).toMatchObject({ description: "", quantity: "", unit_price: "5", total: "10", total_manual: true });
+        expect(r[1]).toMatchObject({ description: "", quantity: "1", unit_price: "5", total: "10", total_manual: true });
+        expect(r[2]).toMatchObject({ description: "كولا", quantity: "2", unit_price: "500", total: "1000", total_manual: true });
+        expect(r[3]).toMatchObject({ description: "ضريبة", quantity: "1", unit_price: "22", total: "22", total_manual: true });
         expect(rowsFromSuggested(null)).toEqual([]);
         expect(rowsFromSuggested(undefined)).toEqual([]);
     });

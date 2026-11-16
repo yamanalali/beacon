@@ -91,6 +91,8 @@ class OpenRouterAiProvider implements AiProvider
                 'currency' => null,
                 'counterparty' => null,
                 'confidence' => null,
+                'invoice_number' => null,
+                'items' => [],
             ];
         }
 
@@ -101,14 +103,20 @@ class OpenRouterAiProvider implements AiProvider
                 'role' => 'system',
                 'content' => 'Extract receipt/invoice fields. Return JSON only: '
                     .'{"transaction_date":"YYYY-MM-DD"|null,"amount":"decimal string"|null,'
-                    .'"currency":"ISO-4217"|null,"counterparty":string|null,"confidence":0..1}. '
-                    .'Use Western digits in amount. Prefer SYP when clearly Syrian pounds. '
+                    .'"currency":"ISO-4217"|null,"counterparty":string|null,'
+                    .'"invoice_number":string|null,'
+                    .'"items":[{"description":string|null,"quantity":number|null,"unit_price":number|null,"total":number|null}],'
+                    .'"confidence":0..1}. '
+                    .'PRIORITY: amount MUST be the printed FINAL total '
+                    .'(المجموع النهائي / الإجمالي النهائي / Grand Total) — never a subtotal or tax-only line. '
+                    .'Use Western digits. Prefer SYP when clearly Syrian pounds. '
+                    .'items and tax/fee rows are OPTIONAL; empty items=[] when unclear. '
                     .'Do not invent values; use null when unclear.',
             ],
             [
                 'role' => 'user',
                 'content' => [
-                    ['type' => 'text', 'text' => 'Extract the fields from this receipt image.'],
+                    ['type' => 'text', 'text' => 'Extract the FINAL total first, then optional line items from this receipt image.'],
                     ['type' => 'image_url', 'image_url' => ['url' => $dataUrl]],
                 ],
             ],
@@ -120,6 +128,8 @@ class OpenRouterAiProvider implements AiProvider
             'currency' => isset($payload['currency']) ? (string) $payload['currency'] : null,
             'counterparty' => isset($payload['counterparty']) ? (string) $payload['counterparty'] : null,
             'confidence' => isset($payload['confidence']) ? (float) $payload['confidence'] : null,
+            'invoice_number' => isset($payload['invoice_number']) ? (string) $payload['invoice_number'] : null,
+            'items' => is_array($payload['items'] ?? null) ? $payload['items'] : [],
         ];
     }
 

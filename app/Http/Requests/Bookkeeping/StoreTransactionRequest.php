@@ -33,11 +33,51 @@ class StoreTransactionRequest extends FormRequest
                         $item[$field] = TransactionAmountInput::normalize($item[$field]);
                     }
                 }
+                // Receipts often print qty + line total (no unit price), or tax as a total only.
+                // Fill the missing side so validation/storage stay simple without blocking review.
+                $item = $this->completeItemTotals($item);
             }
             unset($item);
             $values['items'] = $items;
         }
         $this->merge($values);
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    private function completeItemTotals(array $item): array
+    {
+        $blank = static fn (mixed $v): bool => $v === null || $v === '';
+
+        $qty = $item['quantity'] ?? null;
+        $price = $item['unit_price'] ?? null;
+        $total = $item['total'] ?? null;
+
+        if ($blank($total) || ! is_numeric($total)) {
+            return $item;
+        }
+
+        if ($blank($qty) && $blank($price)) {
+            // Tax/fee rows: one line total → treat as qty 1 × price = total.
+            $item['quantity'] = '1';
+            $item['unit_price'] = (string) $total;
+
+            return $item;
+        }
+
+        if ($blank($price) && is_numeric($qty) && (float) $qty > 0) {
+            $item['unit_price'] = bcdiv((string) $total, (string) $qty, 2);
+
+            return $item;
+        }
+
+        if ($blank($qty) && is_numeric($price) && (float) $price > 0) {
+            $item['quantity'] = '1';
+        }
+
+        return $item;
     }
 
     public function authorize(): bool

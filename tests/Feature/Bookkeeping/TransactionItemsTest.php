@@ -75,6 +75,25 @@ class TransactionItemsTest extends TestCase
         $this->assertSame('3.71', (string) $item->total);
     }
 
+    public function test_receipt_style_items_complete_missing_unit_price_or_quantity_from_total(): void
+    {
+        $this->store($this->payload(['amount' => '1472', 'items' => [
+            ['description' => 'كولا', 'quantity' => 2, 'total' => 1000],
+            ['description' => 'ضريبة', 'total' => 22],
+            ['description' => 'خدمة', 'unit_price' => 450, 'total' => 450],
+        ]]))->assertRedirect()->assertSessionHasNoErrors();
+
+        $items = FinancialTransaction::query()->sole()->items;
+        $this->assertCount(3, $items);
+        $this->assertSame('2.000', (string) $items[0]->quantity);
+        $this->assertSame('500.00', (string) $items[0]->unit_price);
+        $this->assertSame('1000.00', (string) $items[0]->total);
+        $this->assertSame('1.000', (string) $items[1]->quantity);
+        $this->assertSame('22.00', (string) $items[1]->unit_price);
+        $this->assertSame('1.000', (string) $items[2]->quantity);
+        $this->assertSame('450.00', (string) $items[2]->unit_price);
+    }
+
     public function test_creates_transaction_without_items(): void
     {
         $this->store($this->payload())->assertRedirect()->assertSessionHasNoErrors();

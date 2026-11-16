@@ -62,6 +62,11 @@ class OpenAiAiProviderTest extends TestCase
                             'amount' => '250.00',
                             'currency' => 'SYP',
                             'counterparty' => 'محل',
+                            'invoice_number' => '4521',
+                            'items' => [
+                                ['description' => 'قماش', 'quantity' => 2, 'unit_price' => 100, 'total' => 200],
+                                ['description' => 'خيط', 'quantity' => 1, 'unit_price' => 50, 'total' => 50],
+                            ],
                             'confidence' => 0.8,
                         ], JSON_UNESCAPED_UNICODE),
                     ],
@@ -72,15 +77,19 @@ class OpenAiAiProviderTest extends TestCase
         $result = $this->provider()->extractReceipt($png, 'image/png');
         $this->assertSame('2026-10-01', $result['transaction_date']);
         $this->assertSame('250.00', $result['amount']);
+        $this->assertSame('4521', $result['invoice_number']);
+        $this->assertCount(2, $result['items']);
 
         Http::assertSent(function ($request) {
             $image = $request['messages'][1]['content'][1]['image_url'] ?? [];
+            $system = (string) ($request['messages'][0]['content'] ?? '');
 
             return $request->url() === 'https://api.openai.com/v1/chat/completions'
                 && ($request['model'] ?? null) === 'gpt-6-luna'
                 && ($request['reasoning_effort'] ?? null) === 'none'
-                && ($request['max_tokens'] ?? null) === 220
-                && ($image['detail'] ?? null) === 'low'
+                && ($request['max_completion_tokens'] ?? null) === 700
+                && ($image['detail'] ?? null) === 'auto'
+                && str_contains($system, 'items')
                 && is_string($image['url'] ?? null)
                 && str_starts_with($image['url'], 'data:image/');
         });
@@ -105,7 +114,7 @@ class OpenAiAiProviderTest extends TestCase
 
         $this->assertSame('rent', $result['category']);
 
-        Http::assertSent(fn ($request) => ($request['max_tokens'] ?? null) === 80);
+        Http::assertSent(fn ($request) => ($request['max_completion_tokens'] ?? null) === 80);
     }
 
     public function test_structure_voice_draft_uses_chat_not_audio(): void

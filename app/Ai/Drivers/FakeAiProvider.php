@@ -54,7 +54,17 @@ class FakeAiProvider implements AiProvider
             throw new AiUnavailableException('Fake failure.');
         }
 
-        return ['transaction_date' => '2026-10-01', 'amount' => '125.50', 'currency' => null, 'counterparty' => 'مورد تجريبي', 'confidence' => 0.6];
+        return [
+            'transaction_date' => '2026-10-01',
+            'amount' => '125.50',
+            'currency' => null,
+            'counterparty' => 'مورد تجريبي',
+            'confidence' => 0.6,
+            'invoice_number' => '1002',
+            'items' => [
+                ['description' => 'قماش', 'quantity' => 1, 'unit_price' => 125.5, 'total' => 125.5],
+            ],
+        ];
     }
 
     public function suggestCategory(string $type, ?string $description, ?string $counterparty, array $allowedCategories): array

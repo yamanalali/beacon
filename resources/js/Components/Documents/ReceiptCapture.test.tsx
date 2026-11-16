@@ -32,12 +32,16 @@ describe("findNewDocument", () => {
 });
 
 describe("ReceiptCapture", () => {
-    it("offers a rear-camera capture input and a file picker", () => {
+    it("offers a rear-camera capture input and a file picker without capture", () => {
         render(<ReceiptCapture enterpriseId="E1" currentIds={[]} />);
         const cam = screen.getByTestId("camera-input");
         expect(cam.getAttribute("accept")).toBe("image/*");
         expect(cam.getAttribute("capture")).toBe("environment");
-        expect(screen.getByTestId("file-input").getAttribute("accept")).toContain("application/pdf");
+        const file = screen.getByTestId("file-input");
+        expect(file.getAttribute("accept")).toContain("application/pdf");
+        expect(file.hasAttribute("capture")).toBe(false);
+        expect(screen.getByRole("button", { name: /تصوير الإيصال/ })).toBeTruthy();
+        expect(screen.getByRole("button", { name: /رفع ملف|اختيار ملف/ })).toBeTruthy();
         expect((screen.getByRole("button", { name: /رفع ومراجعة/ }) as HTMLButtonElement).disabled).toBe(true);
     });
 

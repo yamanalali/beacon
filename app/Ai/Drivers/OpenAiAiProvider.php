@@ -98,33 +98,45 @@ class OpenAiAiProvider implements AiProvider
                 'currency' => null,
                 'counterparty' => null,
                 'confidence' => null,
+                'invoice_number' => null,
+                'items' => [],
             ];
         }
 
         [$dataUrl, $usedMime] = $this->cheapImageDataUrl($contents, $mimeType);
 
+        // Line items need readable text — bump past "low" when the env left the cheap default.
+        $detail = $this->visionDetail === 'low' ? 'auto' : $this->visionDetail;
+
         $payload = $this->chatJson($this->visionModel, [
             [
                 'role' => 'system',
-                'content' => 'Extract receipt fields. JSON only: '
+                'content' => 'Extract receipt/invoice fields. JSON only: '
                     .'{"transaction_date":"YYYY-MM-DD"|null,"amount":"decimal"|null,'
-                    .'"currency":"ISO-4217"|null,"counterparty":string|null,"confidence":0..1}. '
-                    .'Western digits. Prefer SYP for Syrian pounds. Null when unclear. No invention.',
+                    .'"currency":"ISO-4217"|null,"counterparty":string|null,'
+                    .'"invoice_number":string|null,'
+                    .'"items":[{"description":string|null,"quantity":number|null,"unit_price":number|null,"total":number|null}],'
+                    .'"confidence":0..1}. '
+                    .'PRIORITY: amount MUST be the printed FINAL total '
+                    .'(المجموع النهائي / الإجمالي النهائي / Grand Total / Net Payable) — never a subtotal, tax-only line, or item sum invented by you. '
+                    .'Western digits. Prefer SYP for Syrian pounds. '
+                    .'items and tax/fee rows (ضريبة، رسم، اعادة اعمار) are OPTIONAL: include when clearly readable, else items=[]. '
+                    .'Do not invent missing qty/price. Null when unclear.',
             ],
             [
                 'role' => 'user',
                 'content' => [
-                    ['type' => 'text', 'text' => 'Extract fields from this receipt.'],
+                    ['type' => 'text', 'text' => 'Extract the FINAL total first, then optional line items from this receipt.'],
                     [
                         'type' => 'image_url',
                         'image_url' => [
                             'url' => $dataUrl,
-                            'detail' => $this->visionDetail,
+                            'detail' => $detail,
                         ],
                     ],
                 ],
             ],
-        ], maxTokens: $this->maxTokensVision);
+        ], maxTokens: max(700, $this->maxTokensVision));
 
         unset($usedMime);
 
@@ -134,6 +146,8 @@ class OpenAiAiProvider implements AiProvider
             'currency' => isset($payload['currency']) ? (string) $payload['currency'] : null,
             'counterparty' => isset($payload['counterparty']) ? (string) $payload['counterparty'] : null,
             'confidence' => isset($payload['confidence']) ? (float) $payload['confidence'] : null,
+            'invoice_number' => isset($payload['invoice_number']) ? (string) $payload['invoice_number'] : null,
+            'items' => is_array($payload['items'] ?? null) ? $payload['items'] : [],
         ];
     }
 
@@ -364,7 +378,8 @@ class OpenAiAiProvider implements AiProvider
             'model' => $model,
             'messages' => $messages,
             'temperature' => 0,
-            'max_tokens' => max(32, $maxTokens),
+            // gpt-6-luna (and newer chat models) reject max_tokens — use max_completion_tokens.
+            'max_completion_tokens' => max(32, $maxTokens),
             // Luna defaults to medium reasoning; disable for cheap extract/JSON tasks.
             'reasoning_effort' => 'none',
         ];

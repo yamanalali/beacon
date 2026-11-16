@@ -12,10 +12,14 @@ export function findNewDocument(before: ReadonlySet<string>, after: DocumentRow[
 
 type Step = "pick" | "ready" | "uploading" | "reading" | "error";
 
+function stopStream(stream: MediaStream | null) {
+    stream?.getTracks().forEach((track) => track.stop());
+}
+
 /**
- * Mobile-first receipt capture: camera or file → upload (existing documents.store) → read
- * (existing documents.extractions.store) → the server redirects to the review page.
- * Provider-agnostic: if reading is unavailable the review page opens in manual-entry mode.
+ * Mobile-first receipt capture: rear camera or file → upload → read → review.
+ * Camera prefers getUserMedia({ facingMode: environment }); falls back to
+ * <input capture="environment">. File picker never sets capture.
  */
 export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterpriseId: string; currentIds: string[]; uploadUrl?: string }) {
     const t = useT();
@@ -24,9 +28,18 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
     const [step, setStep] = useState<Step>("pick");
     const [preview, setPreview] = useState<string | null>(null);
     const [info, setInfo] = useState<string | null>(null);
+    const [cameraOpen, setCameraOpen] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
     const before = useRef<Set<string>>(new Set(currentIds));
+    const cameraInputRef = useRef<HTMLInputElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
 
-    useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+    useEffect(() => () => {
+        if (preview) URL.revokeObjectURL(preview);
+        stopStream(streamRef.current);
+    }, [preview]);
 
     const choose = (file: File | null) => {
         form.clearErrors();
@@ -34,6 +47,75 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
         if (preview) URL.revokeObjectURL(preview);
         setPreview(file && file.type.startsWith("image/") && typeof URL.createObjectURL === "function" ? URL.createObjectURL(file) : null);
         setStep(file ? "ready" : "pick");
+        setCameraError(null);
+        if (cameraInputRef.current) cameraInputRef.current.value = "";
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    const closeCamera = () => {
+        stopStream(streamRef.current);
+        streamRef.current = null;
+        setCameraOpen(false);
+    };
+
+    const openNativeCamera = () => {
+        cameraInputRef.current?.click();
+    };
+
+    const openCamera = async () => {
+        setCameraError(null);
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+            openNativeCamera();
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    facingMode: { ideal: "environment" },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                },
+            });
+            streamRef.current = stream;
+            setCameraOpen(true);
+            requestAnimationFrame(() => {
+                const video = videoRef.current;
+                if (!video) return;
+                video.srcObject = stream;
+                void video.play().catch(() => {});
+            });
+        } catch {
+            openNativeCamera();
+        }
+    };
+
+    const snapPhoto = () => {
+        const video = videoRef.current;
+        if (!video || video.videoWidth < 1 || video.videoHeight < 1) {
+            setCameraError(t("documents.camera_not_ready", undefined, "الكاميرا ليست جاهزة بعد. حاول مرة أخرى."));
+            return;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+            setCameraError(t("documents.camera_capture_failed", undefined, "تعذّر التقاط الصورة. استخدم اختيار ملف."));
+            return;
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                setCameraError(t("documents.camera_capture_failed", undefined, "تعذّر التقاط الصورة. استخدم اختيار ملف."));
+                return;
+            }
+            const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+            choose(new File([blob], `receipt-${stamp}.jpg`, { type: "image/jpeg" }));
+            closeCamera();
+        }, "image/jpeg", 0.92);
     };
 
     const upload = () => {
@@ -43,10 +125,8 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
             forceFormData: true,
             preserveScroll: true,
             onError: () => setStep("error"),
-            // 409 + X-Inertia-Location (asset version changed): full load instead of an error.
             onHttpException: (r) => (handleInertiaConflict(r) ? false : undefined),
             onSuccess: (p) => {
-                // With extract=1 the server goes straight to the review page (Extractions/Show).
                 if ((p as { component?: string } | undefined)?.component === "Extractions/Show") return;
                 const props = (p?.props ?? page.props) as Partial<BeaconSharedProps> & { documents?: { data?: DocumentRow[] } };
                 const id = props.flash?.created_document_id ?? findNewDocument(before.current, props.documents?.data)?.public_id;
@@ -68,19 +148,68 @@ export function ReceiptCapture({ enterpriseId, currentIds, uploadUrl }: { enterp
         <div className="d-flex flex-column gap-3">
             <p className="mb-0 text-body-secondary">{t("documents.receipt_capture_intro", undefined, "صوّر الإيصال أو الفاتورة، وسنقرأ المبلغ والتاريخ والمورد لتراجعها قبل الحفظ.")}</p>
             <div className="d-grid gap-2 d-sm-flex">
-                <label className={`btn btn-primary${busy ? " disabled" : ""}`} style={{ minHeight: "56px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ minHeight: "56px" }}
+                    disabled={busy}
+                    onClick={() => void openCamera()}
+                >
                     <i className="bi bi-camera me-2" aria-hidden="true" />
                     {t("documents.capture_receipt", undefined, "تصوير الإيصال")}
-                    <input type="file" accept="image/*" capture="environment" className="visually-hidden" data-testid="camera-input"
-                        disabled={busy} onChange={(e) => choose(e.target.files?.[0] ?? null)} />
-                </label>
-                <label className={`btn btn-outline-primary${busy ? " disabled" : ""}`} style={{ minHeight: "56px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-                    <i className="bi bi-paperclip me-2" aria-hidden="true" />
-                    {t("documents.choose_file", undefined, "اختيار ملف")}
-                    <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="visually-hidden" data-testid="file-input"
-                        disabled={busy} onChange={(e) => choose(e.target.files?.[0] ?? null)} />
-                </label>
+                </button>
+                <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    style={{ minHeight: "56px" }}
+                    disabled={busy}
+                    onClick={() => fileInputRef.current?.click()}
+                >
+                    <i className="bi bi-folder2-open me-2" aria-hidden="true" />
+                    {t("documents.choose_file", undefined, "رفع ملف")}
+                </button>
+                {/* Rear-camera native fallback — never use for the file button. */}
+                <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="visually-hidden"
+                    data-testid="camera-input"
+                    tabIndex={-1}
+                    disabled={busy}
+                    onChange={(e) => choose(e.target.files?.[0] ?? null)}
+                />
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="visually-hidden"
+                    data-testid="file-input"
+                    tabIndex={-1}
+                    disabled={busy}
+                    onChange={(e) => choose(e.target.files?.[0] ?? null)}
+                />
             </div>
+
+            {cameraError ? <div className="alert alert-warning mb-0" role="status">{cameraError}</div> : null}
+
+            {cameraOpen ? (
+                <div className="receipt-camera" role="dialog" aria-modal="true" aria-label={t("documents.camera_title", undefined, "تصوير الإيصال")}>
+                    <div className="receipt-camera__panel">
+                        <video ref={videoRef} className="receipt-camera__video" playsInline muted autoPlay />
+                        <div className="receipt-camera__actions">
+                            <button type="button" className="btn btn-light" style={{ minHeight: 48 }} onClick={closeCamera}>
+                                {t("common.cancel", undefined, "إلغاء")}
+                            </button>
+                            <button type="button" className="btn btn-primary receipt-camera__shutter" style={{ minHeight: 56 }} onClick={snapPhoto}>
+                                <i className="bi bi-camera-fill me-2" aria-hidden="true" />
+                                {t("documents.take_photo", undefined, "التقاط")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             {form.data.file ? (
                 <div className="app-mobile-record d-flex gap-3 align-items-center">
