@@ -18,6 +18,17 @@ class UserPolicy
     }
 
     /**
+     * Only an active Beacon administrator may correct another user's name or email.
+     * Own details are changed from the account screen, not from user administration.
+     */
+    public function updateProfile(User $user, User $target): bool
+    {
+        return $user->isActive()
+            && $user->role === UserRole::BeaconAdmin
+            && ! $user->is($target);
+    }
+
+    /**
      * Only an active Beacon administrator may deactivate another user.
      */
     public function deactivate(User $user, User $target): bool

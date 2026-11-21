@@ -17,6 +17,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/', [ComplianceAdminController::class, 'store'])->name('store');
         Route::post('/{requirement:public_id}/versions', [ComplianceAdminController::class, 'storeVersion'])->name('versions.store');
         Route::post('/{requirement:public_id}/deactivate', [ComplianceAdminController::class, 'deactivate'])->name('deactivate');
+        Route::post('/{requirement:public_id}/reactivate', [ComplianceAdminController::class, 'reactivate'])->name('reactivate');
         Route::post('/{requirement:public_id}/replace', [ComplianceAdminController::class, 'replace'])->name('replace');
         Route::put('/versions/{version}', [ComplianceAdminController::class, 'updateVersion'])->name('versions.update');
         Route::post('/versions/{version}/publish', [ComplianceAdminController::class, 'publish'])->name('versions.publish');
@@ -35,6 +36,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/{ruleSet}/criteria', [ReadinessAdminController::class, 'storeCriterion'])->name('criteria.store');
         Route::delete('/criteria/{criterion}', [ReadinessAdminController::class, 'destroyCriterion'])->name('criteria.destroy');
         Route::post('/{ruleSet}/publish', [ReadinessAdminController::class, 'publish'])->name('publish');
+        Route::post('/{ruleSet}/retire', [ReadinessAdminController::class, 'retire'])->name('retire');
+        Route::delete('/{ruleSet}', [ReadinessAdminController::class, 'destroy'])->name('destroy');
 
         // Scoring matrix v2: pillars, typed criteria, score bands (draft only), duplicate, export/import, preview.
         Route::get('/criteria-library', [ReadinessMatrixController::class, 'criteriaLibrary'])->name('criteria.library');
@@ -64,6 +67,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/readiness-assessments/{assessment:public_id}/results/{result}', [ReadinessAssessmentController::class, 'updateResult'])->name('readiness-assessments.results.update')->scopeBindings(); // {result} must belong to {assessment}
     Route::post('/readiness-assessments/{assessment:public_id}/finalize', [ReadinessAssessmentController::class, 'finalize'])->name('readiness-assessments.finalize');
     Route::post('/readiness-assessments/{assessment:public_id}/recalculate', [ReadinessAssessmentController::class, 'recalculate'])->name('readiness-assessments.recalculate');
+    Route::post('/readiness-assessments/{assessment:public_id}/void', [ReadinessAssessmentController::class, 'void'])->name('readiness-assessments.void');
 
     // 27: MFI directory (BEACON_ADMIN)
     Route::prefix('admin/mfis')->name('admin.mfis.')->group(function () {
@@ -72,7 +76,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/{institution:public_id}', [MfiController::class, 'update'])->name('update');
         Route::post('/{institution:public_id}/criteria', [MfiController::class, 'storeCriterion'])->name('criteria.store');
         Route::post('/{institution:public_id}/users', [MfiController::class, 'attachUser'])->name('users.attach');
+        Route::put('/criteria/{criterion}', [MfiController::class, 'updateCriterion'])->name('criteria.update');
         Route::post('/criteria/{criterion}/deactivate', [MfiController::class, 'deactivateCriterion'])->name('criteria.deactivate');
+        Route::delete('/users/{user}', [MfiController::class, 'detachUser'])->name('users.detach');
     });
 
     // 28: MFI matching
@@ -84,6 +90,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/referrals/{referral:public_id}', [ReferralController::class, 'show'])->name('referrals.show');
     Route::post('/referrals/{referral:public_id}/consent', [ReferralController::class, 'consent'])->name('referrals.consent');
     Route::post('/referrals/{referral:public_id}/consent/withdraw', [ReferralController::class, 'withdrawConsent'])->name('referrals.consent.withdraw');
+    Route::put('/referrals/{referral:public_id}', [ReferralController::class, 'update'])->name('referrals.update');
+    Route::post('/referrals/{referral:public_id}/cancel', [ReferralController::class, 'cancel'])->name('referrals.cancel');
     Route::post('/referrals/{referral:public_id}/share', [ReferralController::class, 'share'])->name('referrals.share');
     Route::post('/referrals/{referral:public_id}/status', [ReferralController::class, 'updateStatus'])->name('referrals.status');
     Route::post('/referrals/{referral:public_id}/outcome', [ReferralController::class, 'recordOutcome'])->name('referrals.outcome');

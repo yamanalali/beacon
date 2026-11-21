@@ -47,7 +47,7 @@ class ReadinessAccess
         return $user?->permission('view', true) && self::hasRole($user, UserRole::MfiUser)
             && $user->mfi_institution_id !== null
             && (int) $user->mfi_institution_id === (int) $referral->mfi_institution_id
-            && $referral->status !== Referral::STATUS_DRAFT
+            && ! in_array($referral->status, [Referral::STATUS_DRAFT, Referral::STATUS_CANCELLED], true)
             && $referral->hasValidConsent();
     }
 

@@ -17,7 +17,7 @@ class NavigationPermissionsTest extends TestCase
     private const EXPECTED = [
         'sme_user' => ['dashboard.sme', 'enterprises', 'transactions', 'documents', 'reports', 'readiness', 'compliance', 'referrals', 'ai.assistant', 'ai.escalations', 'ai.knowledge', 'notifications', 'account', 'account.sessions'],
         'beacon_advisor' => ['dashboard.beacon', 'enterprises', 'ai.escalations', 'ai.knowledge', 'notifications', 'account', 'account.sessions'],
-        'beacon_admin' => ['dashboard.beacon', 'enterprises', 'ai.assistant', 'ai.escalations', 'ai.knowledge', 'notifications', 'admin', 'admin.users', 'admin.audit-logs', 'admin.compliance', 'admin.readiness', 'admin.mfis', 'admin.knowledge', 'operations.data-control', 'account', 'account.sessions'],
+        'beacon_admin' => ['dashboard.beacon', 'enterprises', 'ai.assistant', 'ai.escalations', 'ai.knowledge', 'notifications', 'admin', 'admin.users', 'admin.audit-logs', 'admin.compliance', 'admin.readiness', 'admin.mfis', 'admin.baseline-fields', 'admin.knowledge', 'operations.data-control', 'account', 'account.sessions'],
         'mfi_user' => ['mfi.referrals', 'notifications', 'account', 'account.sessions'],
         'technical_admin' => ['notifications', 'operations.security', 'operations.backups', 'operations.data-control', 'account', 'account.sessions'],
     ];

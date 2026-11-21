@@ -5,6 +5,7 @@ namespace App\Ai\Voice;
 use App\Ai\Contracts\AiProvider;
 use App\Ai\Support\AiDataGuard;
 use App\Enums\TransactionType;
+use App\Services\Bookkeeping\TransactionCategoryCatalog;
 use Throwable;
 
 /**
@@ -112,7 +113,7 @@ class VoiceDraftStructurer
 
         $category = isset($raw['category']) ? trim((string) $raw['category']) : null;
         if ($category !== null && $type !== null) {
-            $allowed = config('bookkeeping.categories.'.$type, []);
+            $allowed = app(TransactionCategoryCatalog::class)->forType($type);
             if (! is_array($allowed) || ! array_key_exists($category, $allowed)) {
                 $category = null;
             }

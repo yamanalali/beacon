@@ -1,11 +1,13 @@
 import { Link, router } from "@inertiajs/react";
-import { useMemo } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { DataTable, type Column, type Paginator } from "../../Components/Data/DataTable";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
 import { DocumentUploader } from "../../Components/Documents/DocumentUploader";
 import { ReceiptCapture } from "../../Components/Documents/ReceiptCapture";
+import { archiveDocument } from "../../Components/Documents/archiveDocument";
+import { TextInput } from "../../Components/Forms/TextInput";
 import { useT } from "../../Hooks/useT";
 import type { DocumentRow, EnterpriseRef } from "../../types/bookkeeping";
 
@@ -84,6 +86,26 @@ function useDocumentColumns(canExtract: boolean, t: ReturnType<typeof useT>): Co
                         <a className="btn btn-outline-secondary btn-sm" style={{ minHeight: "40px" }} href={`/documents/${doc.public_id}/download`}>
                             {t("common.download", undefined, "تنزيل")}
                         </a>
+                        {doc.can_archive ? (
+                            <button
+                                type="button"
+                                className="btn btn-outline-danger btn-sm"
+                                style={{ minHeight: "40px" }}
+                                onClick={() =>
+                                    archiveDocument(doc.public_id, {
+                                        confirm: t(
+                                            "documents.archive_confirm_short",
+                                            undefined,
+                                            "إخفاء هذا المستند من القائمة؟ الملف يبقى محفوظاً على الخادم.",
+                                        ),
+                                        reasonPrompt: t("documents.archive_reason_prompt", undefined, "سبب الإخفاء"),
+                                        reasonFallback: t("documents.archive_reason_default", undefined, "إخفاء من القائمة"),
+                                    })
+                                }
+                            >
+                                {t("documents.hide_button", undefined, "إخفاء")}
+                            </button>
+                        ) : null}
                     </div>
                 ),
             },
@@ -95,17 +117,29 @@ function useDocumentColumns(canExtract: boolean, t: ReturnType<typeof useT>): Co
 export default function Index({
     enterprise,
     documents,
+    filters = { search: "" },
     can_upload,
     can_extract,
 }: {
     enterprise: EnterpriseRef;
     documents: Paginator<DocumentRow>;
+    filters?: { search: string };
     can_upload: boolean;
     can_extract: boolean;
 }) {
     const t = useT();
     const columns = useDocumentColumns(can_extract, t);
     const pageTitle = t("documents.title", undefined, "المستندات");
+    const [search, setSearch] = useState(filters.search ?? "");
+
+    const submitSearch = (event: FormEvent) => {
+        event.preventDefault();
+        router.get(
+            `/enterprises/${enterprise.public_id}/documents`,
+            { search: search.trim() || undefined },
+            { preserveState: true, replace: true },
+        );
+    };
 
     return (
         <AppLayout title={pageTitle}>
@@ -138,12 +172,49 @@ export default function Index({
                     ) : null}
                     <div className={can_upload ? "col-12 col-lg-8" : "col-12"}>
                         <SectionCard title={t("documents.all_title", undefined, "كل المستندات")}>
+                            <form className="mb-3" onSubmit={submitSearch} role="search">
+                                <div className="d-flex flex-column flex-sm-row gap-2 align-items-stretch">
+                                    <div className="flex-grow-1">
+                                        <TextInput
+                                            id="documents-search"
+                                            name="search"
+                                            label={t("documents.search_label", undefined, "بحث في المستندات")}
+                                            value={search}
+                                            onChange={setSearch}
+                                            placeholder={t("documents.search_placeholder", undefined, "عنوان المستند أو اسم الملف")}
+                                        />
+                                    </div>
+                                    <div className="d-flex gap-2 align-items-end pb-3 pb-sm-0">
+                                        <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }}>
+                                            <i className="bi bi-search me-1" aria-hidden="true" />
+                                            {t("common.search", undefined, "بحث")}
+                                        </button>
+                                        {filters.search ? (
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline-secondary"
+                                                style={{ minHeight: "48px" }}
+                                                onClick={() => {
+                                                    setSearch("");
+                                                    router.get(`/enterprises/${enterprise.public_id}/documents`, {}, { preserveState: true, replace: true });
+                                                }}
+                                            >
+                                                {t("common.reset", undefined, "إعادة تعيين")}
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </form>
                             <DataTable
                                 caption={t("documents.all_title", undefined, "كل المستندات")}
                                 columns={columns}
                                 rowKey={(doc) => doc.public_id}
-                                emptyTitle={t("documents.empty_list", undefined, "لا توجد مستندات بعد")}
-                                server={{ paginator: documents, only: ["documents"] }}
+                                emptyTitle={
+                                    filters.search
+                                        ? t("documents.empty_search", undefined, "لا نتائج لهذا البحث")
+                                        : t("documents.empty_list", undefined, "لا توجد مستندات بعد")
+                                }
+                                server={{ paginator: documents, only: ["documents", "filters"] }}
                             />
                         </SectionCard>
                     </div>

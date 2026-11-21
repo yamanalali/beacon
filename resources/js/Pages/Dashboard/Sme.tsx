@@ -333,6 +333,20 @@ export default function Sme({
                     </section>
 
                     <aside className="sme-home__side" aria-label={t("dashboard.sme.compliance_readiness", undefined, "الامتثال والجاهزية")}>
+                        <section className="sme-shortcuts" aria-label={t("dashboard.sme.shortcuts", undefined, "اختصارات المنشأة")}>
+                            <Link href="/reports" className="sme-shortcut">
+                                <i className="bi bi-file-earmark-text" aria-hidden="true" />
+                                <span>{t("dashboard.sme.shortcut_reports", undefined, "التقارير المالية")}</span>
+                            </Link>
+                            <Link href="/documents" className="sme-shortcut">
+                                <i className="bi bi-folder2" aria-hidden="true" />
+                                <span>{t("dashboard.sme.shortcut_documents", undefined, "المستندات")}</span>
+                            </Link>
+                            <Link href={enterpriseHref ? `${enterpriseHref}/edit` : "#"} className="sme-shortcut">
+                                <i className="bi bi-building" aria-hidden="true" />
+                                <span>{t("dashboard.sme.shortcut_profile", undefined, "ملف منشأتي")}</span>
+                            </Link>
+                        </section>
                         <section className="sme-status">
                             <Link href={enterpriseHref ? `${enterpriseHref}/compliance` : "#"} className="sme-status__chip">
                                 <span className="sme-status__chip-label">{t("dashboard.sme.compliance", undefined, "الامتثال")}</span>

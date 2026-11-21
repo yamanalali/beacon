@@ -1,4 +1,4 @@
-import { Link, useForm, usePage } from "@inertiajs/react";
+import { Link, router, useForm, usePage } from "@inertiajs/react";
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import AppLayout from "../../Layouts/AppLayout";
 import { useT } from "../../Hooks/useT";
@@ -16,6 +16,9 @@ type Option = { id: number; name: string };
 type EnterpriseProfile = {
     public_id: string;
     business_name: string;
+    archived?: boolean;
+    archived_at?: string | null;
+    archive_reason?: string | null;
     sector: string | null;
     location: string | null;
     founding_date: string | null;
@@ -44,6 +47,10 @@ type Props = {
     advisor_options: Option[];
     member_options: Option[];
     can_assign: boolean;
+    can_archive?: boolean;
+    can_restore?: boolean;
+    can_detach_member?: boolean;
+    can_detach_advisor?: boolean;
 };
 type Tab = "overview" | "details" | "baseline" | "readiness" | "team";
 
@@ -78,7 +85,17 @@ function Field({
     );
 }
 
-function People({ people, empty }: { people: Person[]; empty: string }) {
+function People({
+    people,
+    empty,
+    onRemove,
+    removeLabel,
+}: {
+    people: Person[];
+    empty: string;
+    onRemove?: (person: Person) => void;
+    removeLabel?: string;
+}) {
     const t = useT();
     if (!people.length)
         return (
@@ -94,19 +111,31 @@ function People({ people, empty }: { people: Person[]; empty: string }) {
             aria-label={t("smes.show.people_list", undefined, "قائمة الأشخاص المرتبطين بالمنشأة")}
         >
             {people.map((person) => (
-                <li key={person.id}>
-                    <span
-                        className="enterprise-profile__person-avatar"
-                        aria-hidden="true"
-                    >
-                        {person.name.trim().charAt(0)}
+                <li key={person.id} className="d-flex align-items-center justify-content-between gap-2">
+                    <span className="d-flex align-items-center gap-2 min-w-0">
+                        <span
+                            className="enterprise-profile__person-avatar"
+                            aria-hidden="true"
+                        >
+                            {person.name.trim().charAt(0)}
+                        </span>
+                        <span className="min-w-0">
+                            <strong>{person.name}</strong>
+                            {person.email ? (
+                                <bdi dir="ltr">{person.email}</bdi>
+                            ) : null}
+                        </span>
                     </span>
-                    <span>
-                        <strong>{person.name}</strong>
-                        {person.email ? (
-                            <bdi dir="ltr">{person.email}</bdi>
-                        ) : null}
-                    </span>
+                    {onRemove ? (
+                        <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            style={{ minHeight: 44 }}
+                            onClick={() => onRemove(person)}
+                        >
+                            {removeLabel ?? t("common.remove", undefined, "إزالة")}
+                        </button>
+                    ) : null}
                 </li>
             ))}
         </ul>
@@ -122,6 +151,10 @@ export default function Show({
     advisor_options,
     member_options,
     can_assign,
+    can_archive = false,
+    can_restore = false,
+    can_detach_member = false,
+    can_detach_advisor = false,
 }: Props) {
     const t = useT();
     const baselineData: BaselinePayload = baseline ?? {
@@ -339,15 +372,47 @@ export default function Show({
                                 {t("smes.show.add_user", undefined, "إضافة مستخدم")}
                             </button>
                         ) : null}
-                        <Link
-                            href={`${base}/edit`}
-                            className="btn btn-primary enterprise-profile__edit"
-                        >
-                            <i className="bi bi-pencil-square" aria-hidden="true" />
-                            {t("smes.edit_title", undefined, "تعديل الملف")}
-                        </Link>
+                        {!enterprise.archived ? (
+                            <Link
+                                href={`${base}/edit`}
+                                className="btn btn-primary enterprise-profile__edit"
+                            >
+                                <i className="bi bi-pencil-square" aria-hidden="true" />
+                                {t("smes.edit_title", undefined, "تعديل الملف")}
+                            </Link>
+                        ) : null}
+                        {can_archive ? (
+                            <button
+                                type="button"
+                                className="btn btn-outline-danger enterprise-profile__edit"
+                                onClick={() => {
+                                    if (window.confirm(t("smes.show.archive_confirm", undefined, "هل تريد أرشفة هذه المنشأة؟ ستختفي من القائمة الافتراضية."))) {
+                                        router.post(`${base}/archive`);
+                                    }
+                                }}
+                            >
+                                <i className="bi bi-archive" aria-hidden="true" />
+                                {t("smes.show.archive", undefined, "أرشفة المنشأة")}
+                            </button>
+                        ) : null}
+                        {can_restore ? (
+                            <button
+                                type="button"
+                                className="btn btn-outline-primary enterprise-profile__edit"
+                                onClick={() => router.post(`${base}/restore`)}
+                            >
+                                <i className="bi bi-arrow-counterclockwise" aria-hidden="true" />
+                                {t("smes.show.restore", undefined, "استعادة المنشأة")}
+                            </button>
+                        ) : null}
                     </div>
                 </header>
+                {enterprise.archived ? (
+                    <div className="alert alert-warning" role="status">
+                        {t("smes.show.archived_banner", undefined, "هذه المنشأة مؤرشفة.")}
+                        {enterprise.archive_reason ? ` — ${enterprise.archive_reason}` : null}
+                    </div>
+                ) : null}
 
                 {flash?.success ? (
                     <div className="alert alert-success" role="status">
@@ -794,6 +859,24 @@ export default function Show({
                                             <People
                                                 people={members}
                                                 empty={t("smes.show.no_members", undefined, "لا يوجد مستخدم مرتبط بالمنشأة بعد.")}
+                                                onRemove={
+                                                    can_detach_member
+                                                        ? (person) => {
+                                                              if (
+                                                                  window.confirm(
+                                                                      t(
+                                                                          "smes.show.detach_member_confirm",
+                                                                          undefined,
+                                                                          "هل تريد إزالة هذا العضو من المنشأة؟",
+                                                                      ),
+                                                                  )
+                                                              ) {
+                                                                  router.delete(`${base}/members/${person.id}`);
+                                                              }
+                                                          }
+                                                        : undefined
+                                                }
+                                                removeLabel={t("smes.show.detach_member", undefined, "إزالة")}
                                             />
                                         ) : null}
 
@@ -942,6 +1025,24 @@ export default function Show({
                                             <People
                                                 people={assignments}
                                                 empty={t("smes.show.no_advisors", undefined, "لا يوجد مستشار معيّن للمنشأة بعد.")}
+                                                onRemove={
+                                                    can_detach_advisor
+                                                        ? (person) => {
+                                                              if (
+                                                                  window.confirm(
+                                                                      t(
+                                                                          "smes.show.detach_advisor_confirm",
+                                                                          undefined,
+                                                                          "هل تريد فك تعيين هذا المستشار؟",
+                                                                      ),
+                                                                  )
+                                                              ) {
+                                                                  router.delete(`${base}/advisors/${person.id}`);
+                                                              }
+                                                          }
+                                                        : undefined
+                                                }
+                                                removeLabel={t("smes.show.detach_advisor", undefined, "فك التعيين")}
                                             />
                                         ) : null}
                                         {can_assign ? (

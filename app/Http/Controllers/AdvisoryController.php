@@ -4,10 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Actions\Advisory\CompleteFollowUpAction;
 use App\Actions\Advisory\CreateFollowUpAction;
+use App\Actions\Advisory\DeleteAdvisoryActivityAction;
+use App\Actions\Advisory\DeleteFollowUpAction;
 use App\Actions\Advisory\RecordAdvisoryActivity;
+use App\Actions\Advisory\ReopenFollowUpAction;
+use App\Actions\Advisory\UpdateAdvisoryActivityAction;
+use App\Actions\Advisory\UpdateFollowUpAction;
 use App\Enums\UserRole;
 use App\Http\Requests\Advisory\StoreAdvisoryActivityRequest;
 use App\Http\Requests\Advisory\StoreFollowUpActionRequest;
+use App\Http\Requests\Advisory\UpdateAdvisoryActivityRequest;
+use App\Http\Requests\Advisory\UpdateFollowUpActionRequest;
 use App\Models\AdvisoryActivity;
 use App\Models\Enterprise;
 use App\Models\FollowUpAction;
@@ -105,5 +112,71 @@ class AdvisoryController extends Controller
         $completeFollowUpAction->execute($actor, $followUp);
 
         return redirect()->route('enterprises.advisory.index', $followUp->enterprise);
+    }
+
+    public function update(
+        UpdateAdvisoryActivityRequest $request,
+        AdvisoryActivity $activity,
+        UpdateAdvisoryActivityAction $updateAdvisoryActivityAction,
+    ): RedirectResponse {
+        $updateAdvisoryActivityAction->execute($request->user(), $activity, $request->validated());
+
+        return redirect()
+            ->route('enterprises.advisory.index', $activity->enterprise)
+            ->with('success', ui('flash.advisory_updated'));
+    }
+
+    public function destroy(
+        Request $request,
+        AdvisoryActivity $activity,
+        DeleteAdvisoryActivityAction $deleteAdvisoryActivityAction,
+    ): RedirectResponse {
+        $activity->loadMissing('enterprise');
+        $enterprise = $activity->enterprise;
+
+        $deleteAdvisoryActivityAction->execute($request->user(), $activity);
+
+        return redirect()
+            ->route('enterprises.advisory.index', $enterprise)
+            ->with('success', ui('flash.advisory_deleted'));
+    }
+
+    public function updateFollowUp(
+        UpdateFollowUpActionRequest $request,
+        FollowUpAction $followUp,
+        UpdateFollowUpAction $updateFollowUpAction,
+    ): RedirectResponse {
+        $updateFollowUpAction->execute($request->user(), $followUp, $request->validated());
+
+        return redirect()
+            ->route('enterprises.advisory.index', $followUp->enterprise)
+            ->with('success', ui('flash.follow_up_updated'));
+    }
+
+    public function destroyFollowUp(
+        Request $request,
+        FollowUpAction $followUp,
+        DeleteFollowUpAction $deleteFollowUpAction,
+    ): RedirectResponse {
+        $followUp->loadMissing('enterprise');
+        $enterprise = $followUp->enterprise;
+
+        $deleteFollowUpAction->execute($request->user(), $followUp);
+
+        return redirect()
+            ->route('enterprises.advisory.index', $enterprise)
+            ->with('success', ui('flash.follow_up_deleted'));
+    }
+
+    public function reopenFollowUp(
+        Request $request,
+        FollowUpAction $followUp,
+        ReopenFollowUpAction $reopenFollowUpAction,
+    ): RedirectResponse {
+        $reopenFollowUpAction->execute($request->user(), $followUp);
+
+        return redirect()
+            ->route('enterprises.advisory.index', $followUp->enterprise)
+            ->with('success', ui('flash.follow_up_reopened'));
     }
 }

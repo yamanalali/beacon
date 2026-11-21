@@ -26,4 +26,7 @@ Route::middleware('auth')->group(function () {
         ->name('transactions.correct');
     Route::post('/transactions/{transaction:public_id}/settlements', [TransactionController::class, 'storeSettlement'])
         ->name('transactions.settlements.store');
+    Route::post('/transactions/{transaction:public_id}/settlements/{settlement}/void', [TransactionController::class, 'voidSettlement'])
+        ->whereNumber('settlement')
+        ->name('transactions.settlements.void');
 });

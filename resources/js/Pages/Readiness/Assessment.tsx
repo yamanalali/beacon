@@ -35,6 +35,7 @@ type Props = {
     outcomes: Record<string, string>;
     people: { id: number; name: string }[];
     canEdit: boolean;
+    canVoid?: boolean;
     disclaimer: string;
 };
 
@@ -94,7 +95,7 @@ function ResultRow({ result, assessmentId, outcomes, people, canEdit }: { result
     );
 }
 
-export default function Assessment({ enterprise, assessment, evaluation, results, outcomes, people, canEdit, disclaimer, result = null, snapshot = null, snapshotHistory = [], canRecalculate = false }: Props) {
+export default function Assessment({ enterprise, assessment, evaluation, results, outcomes, people, canEdit, canVoid = false, disclaimer, result = null, snapshot = null, snapshotHistory = [], canRecalculate = false }: Props) {
     const t = useT();
     return (
         <AppLayout title={t("readiness.assessment_title", undefined, "تقييم الجاهزية")}>
@@ -154,10 +155,31 @@ export default function Assessment({ enterprise, assessment, evaluation, results
                 <div className="mt-3 d-flex flex-column gap-3">
                     {results.map((r) => <ResultRow key={r.id} result={r} assessmentId={assessment.public_id} outcomes={outcomes} people={people} canEdit={canEdit} />)}
                 </div>
-                {canEdit ? (
-                    <button type="button" className="btn btn-primary mt-3" style={{ minHeight: "48px" }} onClick={() => router.post(`/readiness-assessments/${assessment.public_id}/finalize`)}>
-                        {t("readiness.finalize_assessment", undefined, "اعتماد التقييم كنهائي")}
-                    </button>
+                {assessment.status === "voided" ? (
+                    <div className="alert alert-warning mt-3 mb-0" role="status">{t("readiness.voided_notice", undefined, "تم إبطال هذا التقييم. يبقى للاطلاع فقط ولا يمكن تعديله أو اعتماده.")}</div>
+                ) : null}
+                {canEdit || canVoid ? (
+                    <div className="d-flex flex-wrap gap-2 mt-3">
+                        {canEdit ? (
+                            <button type="button" className="btn btn-primary" style={{ minHeight: "48px" }} onClick={() => router.post(`/readiness-assessments/${assessment.public_id}/finalize`)}>
+                                {t("readiness.finalize_assessment", undefined, "اعتماد التقييم كنهائي")}
+                            </button>
+                        ) : null}
+                        {canVoid ? (
+                            <button
+                                type="button"
+                                className="btn btn-outline-danger"
+                                style={{ minHeight: "48px" }}
+                                onClick={() => {
+                                    if (window.confirm(t("readiness.void_confirm", undefined, "هل تريد إبطال مسودة التقييم هذه؟ لن تُحسب نتيجتها ولا يمكن التراجع."))) {
+                                        router.post(`/readiness-assessments/${assessment.public_id}/void`);
+                                    }
+                                }}
+                            >
+                                {t("readiness.void_assessment", undefined, "إبطال التقييم")}
+                            </button>
+                        ) : null}
+                    </div>
                 ) : null}
             </div>
         </AppLayout>

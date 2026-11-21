@@ -124,6 +124,40 @@ class ReadinessAdminController extends Controller
         return redirect()->route('admin.readiness.index');
     }
 
+    /** Only an unpublished draft may be deleted; published/retired sets are frozen history (section 26). */
+    public function destroy(Request $request, ReadinessRuleSet $ruleSet): RedirectResponse
+    {
+        $actor = $this->admin($request);
+        abort_if($ruleSet->status !== ReadinessRuleSet::STATUS_DRAFT, 422, 'يمكن حذف المسودات فقط. النسخ المعتمدة تُؤرشف ولا تُحذف.');
+        abort_if($ruleSet->assessments()->exists(), 422, 'لا يمكن حذف مسودة مرتبطة بتقييمات.');
+
+        DB::transaction(function () use ($ruleSet, $actor) {
+            $this->audit->record($actor, 'readiness.rule_set_deleted', $ruleSet, [
+                'version_number' => $ruleSet->version_number,
+                'name_ar' => $ruleSet->name_ar,
+                'criteria' => $ruleSet->criteria()->count(),
+            ]);
+            $ruleSet->criteria()->get()->each->delete();
+            $ruleSet->pillars()->get()->each->delete();
+            $ruleSet->bands()->get()->each->delete();
+            $ruleSet->delete();
+        });
+
+        return redirect()->route('admin.readiness.index')->with('success', ui('flash.readiness_draft_deleted'));
+    }
+
+    /** Published sets are never deleted; archiving (retired) keeps them for historical assessments. */
+    public function retire(Request $request, ReadinessRuleSet $ruleSet): RedirectResponse
+    {
+        $actor = $this->admin($request);
+        abort_if($ruleSet->status !== ReadinessRuleSet::STATUS_PUBLISHED, 422, 'يمكن أرشفة النسخ المعتمدة فقط.');
+
+        $ruleSet->update(['status' => ReadinessRuleSet::STATUS_RETIRED]);
+        $this->audit->record($actor, 'readiness.rule_set_retired', $ruleSet, ['version_number' => $ruleSet->version_number]);
+
+        return redirect()->route('admin.readiness.index');
+    }
+
     private function admin(Request $request)
     {
         abort_unless(ReadinessAccess::isAdmin($request->user()), 403);

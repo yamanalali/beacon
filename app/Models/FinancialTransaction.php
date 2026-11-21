@@ -63,7 +63,14 @@ class FinancialTransaction extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /** Active (non-voided) settlements only; every total and report uses this relation. */
     public function settlements(): HasMany
+    {
+        return $this->hasMany(TransactionSettlement::class)->whereNull('voided_at');
+    }
+
+    /** Active and voided settlements, for showing history. */
+    public function settlementHistory(): HasMany
     {
         return $this->hasMany(TransactionSettlement::class);
     }

@@ -20,6 +20,7 @@ function useDocumentActionLabels(t: ReturnType<typeof useT>): Record<string, str
             "document.downloaded": t("documents.history.downloaded", undefined, "تنزيل المستند"),
             "document.metadata_updated": t("documents.history.metadata_updated", undefined, "تعديل البيانات"),
             "document.archived": t("documents.history.archived", undefined, "أرشفة المستند"),
+            "document.unarchived": t("documents.history.unarchived", undefined, "استعادة المستند من الأرشيف"),
         }),
         [t],
     );
@@ -32,6 +33,7 @@ export default function Show({
     transactions,
     can_update,
     can_archive,
+    can_unarchive = false,
 }: {
     enterprise: EnterpriseRef;
     document: Detail;
@@ -39,11 +41,13 @@ export default function Show({
     transactions: { value: string; label: string }[];
     can_update: boolean;
     can_archive: boolean;
+    can_unarchive?: boolean;
 }) {
     const t = useT();
     const actionLabels = useDocumentActionLabels(t);
     const meta = useForm({ title: document.title, transaction: document.transaction_public_id ?? "" });
     const archive = useForm({ reason: "" });
+    const unarchive = useForm({});
 
     return (
         <AppLayout title={t("documents.show.title", undefined, "المستند")}>
@@ -57,6 +61,17 @@ export default function Show({
                 {document.is_archived ? (
                     <div className="alert alert-warning mb-0" role="status">
                         {t("documents.show.archived_notice", { date: document.archived_at ?? "", reason: document.archive_reason ?? "" }, `هذا المستند مؤرشف منذ ${document.archived_at}. السبب: ${document.archive_reason}`)}
+                        {can_unarchive ? (
+                            <button
+                                type="button"
+                                className="btn btn-primary d-block mt-2"
+                                style={{ minHeight: "48px" }}
+                                disabled={unarchive.processing}
+                                onClick={() => unarchive.post(`/documents/${document.public_id}/unarchive`)}
+                            >
+                                {t("documents.show.unarchive_button", undefined, "استعادة المستند من الأرشيف")}
+                            </button>
+                        ) : null}
                     </div>
                 ) : null}
                 <div className="row g-3">
@@ -99,12 +114,18 @@ export default function Show({
                             </SectionCard>
                         ) : null}
                         {can_archive ? (
-                            <SectionCard title={t("documents.show.archive_section", undefined, "أرشفة المستند")}>
-                                <p className="small">{t("documents.show.archive_hint", undefined, "سيختفي المستند من القوائم، لكن الملف يبقى محفوظاً ولا يُحذف.")}</p>
+                            <SectionCard title={t("documents.show.archive_section", undefined, "إخفاء / أرشفة المستند")}>
+                                <p className="small">
+                                    {t(
+                                        "documents.show.archive_hint",
+                                        undefined,
+                                        "سيختفي المستند من القوائم بعد الإخفاء، لكن الملف يبقى محفوظاً على الخادم ولا يُحذف نهائياً.",
+                                    )}
+                                </p>
                                 <form
                                     onSubmit={(event) => {
                                         event.preventDefault();
-                                        if (window.confirm(t("documents.show.archive_confirm", undefined, "هل تريد أرشفة هذا المستند؟"))) {
+                                        if (window.confirm(t("documents.show.archive_confirm", undefined, "هل تريد إخفاء هذا المستند من القائمة؟"))) {
                                             archive.post(`/documents/${document.public_id}/archive`);
                                         }
                                     }}
@@ -112,13 +133,13 @@ export default function Show({
                                     <TextInput
                                         id="reason"
                                         name="reason"
-                                        label={t("documents.show.archive_reason", undefined, "سبب الأرشفة")}
+                                        label={t("documents.show.archive_reason", undefined, "سبب الإخفاء")}
                                         value={archive.data.reason}
                                         onChange={(v) => archive.setData("reason", v)}
                                         error={archive.errors.reason}
                                     />
                                     <button type="submit" className="btn btn-outline-danger" style={{ minHeight: "48px" }} disabled={archive.processing}>
-                                        {t("documents.show.archive_button", undefined, "أرشفة المستند")}
+                                        {t("documents.show.archive_button", undefined, "إخفاء المستند")}
                                     </button>
                                 </form>
                             </SectionCard>

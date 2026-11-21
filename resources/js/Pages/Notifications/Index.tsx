@@ -35,17 +35,38 @@ export default function Index({ notifications, unread_count, filters, fetchImpl 
         } else setError(r.message);
     }
 
+    function markAllRead() {
+        setError(null);
+        router.post("/notifications/read-all", {}, { preserveScroll: true });
+    }
+
+    function remove(n: NotificationRow) {
+        if (!window.confirm(t("notifications.delete_confirm", undefined, "حذف هذا الإشعار؟"))) {
+            return;
+        }
+        setError(null);
+        router.delete(`/notifications/${n.id}`, { preserveScroll: true });
+    }
+
     return (
         <AppLayout title={t("notifications.title", undefined, "الإشعارات")}>
             <div className="app-page d-flex flex-column gap-3">
-                <PageHeader
-                    title={t("notifications.title", undefined, "الإشعارات")}
-                    description={
-                        unread > 0
-                            ? t("notifications.unread_description", { count: unread }, `لديك ${unread} إشعار غير مقروء.`)
-                            : t("notifications.all_read_description", undefined, "لا توجد إشعارات غير مقروءة.")
-                    }
-                />
+                <div className="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <PageHeader
+                        title={t("notifications.title", undefined, "الإشعارات")}
+                        description={
+                            unread > 0
+                                ? t("notifications.unread_description", { count: unread }, `لديك ${unread} إشعار غير مقروء.`)
+                                : t("notifications.all_read_description", undefined, "لا توجد إشعارات غير مقروءة.")
+                        }
+                    />
+                    {unread > 0 ? (
+                        <button type="button" className="btn btn-outline-primary" style={{ minHeight: "44px" }} onClick={markAllRead}>
+                            <i className="bi bi-check2-all me-2" aria-hidden="true" />
+                            {t("notifications.mark_all_read", undefined, "تعليم الكل كمقروء")}
+                        </button>
+                    ) : null}
+                </div>
                 <FilterChips
                     label={t("notifications.filter_label", undefined, "تصفية الإشعارات")}
                     current={filters.filter ?? null}
@@ -102,6 +123,9 @@ export default function Index({ notifications, unread_count, filters, fetchImpl 
                                                         {t("notifications.mark_read", undefined, "تعليم كمقروء")}
                                                     </button>
                                                 ) : null}
+                                                <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => remove(n)}>
+                                                    {t("notifications.delete", undefined, "حذف")}
+                                                </button>
                                             </div>
                                         </div>
                                     </li>

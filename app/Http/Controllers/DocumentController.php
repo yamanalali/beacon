@@ -6,6 +6,7 @@ use App\Actions\Audit\RecordAuditLog;
 use App\Actions\Bookkeeping\StartReceiptExtractionAction;
 use App\Actions\Documents\ArchiveDocumentAction;
 use App\Actions\Documents\StoreDocumentAction;
+use App\Actions\Documents\UnarchiveDocumentAction;
 use App\Actions\Documents\UpdateDocumentMetadataAction;
 use App\Ai\Support\PaginatedProps;
 use App\Http\Requests\Documents\StoreDocumentRequest;
@@ -17,6 +18,7 @@ use App\Navigation\PageAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,10 +38,19 @@ class DocumentController extends Controller
     {
         Gate::authorize('viewAny', [Document::class, $enterprise]);
 
+        $search = trim((string) $request->input('search', ''));
+
         $documents = Document::query()
             ->active()
             ->where('enterprise_id', $enterprise->id)
             ->with(['transaction:id,public_id', 'uploader:id,name'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $like = '%'.$search.'%';
+                $query->where(function ($inner) use ($like): void {
+                    $inner->where('title', 'like', $like)
+                        ->orWhere('original_name', 'like', $like);
+                });
+            })
             ->latest()
             ->latest('id')
             ->paginate(20)
@@ -52,6 +63,7 @@ class DocumentController extends Controller
                 'business_name' => $enterprise->business_name,
             ],
             'documents' => PaginatedProps::from($documents),
+            'filters' => ['search' => $search],
             'can_upload' => $request->user()->can('upload', [Document::class, $enterprise]),
             'can_extract' => $request->user()->can('create', [FinancialTransaction::class, $enterprise]),
         ]);
@@ -98,9 +110,29 @@ class DocumentController extends Controller
         Gate::authorize('view', $document);
         abort_unless($document->isPreviewable(), 404);
 
+        $disk = Storage::disk($document->disk);
+        abort_unless($disk->exists($document->path), 404);
+
+        // Refuse to stream a body that does not match the stored document type (avoids
+        // accidental script/HTML payloads in the preview tab). Details go to the log only.
+        $head = $disk->readStream($document->path);
+        abort_unless(is_resource($head), 404);
+        $bytes = fread($head, 64) ?: '';
+        if (is_resource($head)) {
+            fclose($head);
+        }
+        if ($this->looksLikeUnsafePreviewPayload($bytes, $document->mime_type)) {
+            Log::warning('document.preview.blocked_unsafe_payload', [
+                'document_id' => $document->id,
+                'public_id' => $document->public_id,
+                'mime_type' => $document->mime_type,
+            ]);
+            abort(404);
+        }
+
         $audit->record($request->user(), 'document.previewed', $document);
 
-        return Storage::disk($document->disk)->response($document->path, $this->safeName($document), [
+        return $disk->response($document->path, $this->safeName($document), [
             'Content-Type' => $document->mime_type,
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store',
@@ -162,6 +194,7 @@ class DocumentController extends Controller
             'transactions' => $transactions,
             'can_update' => $request->user()->can('update', $document),
             'can_archive' => ! $document->isArchived() && $request->user()->can('archive', $document),
+            'can_unarchive' => $request->user()->can('unarchive', $document),
         ]);
     }
 
@@ -198,14 +231,27 @@ class DocumentController extends Controller
         return redirect()->route('enterprises.documents.index', $document->enterprise)->with('success', ui('flash.document_archived'));
     }
 
+    public function unarchive(Request $request, Document $document, UnarchiveDocumentAction $action): RedirectResponse
+    {
+        $document->load('enterprise');
+        Gate::authorize('unarchive', $document);
+
+        $action->execute($request->user(), $document);
+
+        return redirect()->route('documents.show', $document)->with('success', ui('flash.document_unarchived'));
+    }
+
     /**
      * @return array<string, mixed>
      */
     public static function row(Document $document): array
     {
+        $user = request()->user();
+
         return [
             'public_id' => $document->public_id,
-            'can_download' => request()->user()?->permission('export', true) ?? false,
+            'can_download' => $user?->permission('export', true) ?? false,
+            'can_archive' => $user?->can('archive', $document) ?? false,
             'title' => $document->title,
             'mime_type' => $document->mime_type,
             'is_image' => str_starts_with($document->mime_type, 'image/'),
@@ -222,5 +268,36 @@ class DocumentController extends Controller
         $extension = pathinfo($document->path, PATHINFO_EXTENSION);
 
         return 'document-'.$document->public_id.($extension !== '' ? '.'.$extension : '');
+    }
+
+    /**
+     * Detect script/HTML bodies that must never be shown as a document preview.
+     */
+    private function looksLikeUnsafePreviewPayload(string $head, string $mimeType): bool
+    {
+        $trim = ltrim($head);
+        if ($trim === '') {
+            return true;
+        }
+
+        if (preg_match('/^(?:import\s|export\s|const\s|let\s|var\s|function\s|<!DOCTYPE|<html\b|<\?php)/i', $trim) === 1) {
+            return true;
+        }
+
+        if (str_starts_with($mimeType, 'image/')) {
+            $isImage = str_starts_with($head, "\xFF\xD8\xFF") // jpeg
+                || str_starts_with($head, "\x89PNG\r\n\x1A\n") // png
+                || str_starts_with($head, 'GIF87a')
+                || str_starts_with($head, 'GIF89a')
+                || str_starts_with($head, 'RIFF'); // webp container
+
+            return ! $isImage;
+        }
+
+        if ($mimeType === 'application/pdf') {
+            return ! str_starts_with($trim, '%PDF');
+        }
+
+        return false;
     }
 }

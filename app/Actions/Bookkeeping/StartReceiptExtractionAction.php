@@ -12,6 +12,7 @@ use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
 use App\Models\User;
 use App\Services\Ai\ReceiptExtractionResult;
+use App\Services\Bookkeeping\TransactionCategoryCatalog;
 use App\Support\Currencies;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -118,7 +119,7 @@ class StartReceiptExtractionAction
             $extraction->suggested_category = $extraction->suggested_transaction_type !== null
                 ? $this->textCategorizer->suggest(
                     trim(($result->rawText ?? '')."\n".($extraction->suggested_counterparty ?? '')),
-                    config('bookkeeping.categories.'.$extraction->suggested_transaction_type, []),
+                    app(TransactionCategoryCatalog::class)->forType((string) $extraction->suggested_transaction_type),
                 )?->category
                 : null;
             $extraction->confidence = $result->confidence;

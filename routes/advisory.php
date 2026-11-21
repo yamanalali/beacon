@@ -15,4 +15,16 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/follow-ups/{followUp}/complete', [AdvisoryController::class, 'complete'])
         ->name('follow-ups.complete');
+
+    Route::put('/follow-ups/{followUp}', [AdvisoryController::class, 'updateFollowUp'])
+        ->name('follow-ups.update');
+    Route::delete('/follow-ups/{followUp}', [AdvisoryController::class, 'destroyFollowUp'])
+        ->name('follow-ups.destroy');
+    Route::post('/follow-ups/{followUp}/reopen', [AdvisoryController::class, 'reopenFollowUp'])
+        ->name('follow-ups.reopen');
+
+    Route::put('/advisory-activities/{activity}', [AdvisoryController::class, 'update'])
+        ->name('advisory-activities.update');
+    Route::delete('/advisory-activities/{activity}', [AdvisoryController::class, 'destroy'])
+        ->name('advisory-activities.destroy');
 });

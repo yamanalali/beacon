@@ -45,6 +45,12 @@ class TransactionPolicy
         return $this->correct($user, $transaction);
     }
 
+    /** Voiding a payment follows the same rule as recording one. */
+    public function voidSettlement(User $user, FinancialTransaction $transaction): bool
+    {
+        return $this->settle($user, $transaction);
+    }
+
     public function export(User $user, Enterprise $enterprise): bool
     {
         return $user->permission('export', true) && $this->viewAny($user, $enterprise);

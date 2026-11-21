@@ -136,7 +136,8 @@ class ReadinessAssessmentController extends Controller
             ]),
             'outcomes' => ReadinessAssessmentResult::OUTCOMES,
             'people' => $people,
-            'canEdit' => ! $assessment->isFinalized() && ReadinessAccess::canManageEnterprise($request->user(), $enterprise),
+            'canEdit' => ! $assessment->isFinalized() && ! $assessment->isVoided() && ReadinessAccess::canManageEnterprise($request->user(), $enterprise),
+            'canVoid' => $assessment->status === ReadinessAssessment::STATUS_DRAFT && ReadinessAccess::canManageEnterprise($request->user(), $enterprise),
             'disclaimer' => 'نتيجة الجاهزية أداة لدعم العمل الاستشاري وتحضير الإحالة، وليست موافقة على التمويل.',
         ]);
     }
@@ -147,7 +148,7 @@ class ReadinessAssessmentController extends Controller
         $enterprise = $assessment->enterprise;
         abort_unless(ReadinessAccess::canManageEnterprise($actor, $enterprise), 403);
         abort_if((int) $result->readiness_assessment_id !== (int) $assessment->id, 404);
-        abort_if($assessment->isFinalized(), 422, 'التقييم نهائي ولا يمكن تعديله.');
+        abort_if($assessment->isFinalized() || $assessment->isVoided(), 422, 'التقييم نهائي أو مُبطل ولا يمكن تعديله.');
 
         $allowedPeople = $enterprise->members()->pluck('users.id')->merge($enterprise->advisors()->pluck('users.id'))->all();
         $data = $request->validate([
@@ -170,6 +171,7 @@ class ReadinessAssessmentController extends Controller
         $actor = $request->user();
         abort_unless(ReadinessAccess::canManageEnterprise($actor, $assessment->enterprise), 403);
         abort_if($assessment->isFinalized(), 422, 'التقييم نهائي مسبقاً.');
+        abort_if($assessment->isVoided(), 422, 'التقييم مُبطل ولا يمكن اعتماده.');
 
         $evaluation = $this->scorer->evaluate($assessment);
         $assessment->update([
@@ -201,6 +203,19 @@ class ReadinessAssessmentController extends Controller
         $this->snapshots->recalculate($assessment, $actor, $data['reason'] ?? null);
 
         return redirect()->route('readiness-assessments.show', $assessment);
+    }
+
+    /** Voids a draft assessment (kept for history, never scored, never usable in a referral). Finalized assessments are frozen. */
+    public function void(Request $request, ReadinessAssessment $assessment): RedirectResponse
+    {
+        $actor = $request->user();
+        abort_unless(ReadinessAccess::canManageEnterprise($actor, $assessment->enterprise), 403);
+        abort_unless($assessment->status === ReadinessAssessment::STATUS_DRAFT, 422, 'يمكن إبطال مسودات التقييم فقط. التقييمات النهائية مجمّدة.');
+
+        $assessment->update(['status' => ReadinessAssessment::STATUS_VOIDED]);
+        $this->audit->record($actor, 'readiness.assessment_voided', $assessment, ['enterprise' => $assessment->enterprise->public_id, 'rule_set_version' => $assessment->ruleSet->version_number]);
+
+        return redirect()->route('enterprises.readiness.index', $assessment->enterprise)->with('success', ui('flash.readiness_assessment_voided'));
     }
 
     /** @return array{0:string,1:int|null} */

@@ -28,8 +28,8 @@ class ReadinessAssessmentResult extends Model
     protected static function booted(): void
     {
         static::updating(function (ReadinessAssessmentResult $result): void {
-            if ($result->assessment()->value('status') === ReadinessAssessment::STATUS_FINALIZED) {
-                throw new LogicException('التقييم نهائي ولا يمكن تعديله.');
+            if (in_array($result->assessment()->value('status'), [ReadinessAssessment::STATUS_FINALIZED, ReadinessAssessment::STATUS_VOIDED], true)) {
+                throw new LogicException('التقييم نهائي أو مُبطل ولا يمكن تعديله.');
             }
         });
     }

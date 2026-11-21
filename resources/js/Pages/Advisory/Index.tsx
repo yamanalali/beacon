@@ -1,4 +1,6 @@
 import { router, useForm } from "@inertiajs/react";
+import { useState } from "react";
+import { ActivityEditForm, FollowUpEditForm } from "../../Components/Advisory/RecordEditForms";
 import AppLayout from "../../Layouts/AppLayout";
 import { useT } from "../../Hooks/useT";
 import { PageHeader } from "../../Components/Common/PageHeader";
@@ -49,6 +51,85 @@ function RecordStatusBadge({ status, label }: { status: RecordStatus; label: str
 
 export default function Index({ enterprise, canRecord, activities, followUps }: AdvisoryPageProps) {
     const t = useT();
+    const [editingActivity, setEditingActivity] = useState<ActivityRow | null>(null);
+    const [editingFollowUp, setEditingFollowUp] = useState<FollowUpRow | null>(null);
+
+    const deleteActivity = (activity: ActivityRow) => {
+        if (!window.confirm(t("advisory.delete_activity_confirm", undefined, "حذف هذا النشاط الإرشادي؟ ستبقى إجراءات المتابعة المرتبطة به."))) {
+            return;
+        }
+        router.delete(`/advisory-activities/${activity.id}`, { preserveScroll: true });
+    };
+
+    const deleteFollowUp = (followUp: FollowUpRow) => {
+        if (!window.confirm(t("advisory.delete_follow_up_confirm", undefined, "حذف إجراء المتابعة هذا؟"))) {
+            return;
+        }
+        router.delete(`/follow-ups/${followUp.id}`, { preserveScroll: true });
+    };
+
+    const reopenFollowUp = (followUp: FollowUpRow) => {
+        router.post(`/follow-ups/${followUp.id}/reopen`, {}, { preserveScroll: true });
+    };
+
+    const activityActions = (activity: ActivityRow) =>
+        canRecord ? (
+            <div className="d-flex flex-wrap gap-2">
+                <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    style={{ minHeight: "44px" }}
+                    onClick={() => {
+                        setEditingFollowUp(null);
+                        setEditingActivity(activity);
+                    }}
+                >
+                    {t("common.edit", undefined, "تعديل")}
+                </button>
+                <button type="button" className="btn btn-outline-danger" style={{ minHeight: "44px" }} onClick={() => deleteActivity(activity)}>
+                    {t("common.delete", undefined, "حذف")}
+                </button>
+            </div>
+        ) : null;
+
+    const followUpActions = (followUp: FollowUpRow, minHeight: string) => (
+        <div className="d-flex flex-wrap gap-2">
+            {followUp.can_complete && followUp.status === "open" ? (
+                <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    style={{ minHeight }}
+                    onClick={() => completeFollowUp(followUp.id)}
+                >
+                    {t("advisory.confirm_follow_up", undefined, "تأكيد إنجاز الإجراء")}
+                </button>
+            ) : null}
+            {canRecord && followUp.status === "open" ? (
+                <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    style={{ minHeight }}
+                    onClick={() => {
+                        setEditingActivity(null);
+                        setEditingFollowUp(followUp);
+                    }}
+                >
+                    {t("common.edit", undefined, "تعديل")}
+                </button>
+            ) : null}
+            {canRecord && followUp.status === "completed" ? (
+                <button type="button" className="btn btn-outline-secondary" style={{ minHeight }} onClick={() => reopenFollowUp(followUp)}>
+                    {t("advisory.reopen_follow_up", undefined, "إعادة فتح الإجراء")}
+                </button>
+            ) : null}
+            {canRecord ? (
+                <button type="button" className="btn btn-outline-danger" style={{ minHeight }} onClick={() => deleteFollowUp(followUp)}>
+                    {t("common.delete", undefined, "حذف")}
+                </button>
+            ) : null}
+        </div>
+    );
+
     const form = useForm({
         activity_date: "",
         notes: "",
@@ -134,6 +215,18 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                     </SectionCard>
                 ) : null}
 
+                {canRecord && editingActivity ? (
+                    <div className="mt-4">
+                        <ActivityEditForm key={editingActivity.id} activity={editingActivity} onClose={() => setEditingActivity(null)} />
+                    </div>
+                ) : null}
+
+                {canRecord && editingFollowUp ? (
+                    <div className="mt-4">
+                        <FollowUpEditForm key={editingFollowUp.id} followUp={editingFollowUp} onClose={() => setEditingFollowUp(null)} />
+                    </div>
+                ) : null}
+
                 <div className="mt-4">
                     <h2 className="h5 mb-3">{t("advisory.activities", undefined, "الأنشطة")}</h2>
                     {activities.length === 0 ? (
@@ -151,7 +244,8 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                         {activity.responsible_name ? (
                                             <p className="mb-1">{t("advisory.responsible", undefined, "المسؤول")}: {activity.responsible_name}</p>
                                         ) : null}
-                                        {activity.target_date ? <p className="mb-0">{t("advisory.target_date", undefined, "التاريخ المستهدف")}: {activity.target_date}</p> : null}
+                                        {activity.target_date ? <p className="mb-2">{t("advisory.target_date", undefined, "التاريخ المستهدف")}: {activity.target_date}</p> : null}
+                                        {activityActions(activity)}
                                     </article>
                                 ))}
                             </div>
@@ -164,6 +258,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                             <th>{t("advisory.responsible", undefined, "المسؤول")}</th>
                                             <th>{t("advisory.target_date", undefined, "التاريخ المستهدف")}</th>
                                             <th>{t("common.status", undefined, "الحالة")}</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -176,6 +271,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                                 <td>
                                                     <RecordStatusBadge status={activity.status} label={activity.status_label} />
                                                 </td>
+                                                <td>{activityActions(activity)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -204,16 +300,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                         {followUp.target_date ? (
                                             <p className="mb-2">{t("advisory.target_date", undefined, "التاريخ المستهدف")}: {followUp.target_date}</p>
                                         ) : null}
-                                        {followUp.can_complete && followUp.status === "open" ? (
-                                            <button
-                                                type="button"
-                                                className="btn btn-outline-primary"
-                                                style={{ minHeight: "48px" }}
-                                                onClick={() => completeFollowUp(followUp.id)}
-                                            >
-                                                {t("advisory.confirm_follow_up", undefined, "تأكيد إنجاز الإجراء")}
-                                            </button>
-                                        ) : null}
+                                        {followUpActions(followUp, "48px")}
                                     </article>
                                 ))}
                             </div>
@@ -237,18 +324,7 @@ export default function Index({ enterprise, canRecord, activities, followUps }: 
                                                 <td>
                                                     <RecordStatusBadge status={followUp.status} label={followUp.status_label} />
                                                 </td>
-                                                <td>
-                                                    {followUp.can_complete && followUp.status === "open" ? (
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-outline-primary"
-                                                            style={{ minHeight: "44px" }}
-                                                            onClick={() => completeFollowUp(followUp.id)}
-                                                        >
-                                                            {t("advisory.confirm_follow_up", undefined, "تأكيد إنجاز الإجراء")}
-                                                        </button>
-                                                    ) : null}
-                                                </td>
+                                                <td>{followUpActions(followUp, "44px")}</td>
                                             </tr>
                                         ))}
                                     </tbody>

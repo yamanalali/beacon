@@ -46,6 +46,7 @@ export default function Index({ stats, roles }: Props) {
     const settings = useMemo(
         () => [
             { href: "/admin/currencies", label: t("admin.index.setting.currencies", undefined, "العملات والعملة الافتراضية"), icon: "bi-currency-exchange" },
+            { href: "/admin/categories", label: t("admin.index.setting.categories", undefined, "تصنيفات العمليات"), icon: "bi-tags" },
             { href: "/admin/invitations", label: t("admin.index.setting.invitations", undefined, "دعوات المستخدمين"), icon: "bi-person-plus" },
             { href: "/admin/compliance", label: t("admin.index.setting.compliance", undefined, "متطلبات الامتثال وإصداراتها"), icon: "bi-patch-check" },
             { href: "/admin/readiness", label: t("admin.index.setting.readiness", undefined, "معايير الجاهزية وإصداراتها"), icon: "bi-sliders" },

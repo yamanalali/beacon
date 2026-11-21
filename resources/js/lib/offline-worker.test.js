@@ -54,6 +54,9 @@ it('only queues supported business writes and never auth, sharing or approval op
     expect(cacheable('/account/two-factor')).toBe(false);
     expect(cacheable('/invitations/secret')).toBe(false);
     expect(cacheable('/offline/session')).toBe(false);
+    expect(cacheable('/documents/D/preview')).toBe(false);
+    expect(cacheable('/documents/D/download')).toBe(false);
+    expect(cacheable('/enterprises/E/reports/export/csv')).toBe(false);
 });
 it.each([[401, 'auth'], [419, 'auth'], [409, 'review'], [422, 'review'], [403, 'review'], [503, 'pending']])('pauses or reviews HTTP %i', (status, state) => expect(syncState(status)).toBe(state));
 const tx = (overrides = {}) => ({ status: 'posted', type: 'sale', category: 'general', amount: '100.30', currency: 'USD', date: '2026-10-02', counterparty: 'Shop', settlements: [{ date: '2026-10-03', amount: '40.10' }], ...overrides });

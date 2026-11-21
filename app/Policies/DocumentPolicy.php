@@ -52,4 +52,16 @@ class DocumentPolicy
 
         return in_array($user->role, [UserRole::SmeUser, UserRole::BeaconAdmin], true);
     }
+
+    /**
+     * Restore from archive: same people who may archive, only while archived.
+     */
+    public function unarchive(User $user, Document $document): bool
+    {
+        if (! $document->isArchived() || ! $user->isActive() || ! $user->can('view', $document->enterprise)) {
+            return false;
+        }
+
+        return in_array($user->role, [UserRole::SmeUser, UserRole::BeaconAdmin], true);
+    }
 }

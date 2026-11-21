@@ -76,11 +76,12 @@ class SmeDashboardData
             ->orderByDesc('finalized_at')->orderByDesc('id')
             ->first();
 
-        $referral = Referral::query()->where('enterprise_id', $enterprise->id)
+        $referral = Referral::query()->where('enterprise_id', $enterprise->id)->where('status', '!=', Referral::STATUS_CANCELLED)
             ->orderByDesc('id')->first();
 
-        $recentRows = $recent->map(function (FinancialTransaction $t) {
-            $labels = config('bookkeeping.categories.'.$t->type->value, []);
+        $categoryCatalog = app(\App\Services\Bookkeeping\TransactionCategoryCatalog::class);
+        $recentRows = $recent->map(function (FinancialTransaction $t) use ($categoryCatalog) {
+            $labels = $categoryCatalog->labelsForType($t->type->value);
 
             return [
                 'public_id' => $t->public_id,

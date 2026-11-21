@@ -89,7 +89,8 @@ export type ReferralStatus =
     | "under_review"
     | "info_requested"
     | "decided"
-    | "outcome_recorded";
+    | "outcome_recorded"
+    | "cancelled";
 
 export type BeaconProgrammeData = {
     scope: "all" | "assigned";

@@ -18,6 +18,7 @@ class Referral extends Model
     public const STATUS_INFO_REQUESTED = 'info_requested';
     public const STATUS_DECIDED = 'decided';
     public const STATUS_OUTCOME_RECORDED = 'outcome_recorded';
+    public const STATUS_CANCELLED = 'cancelled';
 
     public const STATUS_LABELS = [
         'draft' => 'قيد التحضير',
@@ -26,6 +27,7 @@ class Referral extends Model
         'info_requested' => 'طُلبت معلومات إضافية',
         'decided' => 'صدر القرار',
         'outcome_recorded' => 'سُجّلت نتيجة التمويل',
+        'cancelled' => 'أُلغيت قبل المشاركة',
     ];
 
     /** Allowed MFI-side transitions. */

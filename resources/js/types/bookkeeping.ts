@@ -64,6 +64,7 @@ export type EnterpriseRef = { public_id: string; business_name: string };
 
 export type DocumentRow = {
     can_download?: boolean;
+    can_archive?: boolean;
     public_id: string;
     title: string;
     mime_type: string;

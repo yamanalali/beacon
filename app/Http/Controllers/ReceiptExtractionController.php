@@ -17,6 +17,7 @@ use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
 use App\Services\Ai\CategorySuggestion;
+use App\Services\Bookkeeping\TransactionCategoryCatalog;
 use App\Support\Currencies;
 use App\Support\SuggestedDateWarning;
 use Illuminate\Http\RedirectResponse;
@@ -77,7 +78,8 @@ class ReceiptExtractionController extends Controller
         // Category list follows the chosen type: explicit ?type= wins, else the suggestion.
         $type = $request->string('type')->toString() ?: ($suggestedType ?? 'expense');
         $type = TransactionType::tryFrom($type)?->value ?? 'expense';
-        $allowed = config('bookkeeping.categories.'.$type, []);
+        $categoryCatalog = app(TransactionCategoryCatalog::class);
+        $allowed = $categoryCatalog->forType($type);
 
         $suggestion = $extraction->status === ExtractionStatus::PendingReview
             // Receipt-text suggestion (computed at extraction) first; bound categorizer as fallback.
@@ -136,7 +138,7 @@ class ReceiptExtractionController extends Controller
                 'payment_statuses' => collect(PaymentStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->all(),
                 'currencies' => collect(app(Currencies::class)->enabled())->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all(),
                 'default_currency' => app(Currencies::class)->default(),
-                'categories' => collect(config('bookkeeping.categories'))->map(fn ($items) => collect($items)->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all())->all(),
+                'categories' => $categoryCatalog->options(),
             ],
             'can_review' => $extraction->status === ExtractionStatus::PendingReview
                 && $request->user()->can('create', [FinancialTransaction::class, $extraction->enterprise]),

@@ -55,15 +55,9 @@ class ReferralController extends Controller
         abort_unless(ReadinessAccess::canManageEnterprise($actor, $enterprise), 403);
         $data = $request->validate([
             'mfi_institution_id' => ['required', 'integer', Rule::exists('mfi_institutions', 'id')->where('is_active', true)],
-            'purpose_ar' => ['required', 'string', 'max:2000'],
-            'disclosed_items' => ['required', 'array', 'min:1'],
-            'disclosed_items.*' => ['string', Rule::in(array_keys(config('readiness.disclosable_items')))],
-            'readiness_assessment_id' => ['nullable', 'integer', Rule::exists('readiness_assessments', 'id')
-                ->where('enterprise_id', $enterprise->id)->where('status', ReadinessAssessment::STATUS_FINALIZED)],
+            ...$this->draftFieldRules($enterprise),
         ]);
-        if (in_array('readiness_assessment', $data['disclosed_items'], true) && empty($data['readiness_assessment_id'])) {
-            throw ValidationException::withMessages(['readiness_assessment_id' => 'اختر تقييم جاهزية نهائياً لمشاركته.']);
-        }
+        $this->assertAssessmentSelected($data);
 
         $referral = DB::transaction(function () use ($data, $enterprise, $actor) {
             $referral = new Referral([
@@ -82,6 +76,67 @@ class ReferralController extends Controller
         });
 
         return redirect()->route('referrals.show', $referral);
+    }
+
+    /** Draft-only edit of purpose, disclosed items and the shared assessment. The institution is fixed (consent is bound to it). */
+    public function update(Request $request, Referral $referral): RedirectResponse
+    {
+        $actor = $request->user();
+        abort_unless(ReadinessAccess::canManageEnterprise($actor, $referral->enterprise), 403);
+        abort_if($referral->status !== Referral::STATUS_DRAFT, 422, 'لا يمكن تعديل إحالة بعد مشاركتها أو إلغائها.');
+        abort_if($referral->activeConsent() !== null, 422, 'اسحب الموافقة الحالية قبل تعديل الإحالة ثم أعد طلب الموافقة.');
+        $data = $request->validate($this->draftFieldRules($referral->enterprise));
+        $this->assertAssessmentSelected($data);
+
+        $fields = [
+            'purpose_ar' => $data['purpose_ar'],
+            'disclosed_items' => array_values(array_unique($data['disclosed_items'])),
+            'readiness_assessment_id' => in_array('readiness_assessment', $data['disclosed_items'], true) ? ($data['readiness_assessment_id'] ?? null) : null,
+        ];
+        $before = $referral->only(array_keys($fields));
+        $referral->update($fields);
+        $this->audit->record($actor, 'referral.updated', $referral, ['before' => $before, 'after' => $fields]);
+
+        return redirect()->route('referrals.show', $referral)->with('success', ui('flash.referral_updated'));
+    }
+
+    /** Cancels a referral that was never shared. Any pending consent is withdrawn so it cannot be reused. */
+    public function cancel(Request $request, Referral $referral): RedirectResponse
+    {
+        $actor = $request->user();
+        abort_unless(ReadinessAccess::canManageEnterprise($actor, $referral->enterprise), 403);
+        abort_if($referral->status !== Referral::STATUS_DRAFT, 422, 'لا يمكن إلغاء إحالة بعد مشاركتها.');
+
+        DB::transaction(function () use ($referral, $actor) {
+            if ($consent = $referral->activeConsent()) {
+                $consent->update(['status' => ReferralConsent::STATUS_WITHDRAWN, 'withdrawn_by' => $actor->id, 'withdrawn_at' => now()]);
+                $this->audit->record($actor, 'consent.withdrawn', $consent, ['referral' => $referral->public_id, 'institution_id' => $referral->mfi_institution_id, 'reason' => 'referral_cancelled']);
+            }
+            $this->transition($referral, Referral::STATUS_CANCELLED, $actor->id, null);
+            $this->audit->record($actor, 'referral.cancelled', $referral, ['institution_id' => $referral->mfi_institution_id]);
+        });
+
+        return redirect()->route('enterprises.referrals.index', $referral->enterprise)->with('success', ui('flash.referral_cancelled'));
+    }
+
+    /** @return array<string, mixed> */
+    private function draftFieldRules(Enterprise $enterprise): array
+    {
+        return [
+            'purpose_ar' => ['required', 'string', 'max:2000'],
+            'disclosed_items' => ['required', 'array', 'min:1'],
+            'disclosed_items.*' => ['string', Rule::in(array_keys(config('readiness.disclosable_items')))],
+            'readiness_assessment_id' => ['nullable', 'integer', Rule::exists('readiness_assessments', 'id')
+                ->where('enterprise_id', $enterprise->id)->where('status', ReadinessAssessment::STATUS_FINALIZED)],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function assertAssessmentSelected(array $data): void
+    {
+        if (in_array('readiness_assessment', $data['disclosed_items'], true) && empty($data['readiness_assessment_id'])) {
+            throw ValidationException::withMessages(['readiness_assessment_id' => 'اختر تقييم جاهزية نهائياً لمشاركته.']);
+        }
     }
 
     public function show(Request $request, Referral $referral, ReferralPackageBuilder $builder): Response
@@ -105,6 +160,7 @@ class ReferralController extends Controller
                 'info_request_note' => $referral->info_request_note,
                 'decision_note' => $referral->decision_note,
                 'outcome_note' => $referral->outcome_note,
+                'readiness_assessment_id' => $canManage ? $referral->readiness_assessment_id : null,
             ],
             'package' => ($isMfi || $canManage || $isMember) ? $builder->build($referral) : [],
             'consent' => [
@@ -128,9 +184,17 @@ class ReferralController extends Controller
                 'consent' => $isMember && $active === null && $referral->status === Referral::STATUS_DRAFT,
                 'withdraw' => $isMember && $active !== null,
                 'share' => $canManage && $referral->status === Referral::STATUS_DRAFT && $referral->hasValidConsent(),
+                'update' => $canManage && $referral->status === Referral::STATUS_DRAFT && $active === null,
+                'cancel' => $canManage && $referral->status === Referral::STATUS_DRAFT,
                 'mfi_transitions' => $isMfi ? (Referral::MFI_TRANSITIONS[$referral->status] ?? []) : [],
                 'record_outcome' => ($isMfi || $canManage) && $referral->status === Referral::STATUS_DECIDED,
             ],
+            'edit' => $canManage && $referral->status === Referral::STATUS_DRAFT && $active === null ? [
+                'disclosableItems' => config('readiness.disclosable_items'),
+                'assessments' => ReadinessAssessment::query()->where('enterprise_id', $referral->enterprise_id)->where('status', ReadinessAssessment::STATUS_FINALIZED)
+                    ->with('currentSnapshot')->orderByDesc('id')->get(['id', 'public_id', 'score', 'finalized_at'])
+                    ->map(fn (ReadinessAssessment $a) => ['id' => $a->id, 'public_id' => $a->public_id, 'score' => $a->frozenScore(), 'finalized_at' => $a->finalized_at?->toDateString()]),
+            ] : null,
             'statusLabels' => Referral::STATUS_LABELS,
         ]);
     }
@@ -230,7 +294,7 @@ class ReferralController extends Controller
         abort_unless(Gate::forUser($user)->allows(PageAccess::MFI_REFERRAL_INBOX), 403);
 
         $referrals = Referral::query()->where('mfi_institution_id', $user->mfi_institution_id)
-            ->where('status', '!=', Referral::STATUS_DRAFT)->with(['institution:id,name_ar', 'enterprise:id,business_name'])->orderByDesc('shared_at')->get()
+            ->whereNotIn('status', [Referral::STATUS_DRAFT, Referral::STATUS_CANCELLED])->with(['institution:id,name_ar', 'enterprise:id,business_name'])->orderByDesc('shared_at')->get()
             ->filter(fn (Referral $r) => ReadinessAccess::mfiCanViewReferral($user, $r))
             ->map(fn (Referral $r) => $this->summary($r) + ['enterprise_name' => in_array('enterprise_profile', $r->disclosed_items ?? [], true) ? $r->enterprise->business_name : null])
             ->values();

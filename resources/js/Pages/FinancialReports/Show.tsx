@@ -1,7 +1,7 @@
 import { usePage } from "@inertiajs/react";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { Link, router } from "@inertiajs/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppLayout from "../../Layouts/AppLayout";
 import { PageHeader } from "../../Components/Common/PageHeader";
 import { SectionCard } from "../../Components/Common/SectionCard";
@@ -53,14 +53,33 @@ export default function Show({
         const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `offline-${report.key}-${filters.from}-${filters.to}.csv`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     };
     const [values, setValues] = useState<Filters>(filters);
+    const [reportSearch, setReportSearch] = useState("");
     const base = `/enterprises/${enterprise.public_id}/reports`;
     const query = new URLSearchParams(filters).toString();
+    const filteredReports = useMemo(() => {
+        const q = reportSearch.trim().toLowerCase();
+        if (!q) {
+            return reports;
+        }
+        return reports.filter(
+            (option) => option.label.toLowerCase().includes(q) || option.value.toLowerCase().includes(q),
+        );
+    }, [reports, reportSearch]);
 
     useEffect(() => {
         if (print && can_export) {
             window.print();
         }
     }, [print, can_export]);
+
+    useEffect(() => {
+        if (filteredReports.length === 0) {
+            return;
+        }
+        if (!filteredReports.some((option) => option.value === values.report)) {
+            setValues((current) => ({ ...current, report: filteredReports[0].value }));
+        }
+    }, [filteredReports, values.report]);
 
     return (
         <AppLayout title={t("reports.title", undefined, "التقارير")}>
@@ -77,13 +96,28 @@ export default function Show({
                         >
                             <div className="row g-2">
                                 <div className="col-12 col-lg-4">
+                                    <TextInput
+                                        id="report-search"
+                                        name="report_search"
+                                        label={t("reports.search_label", undefined, "بحث عن تقرير")}
+                                        value={reportSearch}
+                                        onChange={setReportSearch}
+                                        placeholder={t("reports.search_placeholder", undefined, "مثال: مبيعات، مصروف، تدفق نقدي")}
+                                    />
+                                </div>
+                                <div className="col-12 col-lg-4">
                                     <SelectInput
                                         id="report"
                                         label={t("reports.report_label", undefined, "التقرير")}
                                         value={values.report}
-                                        options={reports}
+                                        options={filteredReports}
                                         onChange={(v) => setValues({ ...values, report: v })}
                                     />
+                                    {filteredReports.length === 0 ? (
+                                        <p className="small text-body-secondary mb-0" role="status">
+                                            {t("reports.search_empty", undefined, "لا يوجد تقرير يطابق البحث.")}
+                                        </p>
+                                    ) : null}
                                 </div>
                                 <div className="col-6 col-lg-2">
                                     <TextInput
@@ -117,7 +151,7 @@ export default function Show({
                                     </div>
                                 ) : null}
                             </div>
-                            <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }}>
+                            <button type="submit" className="btn btn-primary" style={{ minHeight: "48px" }} disabled={filteredReports.length === 0}>
                                 {t("reports.show_report", undefined, "عرض التقرير")}
                             </button>
                         </form>

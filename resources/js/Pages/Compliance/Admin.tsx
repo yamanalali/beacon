@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { router, useForm } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
 import { useT } from "../../Hooks/useT";
@@ -7,11 +8,15 @@ import { StatCard } from "../../Components/Common/StatCard";
 import { EmptyState } from "../../Components/Feedback/EmptyState";
 import { StatusBadge } from "../../Components/Feedback/StatusBadge";
 import { TextInput } from "../../Components/Forms/TextInput";
+import { VersionForm, emptyVersionValues } from "../../Components/Compliance/VersionForm";
 
 type Version = {
     id: number;
     version_number: number;
     title_ar: string;
+    description_ar: string | null;
+    guidance_ar: string | null;
+    deadline_note_ar: string | null;
     guidance_pending: boolean;
     requires_document: boolean;
     effective_from: string | null;
@@ -31,6 +36,132 @@ type Requirement = {
 };
 
 type Props = { requirements: Requirement[]; categories: Record<string, string> };
+
+function RequirementCard({ req, others }: { req: Requirement; others: Requirement[] }) {
+    const t = useT();
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [newVersion, setNewVersion] = useState(false);
+    const [replacing, setReplacing] = useState(false);
+    const [replacement, setReplacement] = useState("");
+    const hasDraft = req.versions.some((v) => v.status === "draft");
+    const latest = [...req.versions].sort((a, b) => b.version_number - a.version_number)[0];
+    const url = `/admin/compliance/${req.public_id}`;
+
+    return (
+        <article className="border rounded p-3 bg-white">
+            <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <div className="small text-body-secondary">{req.category_label}</div>
+                    <h2 className="h5 mb-0"><bdi dir="ltr">{req.code}</bdi></h2>
+                </div>
+                <StatusBadge label={req.is_active ? t("compliance.admin.status_active", undefined, "فعّال") : req.replaced_by ? t("compliance.admin.replaced_by", { code: req.replaced_by }, `مستبدل بـ ${req.replaced_by}`) : t("compliance.admin.status_inactive", undefined, "غير فعّال")} tone={req.is_active ? "success" : "warning"} />
+            </div>
+            <ul className="list-unstyled d-flex flex-column gap-2 mt-3 mb-0">
+                {req.versions.map((v) => (
+                    <li key={v.id} className="border rounded p-3">
+                        <div className="d-flex justify-content-between flex-wrap gap-2">
+                            <span className="fw-semibold">{t("compliance.admin.version_line", { n: v.version_number, title: v.title_ar }, `نسخة ${v.version_number}: ${v.title_ar}`)}</span>
+                            <StatusBadge label={v.status === "published" ? t("compliance.admin.version_published", undefined, "منشورة") : t("common.draft", undefined, "مسودة")} tone={v.status === "published" ? "success" : "warning"} />
+                        </div>
+                        <div className="d-flex flex-wrap gap-2 mt-2">
+                            {v.requires_document ? <StatusBadge label={t("compliance.admin.requires_document", undefined, "يتطلب وثيقة")} tone="neutral" /> : null}
+                            {v.effective_from ? <span className="small text-body-secondary">{t("compliance.admin.effective", undefined, "السريان")} <bdi dir="ltr">{v.effective_from}</bdi></span> : null}
+                        </div>
+                        {v.guidance_pending ? <p className="small text-body-secondary mb-0 mt-2">{t("compliance.admin.guidance_pending", undefined, "الإرشاد بانتظار مدخلات بيكون")}</p> : null}
+                        {v.published_at ? <p className="small mb-0 mt-2">{t("compliance.admin.published_by", { user: v.published_by ?? "", at: v.published_at }, `نشرها ${v.published_by} في ${v.published_at}`)}</p> : null}
+                        {v.change_summary ? <p className="small mb-0 mt-1">{t("compliance.admin.change_summary", { summary: v.change_summary }, `التغيير: ${v.change_summary}`)}</p> : null}
+                        {v.status === "draft" ? (
+                            editingId === v.id ? (
+                                <VersionForm
+                                    idPrefix={`edit-${v.id}`}
+                                    method="put"
+                                    url={`/admin/compliance/versions/${v.id}`}
+                                    initial={{ title_ar: v.title_ar, description_ar: v.description_ar ?? "", guidance_ar: v.guidance_ar ?? "", deadline_note_ar: v.deadline_note_ar ?? "", effective_from: v.effective_from ?? "", requires_document: v.requires_document, change_summary: v.change_summary ?? "" }}
+                                    submitLabel={t("compliance.admin.save_draft_changes", undefined, "حفظ تعديلات المسودة")}
+                                    onDone={() => setEditingId(null)}
+                                />
+                            ) : (
+                                <div className="d-flex flex-wrap gap-2 mt-3">
+                                    <button type="button" className="btn btn-outline-primary btn-sm" style={{ minHeight: "44px" }} onClick={() => { setEditingId(v.id); setNewVersion(false); setReplacing(false); }}>
+                                        {t("compliance.admin.edit_draft", undefined, "تعديل المسودة")}
+                                    </button>
+                                    <button type="button" className="btn btn-primary btn-sm" style={{ minHeight: "44px" }} onClick={() => router.post(`/admin/compliance/versions/${v.id}/publish`, {}, { preserveScroll: true })}>
+                                        {t("compliance.admin.publish_version", undefined, "نشر النسخة")}
+                                    </button>
+                                </div>
+                            )
+                        ) : null}
+                    </li>
+                ))}
+            </ul>
+            {newVersion ? (
+                <VersionForm
+                    idPrefix={`new-${req.public_id}`}
+                    method="post"
+                    url={`${url}/versions`}
+                    initial={{
+                        ...emptyVersionValues(),
+                        title_ar: latest?.title_ar ?? "",
+                        description_ar: latest?.description_ar ?? "",
+                        guidance_ar: latest?.guidance_ar ?? "",
+                        deadline_note_ar: latest?.deadline_note_ar ?? "",
+                        requires_document: latest?.requires_document ?? false,
+                    }}
+                    requireSummary
+                    submitLabel={t("compliance.admin.save_new_version", undefined, "حفظ النسخة الجديدة كمسودة")}
+                    onDone={() => setNewVersion(false)}
+                />
+            ) : null}
+            {replacing ? (
+                <div className="border rounded p-3 mt-3 bg-light">
+                    <label htmlFor={`replace-${req.public_id}`} className="form-label fw-semibold">{t("compliance.admin.replacement_label", undefined, "المتطلب البديل")}</label>
+                    <select id={`replace-${req.public_id}`} className="form-select mb-2" style={{ minHeight: "48px" }} value={replacement} onChange={(e) => setReplacement(e.target.value)}>
+                        <option value="">{t("compliance.admin.choose_replacement", undefined, "اختر المتطلب البديل")}</option>
+                        {others.map((o) => <option key={o.public_id} value={o.public_id}>{o.code}</option>)}
+                    </select>
+                    <p className="small text-body-secondary">{t("compliance.admin.replace_hint", undefined, "يتوقف هذا المتطلب ويُسجَّل بديله. التقييمات السابقة تبقى كما هي.")}</p>
+                    <div className="d-flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            style={{ minHeight: "44px" }}
+                            disabled={!replacement}
+                            onClick={() => {
+                                if (window.confirm(t("compliance.admin.replace_confirm", undefined, "هل تريد استبدال هذا المتطلب؟ سيتوقف عن الظهور للمنشآت."))) {
+                                    router.post(`${url}/replace`, { replacement_public_id: replacement }, { preserveScroll: true, onSuccess: () => { setReplacing(false); setReplacement(""); } });
+                                }
+                            }}
+                        >
+                            {t("compliance.admin.confirm_replace", undefined, "استبدال المتطلب")}
+                        </button>
+                        <button type="button" className="btn btn-outline-secondary" style={{ minHeight: "44px" }} onClick={() => setReplacing(false)}>{t("common.cancel", undefined, "إلغاء")}</button>
+                    </div>
+                </div>
+            ) : null}
+            <div className="d-flex flex-wrap gap-2 mt-3">
+                {!hasDraft && !newVersion ? (
+                    <button type="button" className="btn btn-outline-primary btn-sm" style={{ minHeight: "44px" }} onClick={() => { setNewVersion(true); setEditingId(null); setReplacing(false); }}>
+                        {t("compliance.admin.new_version", undefined, "إنشاء نسخة جديدة")}
+                    </button>
+                ) : null}
+                {req.is_active && others.length > 0 && !replacing ? (
+                    <button type="button" className="btn btn-outline-secondary btn-sm" style={{ minHeight: "44px" }} onClick={() => { setReplacing(true); setNewVersion(false); setEditingId(null); }}>
+                        {t("compliance.admin.replace", undefined, "استبدال بمتطلب آخر")}
+                    </button>
+                ) : null}
+                {req.is_active ? (
+                    <button type="button" className="btn btn-outline-danger btn-sm" style={{ minHeight: "44px" }} onClick={() => router.post(`${url}/deactivate`, {}, { preserveScroll: true })}>
+                        {t("compliance.admin.deactivate", undefined, "إيقاف المتطلب")}
+                    </button>
+                ) : (
+                    <button type="button" className="btn btn-outline-success btn-sm" style={{ minHeight: "44px" }} onClick={() => router.post(`${url}/reactivate`, {}, { preserveScroll: true })}>
+                        {t("compliance.admin.reactivate", undefined, "إعادة تفعيل المتطلب")}
+                    </button>
+                )}
+            </div>
+        </article>
+    );
+}
 
 export default function Admin({ requirements, categories }: Props) {
     const t = useT();
@@ -110,42 +241,7 @@ export default function Admin({ requirements, categories }: Props) {
                     <div className="col-12 col-lg-8 d-flex flex-column gap-3">
                         {requirements.length === 0 ? <EmptyState title={t("compliance.admin.empty", undefined, "لا توجد متطلبات بعد")} description={t("compliance.admin.empty_hint", undefined, "أضف أول متطلب من النموذج، ثم انشر النسخة عندما يعتمد بيكون الإرشاد.")} /> : null}
                         {requirements.map((req) => (
-                            <article key={req.public_id} className="border rounded p-3 bg-white">
-                                <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
-                                    <div>
-                                        <div className="small text-body-secondary">{req.category_label}</div>
-                                        <h2 className="h5 mb-0"><bdi dir="ltr">{req.code}</bdi></h2>
-                                    </div>
-                                    <StatusBadge label={req.is_active ? t("compliance.admin.status_active", undefined, "فعّال") : req.replaced_by ? t("compliance.admin.replaced_by", { code: req.replaced_by }, `مستبدل بـ ${req.replaced_by}`) : t("compliance.admin.status_inactive", undefined, "غير فعّال")} tone={req.is_active ? "success" : "warning"} />
-                                </div>
-                                <ul className="list-unstyled d-flex flex-column gap-2 mt-3 mb-0">
-                                    {req.versions.map((v) => (
-                                        <li key={v.id} className="border rounded p-3">
-                                            <div className="d-flex justify-content-between flex-wrap gap-2">
-                                                <span className="fw-semibold">{t("compliance.admin.version_line", { n: v.version_number, title: v.title_ar }, `نسخة ${v.version_number}: ${v.title_ar}`)}</span>
-                                                <StatusBadge label={v.status === "published" ? t("compliance.admin.version_published", undefined, "منشورة") : t("common.draft", undefined, "مسودة")} tone={v.status === "published" ? "success" : "warning"} />
-                                            </div>
-                                            <div className="d-flex flex-wrap gap-2 mt-2">
-                                                {v.requires_document ? <StatusBadge label={t("compliance.admin.requires_document", undefined, "يتطلب وثيقة")} tone="neutral" /> : null}
-                                                {v.effective_from ? <span className="small text-body-secondary">{t("compliance.admin.effective", undefined, "السريان")} <bdi dir="ltr">{v.effective_from}</bdi></span> : null}
-                                            </div>
-                                            {v.guidance_pending ? <p className="small text-body-secondary mb-0 mt-2">{t("compliance.admin.guidance_pending", undefined, "الإرشاد بانتظار مدخلات بيكون")}</p> : null}
-                                            {v.published_at ? <p className="small mb-0 mt-2">{t("compliance.admin.published_by", { user: v.published_by, at: v.published_at }, `نشرها ${v.published_by} في ${v.published_at}`)}</p> : null}
-                                            {v.change_summary ? <p className="small mb-0 mt-1">{t("compliance.admin.change_summary", { summary: v.change_summary }, `التغيير: ${v.change_summary}`)}</p> : null}
-                                            {v.status === "draft" ? (
-                                                <button type="button" className="btn btn-primary btn-sm mt-3" style={{ minHeight: "44px" }} onClick={() => router.post(`/admin/compliance/versions/${v.id}/publish`, {}, { preserveScroll: true })}>
-                                                    {t("compliance.admin.publish_version", undefined, "نشر النسخة")}
-                                                </button>
-                                            ) : null}
-                                        </li>
-                                    ))}
-                                </ul>
-                                {req.is_active ? (
-                                    <button type="button" className="btn btn-outline-danger btn-sm mt-3" style={{ minHeight: "44px" }} onClick={() => router.post(`/admin/compliance/${req.public_id}/deactivate`, {}, { preserveScroll: true })}>
-                                        {t("compliance.admin.deactivate", undefined, "إيقاف المتطلب")}
-                                    </button>
-                                ) : null}
-                            </article>
+                            <RequirementCard key={req.public_id} req={req} others={requirements.filter((r) => r.public_id !== req.public_id)} />
                         ))}
                     </div>
                 </div>

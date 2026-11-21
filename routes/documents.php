@@ -22,4 +22,5 @@ Route::middleware('auth')->group(function () {
     Route::get('/documents/{document:public_id}', [DocumentController::class, 'show'])->name('documents.show');
     Route::put('/documents/{document:public_id}', [DocumentController::class, 'update'])->name('documents.update');
     Route::post('/documents/{document:public_id}/archive', [DocumentController::class, 'archive'])->name('documents.archive');
+    Route::post('/documents/{document:public_id}/unarchive', [DocumentController::class, 'unarchive'])->name('documents.unarchive');
 });

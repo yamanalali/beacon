@@ -9,6 +9,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -211,7 +212,7 @@ class OpenRouterAiProvider implements AiProvider
     {
         $today = now()->toDateString();
         $typeKeys = ['income', 'expense', 'sale', 'purchase'];
-        $categoryMap = config('bookkeeping.categories', []);
+        $categoryMap = app(\App\Services\Bookkeeping\TransactionCategoryCatalog::class)->grouped();
         $flatCategories = [];
         foreach ($categoryMap as $type => $cats) {
             if (! is_array($cats)) {
@@ -441,12 +442,15 @@ class OpenRouterAiProvider implements AiProvider
 
     private function unavailableFromHttp(int $status, string $body, ?Throwable $previous = null): AiUnavailableException
     {
-        $detail = mb_substr($body, 0, 300);
+        Log::warning('OpenRouter request failed', [
+            'status' => $status,
+            'body' => mb_substr($body, 0, 500),
+        ]);
         if ($status === 402 || str_contains($body, 'requires at least $0.50 in balance for audio')) {
             return new AiUnavailableException('OpenRouter audio requires account credits (HTTP 402).', 402, $previous);
         }
 
-        return new AiUnavailableException('OpenRouter request failed (HTTP '.$status.'): '.$detail, $status, $previous);
+        return new AiUnavailableException('OpenRouter request failed (HTTP '.$status.').', $status, $previous);
     }
 
     private function assertConfigured(): void

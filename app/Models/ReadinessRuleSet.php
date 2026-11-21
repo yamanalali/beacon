@@ -45,6 +45,11 @@ class ReadinessRuleSet extends Model
         return $this->hasMany(ReadinessCriterion::class)->orderBy('id');
     }
 
+    public function assessments(): HasMany
+    {
+        return $this->hasMany(ReadinessAssessment::class);
+    }
+
     public function pillars(): HasMany
     {
         return $this->hasMany(ReadinessPillar::class)->orderBy('sort_order')->orderBy('id');

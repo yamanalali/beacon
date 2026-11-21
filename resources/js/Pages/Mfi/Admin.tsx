@@ -12,6 +12,7 @@ import { TextInput } from "../../Components/Forms/TextInput";
 type Criterion = {
     id: number;
     label_ar: string;
+    type: string;
     type_label: string;
     parameters: Record<string, number> | null;
     is_active: boolean;
@@ -209,6 +210,71 @@ function ProfileFormFields({
     );
 }
 
+function CriterionRow({ criterion, criterionTypes, complianceRequirements }: { criterion: Criterion; criterionTypes: Record<string, string>; complianceRequirements: Props["complianceRequirements"] }) {
+    const t = useT();
+    const [editing, setEditing] = useState(false);
+    const form = useForm({
+        label_ar: criterion.label_ar,
+        type: criterion.type,
+        min_score: criterion.parameters?.min_score !== undefined ? String(criterion.parameters.min_score) : "",
+        compliance_requirement_id: criterion.parameters?.compliance_requirement_id !== undefined ? String(criterion.parameters.compliance_requirement_id) : "",
+    });
+    const id = `criterion-${criterion.id}`;
+
+    if (editing) {
+        return (
+            <li className="border rounded p-3">
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        form.put(`/admin/mfis/criteria/${criterion.id}`, { preserveScroll: true, onSuccess: () => setEditing(false) });
+                    }}
+                >
+                    <TextInput id={`${id}-label`} name="label_ar" label={t("mfi.admin.criterion_label", undefined, "وصف الشرط")} value={form.data.label_ar} onChange={(v) => form.setData("label_ar", v)} error={form.errors.label_ar} required />
+                    <div className="mb-3">
+                        <label className="form-label mb-1 fw-semibold" htmlFor={`${id}-type`}>{t("mfi.admin.criterion_type", undefined, "نوع الشرط")}</label>
+                        <select id={`${id}-type`} className="form-select" style={{ minHeight: "48px" }} value={form.data.type} onChange={(e) => form.setData("type", e.target.value)}>
+                            {Object.entries(criterionTypes).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                        </select>
+                    </div>
+                    {form.data.type === "min_readiness_score" ? (
+                        <TextInput id={`${id}-min`} name="min_score" type="number" label={t("mfi.admin.min_score", undefined, "الحد الأدنى")} value={form.data.min_score} onChange={(v) => form.setData("min_score", v)} error={form.errors.min_score} />
+                    ) : null}
+                    {form.data.type === "compliance_requirement_completed" ? (
+                        <div className="mb-3">
+                            <label className="form-label mb-1 fw-semibold" htmlFor={`${id}-req`}>{t("compliance.enterprise.requirements", undefined, "المتطلب")}</label>
+                            <select id={`${id}-req`} className="form-select" style={{ minHeight: "48px" }} value={form.data.compliance_requirement_id} onChange={(e) => form.setData("compliance_requirement_id", e.target.value)}>
+                                <option value="">{t("mfi.admin.choose_requirement", undefined, "اختر المتطلب")}</option>
+                                {complianceRequirements.map((r) => <option key={r.id} value={r.id}>{r.code}</option>)}
+                            </select>
+                            {form.errors.compliance_requirement_id ? <div className="invalid-feedback d-block" role="alert">{form.errors.compliance_requirement_id}</div> : null}
+                        </div>
+                    ) : null}
+                    <div className="d-flex flex-wrap gap-2">
+                        <button type="submit" className="btn btn-primary" style={{ minHeight: "44px" }} disabled={form.processing || !form.data.label_ar.trim()}>{t("mfi.admin.save_criterion", undefined, "حفظ الشرط")}</button>
+                        <button type="button" className="btn btn-outline-secondary" style={{ minHeight: "44px" }} onClick={() => { form.reset(); form.clearErrors(); setEditing(false); }}>{t("common.cancel", undefined, "إلغاء")}</button>
+                    </div>
+                </form>
+            </li>
+        );
+    }
+
+    return (
+        <li className="border rounded p-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span>
+                <span className="fw-semibold d-block">{criterion.label_ar}</span>
+                <span className="small text-body-secondary">{criterion.type_label}{criterion.parameters?.min_score !== undefined ? t("mfi.admin.min_threshold", { score: criterion.parameters.min_score }, ` · الحد ${criterion.parameters.min_score}`) : ""}</span>
+            </span>
+            <span className="d-flex flex-wrap align-items-center gap-2">
+                <button type="button" className="btn btn-outline-secondary btn-sm" style={{ minHeight: "44px" }} onClick={() => setEditing(true)}>{t("common.edit", undefined, "تعديل")}</button>
+                {criterion.is_active ? (
+                    <button type="button" className="btn btn-outline-danger btn-sm" style={{ minHeight: "44px" }} onClick={() => router.post(`/admin/mfis/criteria/${criterion.id}/deactivate`, {}, { preserveScroll: true })}>{t("mfi.admin.deactivate", undefined, "إيقاف")}</button>
+                ) : <StatusBadge label={t("mfi.admin.paused", undefined, "موقوف")} tone="warning" />}
+            </span>
+        </li>
+    );
+}
+
 function InstitutionCard({
     inst,
     criterionTypes,
@@ -296,15 +362,7 @@ function InstitutionCard({
                     {inst.criteria.length === 0 ? <p className="small text-body-secondary">{t("mfi.admin.no_criteria", undefined, "لا توجد شروط بعد. أضف شرطاً ليظهر في المطابقة.")}</p> : (
                         <ul className="list-unstyled d-flex flex-column gap-2 mb-3">
                             {inst.criteria.map((c) => (
-                                <li key={c.id} className="border rounded p-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                    <span>
-                                        <span className="fw-semibold d-block">{c.label_ar}</span>
-                                        <span className="small text-body-secondary">{c.type_label}{c.parameters?.min_score !== undefined ? t("mfi.admin.min_threshold", { score: c.parameters.min_score }, ` · الحد ${c.parameters.min_score}`) : ""}</span>
-                                    </span>
-                                    {c.is_active ? (
-                                        <button type="button" className="btn btn-outline-danger btn-sm" style={{ minHeight: "44px" }} onClick={() => router.post(`/admin/mfis/criteria/${c.id}/deactivate`, {}, { preserveScroll: true })}>{t("mfi.admin.deactivate", undefined, "إيقاف")}</button>
-                                    ) : <StatusBadge label={t("mfi.admin.paused", undefined, "موقوف")} tone="warning" />}
-                                </li>
+                                <CriterionRow key={c.id} criterion={c} criterionTypes={criterionTypes} complianceRequirements={complianceRequirements} />
                             ))}
                         </ul>
                     )}
@@ -337,9 +395,24 @@ function InstitutionCard({
                     {inst.users.length === 0 ? <p className="small text-body-secondary">{t("mfi.admin.no_users", undefined, "لا يوجد مستخدم مرتبط. بدون ربط لا يرى أحد حزم الإحالة الخاصة بهذه المؤسسة.")}</p> : (
                         <ul className="list-unstyled d-flex flex-column gap-2 mb-3">
                             {inst.users.map((u) => (
-                                <li key={u.id} className="border rounded px-3 py-2">
-                                    <span className="d-block fw-semibold">{u.name}</span>
-                                    <small className="text-body-secondary">{u.email}</small>
+                                <li key={u.id} className="border rounded px-3 py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <span>
+                                        <span className="d-block fw-semibold">{u.name}</span>
+                                        <small className="text-body-secondary">{u.email}</small>
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-danger btn-sm"
+                                        style={{ minHeight: "44px" }}
+                                        aria-label={t("mfi.admin.detach_user_named", { name: u.name }, `فك ربط ${u.name}`)}
+                                        onClick={() => {
+                                            if (window.confirm(t("mfi.admin.detach_user_confirm", { name: u.name }, `هل تريد فك ربط ${u.name} بهذه المؤسسة؟ لن يرى أي حزم إحالة بعد ذلك.`))) {
+                                                router.delete(`/admin/mfis/users/${u.id}`, { preserveScroll: true });
+                                            }
+                                        }}
+                                    >
+                                        {t("mfi.admin.detach_user", undefined, "فك الربط")}
+                                    </button>
                                 </li>
                             ))}
                         </ul>

@@ -54,9 +54,8 @@ return Application::configure(basePath: dirname(__DIR__))
                 return $response;
             }
 
-            if (in_array($status, [500, 503], true) && config('app.debug')) {
-                return $response;
-            }
+            // Always show the Arabic friendly page for browser users — never stack traces,
+            // provider payloads, or source code. Details stay in the application log.
 
             $user = $request->user();
 

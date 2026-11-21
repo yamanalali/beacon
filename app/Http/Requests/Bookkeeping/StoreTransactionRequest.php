@@ -7,6 +7,7 @@ use App\Enums\TransactionType;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\ReceiptExtraction;
+use App\Services\Bookkeeping\TransactionCategoryCatalog;
 use App\Support\Currencies;
 use App\Support\TransactionAmountInput;
 use Illuminate\Foundation\Http\FormRequest;
@@ -107,7 +108,10 @@ class StoreTransactionRequest extends FormRequest
     public function rules(): array
     {
         $type = (string) $this->input('type');
-        $categories = array_keys(config('bookkeeping.categories.'.$type, []));
+        // A correction may keep the original (possibly since-deactivated) category of the same type.
+        $original = $this->route('transaction');
+        $keep = $original instanceof FinancialTransaction && $original->type->value === $type ? $original->category : null;
+        $categories = array_keys(app(TransactionCategoryCatalog::class)->forType($type, $keep));
 
         return [
             'client_draft_id' => ['nullable', 'uuid'],

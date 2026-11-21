@@ -45,6 +45,7 @@ const REFERRAL_TONE: Record<ReferralStatus, StatusTone> = {
     info_requested: "warning",
     decided: "success",
     outcome_recorded: "success",
+    cancelled: "neutral",
 };
 
 /** Programme KPIs from the server; null KPIs (pending business decision) are hidden, never guessed. */

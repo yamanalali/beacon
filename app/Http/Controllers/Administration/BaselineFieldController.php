@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Administration;
 
 use App\Actions\Audit\RecordAuditLog;
+use App\Actions\Baseline\CreateBaselineFieldAction;
+use App\Actions\Baseline\DeleteBaselineFieldAction;
+use App\Actions\Baseline\HideBaselineFieldAction;
 use App\Enums\BaselineProfileSection;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Administration\StoreBaselineFieldRequest;
 use App\Http\Requests\Administration\UpdateBaselineFieldVisibilityRequest;
 use App\Models\BaselineProfileField;
 use App\Services\Baseline\BaselineProfilePresenter;
@@ -54,6 +58,27 @@ class BaselineFieldController extends Controller
         ]);
 
         return back()->with('success', 'تم تحديث إعدادات عرض حقول البروفايل.');
+    }
+
+    public function store(StoreBaselineFieldRequest $request, CreateBaselineFieldAction $createBaselineField): RedirectResponse
+    {
+        $createBaselineField->execute($request->user(), $request->validated());
+
+        return back()->with('success', ui('flash.baseline_field_saved'));
+    }
+
+    public function hide(Request $request, BaselineProfileField $field, HideBaselineFieldAction $hideBaselineField): RedirectResponse
+    {
+        $hideBaselineField->execute($request->user(), $field);
+
+        return back()->with('success', ui('flash.baseline_field_hidden'));
+    }
+
+    public function destroy(Request $request, BaselineProfileField $field, DeleteBaselineFieldAction $deleteBaselineField): RedirectResponse
+    {
+        $deleteBaselineField->execute($request->user(), $field);
+
+        return back()->with('success', ui('flash.baseline_field_deleted'));
     }
 
     public function importForm(): Response

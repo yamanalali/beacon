@@ -1,6 +1,10 @@
 import { localReport } from './offline-reports.js';
 import { data, entries, metadata, setMetadata, clearScope, enqueue, mutation, cacheable, replayRequest, syncState, entryDetails, MAX_AGE } from './offline-core.js';
 const PRIVATE = 'beacon-private-';
+/** Bump to force every installed client to activate this worker and drop poisoned caches. */
+const SW_REVISION = '2026-11-21-preview-guard';
+const RUNTIME_SCRIPTS = ['/offline-core.js', '/offline-reports.js', '/sw.js'];
+const PRIVATE_FILE = /\/(?:export|download|preview)(?:\/|$)/;
 let syncing;
 const clientScopes = new Map();
 const clientScope = async id => clientScopes.get(id) ?? await metadata('client:' + id);
@@ -9,8 +13,63 @@ const sameOrigin = url => new URL(url, self.location.origin).origin === self.loc
 const cacheName = scope => PRIVATE + scope;
 const key = (url, inertia) => new Request(self.location.origin + '/__offline_cache__?kind=' + (inertia ? 'page' : 'html') + '&url=' + encodeURIComponent(relative(url)));
 const notify = async () => { for (const c of await self.clients.matchAll({ includeUncontrolled: true })) c.postMessage({ type: 'BEACON_OFFLINE_CHANGED' }); };
+const notifyUpdated = async () => { for (const c of await self.clients.matchAll({ includeUncontrolled: true })) c.postMessage({ type: 'BEACON_SW_UPDATED', revision: SW_REVISION }); };
 async function scopeNow() { return (await metadata('unlocked')) ? await metadata('scope') : null; }
 async function purgeCaches() { for (const n of await caches.keys()) if (n.startsWith(PRIVATE)) await caches.delete(n); }
+/** Drop any previously cached private file streams (wrong MIME / script bodies). */
+async function purgePrivateFileCaches() {
+    for (const name of await caches.keys()) {
+        if (!name.startsWith(PRIVATE)) continue;
+        const cache = await caches.open(name);
+        for (const request of await cache.keys()) {
+            const cachedUrl = new URL(request.url).searchParams.get('url') ?? request.url;
+            if (PRIVATE_FILE.test(cachedUrl)) await cache.delete(request);
+        }
+    }
+}
+async function migrateRevision() {
+    const previous = await metadata('swRevision');
+    if (previous === SW_REVISION) return false;
+    await purgeCaches();
+    await purgePrivateFileCaches();
+    for (const name of await caches.keys()) {
+        if (name.startsWith('beacon-static-')) await caches.delete(name);
+    }
+    await setMetadata('staticCache', null);
+    await setMetadata('swRevision', SW_REVISION);
+    return true;
+}
+function friendlyFileUnavailable() {
+    return new Response(
+        '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تعذر العرض</title><body style="font-family:system-ui,sans-serif;padding:1.5rem;line-height:1.7;color:#1a1a1a"><p>تعذر عرض الملف حالياً. حاول مرة أخرى بعد لحظات.</p></body></html>',
+        { status: 502, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
+    );
+}
+async function fetchPrivateFile(request) {
+    try {
+        const result = await fetch(request, { cache: 'no-store', credentials: 'same-origin' });
+        const type = (result.headers.get('Content-Type') ?? '').toLowerCase();
+        // Never let a script/HTML body masquerade as a document preview in the browser.
+        if (result.ok && /javascript|ecmascript|text\/html|application\/json/.test(type) && /\/preview(?:\/|$)/.test(new URL(request.url).pathname)) {
+            console.error('[beacon-sw] blocked unsafe preview payload', { type, path: new URL(request.url).pathname });
+            return friendlyFileUnavailable();
+        }
+        return result;
+    } catch {
+        return friendlyFileUnavailable();
+    }
+}
+async function fetchRuntimeScript(request) {
+    try {
+        const fresh = await fetch(request, { cache: 'no-store' });
+        if (fresh.ok) {
+            const cache = await caches.open((await metadata('staticCache')) || 'beacon-runtime');
+            try { await cache.put(request, fresh.clone()); } catch { /* Quota / private mode — network response still wins. */ }
+            return fresh;
+        }
+    } catch { /* fall through to cache */ }
+    return (await caches.match(request)) ?? friendlyFileUnavailable();
+}
 async function lock(clear = false) {
     const scope = await metadata('scope');
     await setMetadata('unlocked', false);
@@ -188,13 +247,24 @@ async function installAssets() {
     await cache.addAll(manifest.assets);
     await setMetadata('staticCache', name);
 }
-self.addEventListener('install', event => { event.waitUntil(installAssets()); });
+self.addEventListener('install', event => {
+    event.waitUntil((async () => {
+        await installAssets();
+        await self.skipWaiting();
+    })());
+});
 self.addEventListener('activate', event => { event.waitUntil((async () => {
+    const migrated = await migrateRevision();
+    await purgePrivateFileCaches();
+    if (migrated) {
+        try { await installAssets(); } catch { /* Online install retries on next CONFIGURE. */ }
+    }
     const active = await metadata('staticCache');
     for (const name of await caches.keys()) if (name.startsWith('beacon-static-') && name !== active) await caches.delete(name);
     const live = new Set((await self.clients.matchAll({ includeUncontrolled: true })).map(client => 'client:' + client.id));
     for (const row of await data('meta', 'getAll')) if (row.key.startsWith('client:') && !live.has(row.key)) await data('meta', 'delete', row.key);
     await self.clients.claim();
+    await notifyUpdated();
 })()); });
 async function queueRequest(request, id, label) {
     const scope = await scopeNow(); if (!scope) throw new Error('افتح التطبيق وأنت متصل أولاً لتجهيز العمل دون اتصال.');
@@ -267,11 +337,17 @@ async function finishLogout() {
 }
 async function handleGet(request, clientId) {
     const url = new URL(request.url);
-    if (/^\/(?:build\/|icons\/|fonts\/)/.test(url.pathname) || ['/offline.html', '/manifest.webmanifest', '/offline-core.js', '/offline-reports.js'].includes(url.pathname)) {
+    if (PRIVATE_FILE.test(url.pathname)) {
+        return fetchPrivateFile(request);
+    }
+    if (RUNTIME_SCRIPTS.includes(url.pathname)) {
+        return fetchRuntimeScript(request);
+    }
+    if (/^\/(?:build\/|icons\/|fonts\/)/.test(url.pathname) || url.pathname === '/offline.html' || url.pathname === '/manifest.webmanifest') {
         return await caches.match(request) ?? fetch(request);
     }
     if (!cacheable(url.pathname)) {
-        try { return await fetch(request); }
+        try { return await fetch(request, { cache: 'no-store' }); }
         catch {
             if (request.headers.get('X-Inertia') === 'true') return pageResponse(request.referrer || '/offline', {}, 'هذه الصفحة تحتاج اتصالاً مباشراً بالخادم.');
             if (request.mode === 'navigate' || request.headers.get('Accept')?.includes('text/html')) return caches.match('/offline.html');
@@ -367,6 +443,10 @@ self.addEventListener('sync', event => { if (event.tag === 'beacon-outbox') even
 self.addEventListener('message', event => {
     // Only controlled same-origin windows can configure/read this account's storage.
     if (!event.source?.url || !sameOrigin(event.source.url)) return;
+    if (event.data?.type === 'SKIP_WAITING') {
+        event.waitUntil(self.skipWaiting());
+        return;
+    }
     event.waitUntil((async () => {
         try {
             const { type, scope, urls = [], id } = event.data ?? {};

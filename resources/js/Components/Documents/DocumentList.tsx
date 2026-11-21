@@ -2,6 +2,7 @@ import { router } from "@inertiajs/react";
 import { useT } from "../../Hooks/useT";
 import { EmptyState } from "../Feedback/EmptyState";
 import type { DocumentRow } from "../../types/bookkeeping";
+import { archiveDocument } from "./archiveDocument";
 
 export function DocumentList({ documents, canExtract = false }: { documents: DocumentRow[]; canExtract?: boolean }) {
     const t = useT();
@@ -44,6 +45,26 @@ export function DocumentList({ documents, canExtract = false }: { documents: Doc
                     {doc.can_download !== false ? <a className="btn btn-outline-secondary" style={{ minHeight: "44px" }} href={`/documents/${doc.public_id}/download`}>
                         {t("common.download", undefined, "تنزيل")}
                     </a> : null}
+                    {doc.can_archive ? (
+                        <button
+                            type="button"
+                            className="btn btn-outline-danger"
+                            style={{ minHeight: "44px" }}
+                            onClick={() =>
+                                archiveDocument(doc.public_id, {
+                                    confirm: t(
+                                        "documents.archive_confirm_short",
+                                        undefined,
+                                        "إخفاء هذا المستند من القائمة؟ الملف يبقى محفوظاً على الخادم.",
+                                    ),
+                                    reasonPrompt: t("documents.archive_reason_prompt", undefined, "سبب الإخفاء"),
+                                    reasonFallback: t("documents.archive_reason_default", undefined, "إخفاء من القائمة"),
+                                })
+                            }
+                        >
+                            {t("documents.hide_button", undefined, "إخفاء")}
+                        </button>
+                    ) : null}
                 </li>
             ))}
         </ul>

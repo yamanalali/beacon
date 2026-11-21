@@ -63,23 +63,26 @@ class MfiController extends Controller
     public function storeCriterion(Request $request, MfiInstitution $institution): RedirectResponse
     {
         $actor = $this->admin($request);
-        $data = $request->validate([
-            'label_ar' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::in(array_keys(MfiEligibilityCriterion::TYPES))],
-            'min_score' => ['required_if:type,min_readiness_score', 'nullable', 'numeric', 'min:0', 'max:100'],
-            'compliance_requirement_id' => ['required_if:type,compliance_requirement_completed', 'nullable', 'integer', 'exists:compliance_requirements,id'],
-        ]);
-        $parameters = match ($data['type']) {
-            'min_readiness_score' => ['min_score' => (float) $data['min_score']],
-            'compliance_requirement_completed' => ['compliance_requirement_id' => (int) $data['compliance_requirement_id']],
-            default => null,
-        };
+        $data = $request->validate($this->criterionRules());
+        $parameters = $this->criterionParameters($data);
         $criterion = $institution->eligibilityCriteria()->create([
             'label_ar' => $data['label_ar'], 'type' => $data['type'], 'parameters' => $parameters, 'created_by' => $actor->id,
         ]);
         $this->audit->record($actor, 'mfi.criterion_added', $criterion, ['institution' => $institution->public_id, 'type' => $data['type'], 'parameters' => $parameters]);
 
         return redirect()->route('admin.mfis.index');
+    }
+
+    public function updateCriterion(Request $request, MfiEligibilityCriterion $criterion): RedirectResponse
+    {
+        $actor = $this->admin($request);
+        $data = $request->validate($this->criterionRules());
+        $fields = ['label_ar' => $data['label_ar'], 'type' => $data['type'], 'parameters' => $this->criterionParameters($data)];
+        $before = $criterion->only(array_keys($fields));
+        $criterion->update($fields);
+        $this->audit->record($actor, 'mfi.criterion_updated', $criterion, ['institution_id' => $criterion->mfi_institution_id, 'before' => $before, 'after' => $fields]);
+
+        return redirect()->route('admin.mfis.index')->with('success', ui('flash.mfi_criterion_updated'));
     }
 
     public function deactivateCriterion(Request $request, MfiEligibilityCriterion $criterion): RedirectResponse
@@ -102,6 +105,19 @@ class MfiController extends Controller
         $this->audit->record($actor, 'mfi.user_linked', $user, ['institution' => $institution->public_id, 'previous_institution_id' => $before]);
 
         return redirect()->route('admin.mfis.index');
+    }
+
+    /** Clears the institution link so the MFI user can no longer see any referral package. */
+    public function detachUser(Request $request, User $user): RedirectResponse
+    {
+        $actor = $this->admin($request);
+        abort_unless($user->role === UserRole::MfiUser && $user->mfi_institution_id !== null, 422, 'هذا المستخدم غير مرتبط بمؤسسة تمويل.');
+
+        $previous = $user->mfi_institution_id;
+        $user->forceFill(['mfi_institution_id' => null])->save();
+        $this->audit->record($actor, 'mfi.user_detached', $user, ['previous_institution_id' => $previous]);
+
+        return redirect()->route('admin.mfis.index')->with('success', ui('flash.mfi_user_detached'));
     }
 
     public function matching(Request $request, Enterprise $enterprise, MfiMatcher $matcher): Response
@@ -137,6 +153,28 @@ class MfiController extends Controller
                 }),
             'disclaimer' => ui('disclaimer.mfi_matching'),
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function criterionRules(): array
+    {
+        return [
+            'label_ar' => ['required', 'string', 'max:255'],
+            'type' => ['required', Rule::in(array_keys(MfiEligibilityCriterion::TYPES))],
+            'min_score' => ['required_if:type,min_readiness_score', 'nullable', 'numeric', 'min:0', 'max:100'],
+            'compliance_requirement_id' => ['required_if:type,compliance_requirement_completed', 'nullable', 'integer', 'exists:compliance_requirements,id'],
+        ];
+    }
+
+    /** @param  array<string, mixed>  $data
+     *  @return array<string, int|float>|null */
+    private function criterionParameters(array $data): ?array
+    {
+        return match ($data['type']) {
+            'min_readiness_score' => ['min_score' => (float) $data['min_score']],
+            'compliance_requirement_completed' => ['compliance_requirement_id' => (int) $data['compliance_requirement_id']],
+            default => null,
+        };
     }
 
     /** @return array<string, mixed> */

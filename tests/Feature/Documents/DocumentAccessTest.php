@@ -33,7 +33,7 @@ class DocumentAccessTest extends TestCase
     private function upload(User $user, Enterprise $enterprise, array $extra = [])
     {
         return $this->actingAs($user)->post(route('enterprises.documents.store', $enterprise), array_merge([
-            'file' => UploadedFile::fake()->create('../../evil name.pdf', 100, 'application/pdf'),
+            'file' => UploadedFile::fake()->createWithContent('../../evil name.pdf', "%PDF-1.4\n%beacon-test\n"),
             'title' => 'فاتورة',
         ], $extra));
     }

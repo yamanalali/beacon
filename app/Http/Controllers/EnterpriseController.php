@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Audit\RecordAuditLog;
+use App\Actions\Enterprises\ArchiveEnterpriseAction;
 use App\Actions\Enterprises\AssignAdvisorAction;
 use App\Actions\Enterprises\AttachSmeUserAction;
 use App\Actions\Enterprises\CreateAndAttachSmeUserAction;
 use App\Actions\Enterprises\CreateEnterpriseAction;
+use App\Actions\Enterprises\DetachAdvisorAction;
+use App\Actions\Enterprises\DetachEnterpriseMemberAction;
+use App\Actions\Enterprises\RestoreEnterpriseAction;
 use App\Actions\Enterprises\UpdateEnterpriseProfileAction;
 use App\Enums\EnterpriseProgrammeStage;
 use App\Enums\EnterpriseRegistrationStatus;
@@ -36,6 +40,7 @@ class EnterpriseController extends Controller
 
         if ($user?->role === UserRole::SmeUser) {
             $enterprise = Enterprise::query()
+                ->notArchived()
                 ->whereHas('members', fn ($query) => $query->whereKey($user->id))
                 ->first();
 
@@ -49,8 +54,10 @@ class EnterpriseController extends Controller
         $this->authorize('viewAny', Enterprise::class);
 
         $search = $request->string('search')->trim()->toString();
+        $includeArchived = $request->boolean('include_archived') && $user->role === UserRole::BeaconAdmin;
 
         $enterprises = Enterprise::query()
+            ->when(! $includeArchived, fn ($query) => $query->notArchived())
             ->when($user->role === UserRole::BeaconAdvisor, function ($query) use ($user) {
                 $query->whereHas('advisors', fn ($advisors) => $advisors->whereKey($user->id));
             })
@@ -65,14 +72,17 @@ class EnterpriseController extends Controller
                 'business_name' => $enterprise->business_name,
                 'sector' => $enterprise->sector,
                 'location' => $enterprise->location,
+                'archived' => $enterprise->isArchived(),
             ]);
 
         return Inertia::render('SMEs/Index', [
             'enterprises' => $enterprises,
             'filters' => [
                 'search' => $search,
+                'include_archived' => $includeArchived,
             ],
             'can_export' => $user->can('exportAny', Enterprise::class),
+            'can_include_archived' => $user->role === UserRole::BeaconAdmin,
         ]);
     }
 
@@ -91,6 +101,7 @@ class EnterpriseController extends Controller
         ];
 
         $rows = Enterprise::query()
+            ->notArchived()
             ->when($user->role === UserRole::BeaconAdvisor, function ($query) use ($user) {
                 $query->whereHas('advisors', fn ($advisors) => $advisors->whereKey($user->id));
             })
@@ -156,7 +167,11 @@ class EnterpriseController extends Controller
             'assignments' => null,
             'advisor_options' => [],
             'member_options' => [],
-            'can_assign' => $isAdmin,
+            'can_assign' => $isAdmin && ! $enterprise->isArchived(),
+            'can_archive' => $user->can('archive', $enterprise),
+            'can_restore' => $user->can('restore', $enterprise),
+            'can_detach_member' => $user->can('detachMember', $enterprise),
+            'can_detach_advisor' => $user->can('detachAdvisor', $enterprise),
         ];
 
         if ($isStaff) {
@@ -303,6 +318,54 @@ class EnterpriseController extends Controller
             ]);
     }
 
+    public function archive(Request $request, Enterprise $enterprise, ArchiveEnterpriseAction $action): RedirectResponse
+    {
+        $this->authorize('archive', $enterprise);
+        $action->execute(
+            $request->user(),
+            $enterprise,
+            $request->validate(['archive_reason' => ['nullable', 'string', 'max:255']])['archive_reason'] ?? null,
+        );
+
+        return redirect()->route('enterprises.show', $enterprise)->with('success', ui('flash.enterprise_archived'));
+    }
+
+    public function restore(Request $request, Enterprise $enterprise, RestoreEnterpriseAction $action): RedirectResponse
+    {
+        $this->authorize('restore', $enterprise);
+        $action->execute($request->user(), $enterprise);
+
+        return redirect()->route('enterprises.show', $enterprise)->with('success', ui('flash.enterprise_restored'));
+    }
+
+    public function destroyMember(
+        Request $request,
+        Enterprise $enterprise,
+        User $user,
+        DetachEnterpriseMemberAction $action,
+    ): RedirectResponse {
+        $this->authorize('detachMember', $enterprise);
+        $action->execute($request->user(), $enterprise, $user);
+
+        return redirect()
+            ->route('enterprises.show', ['enterprise' => $enterprise, 'tab' => 'team'])
+            ->with('success', ui('flash.enterprise_member_detached'));
+    }
+
+    public function destroyAdvisor(
+        Request $request,
+        Enterprise $enterprise,
+        User $user,
+        DetachAdvisorAction $action,
+    ): RedirectResponse {
+        $this->authorize('detachAdvisor', $enterprise);
+        $action->execute($request->user(), $enterprise, $user);
+
+        return redirect()
+            ->route('enterprises.show', ['enterprise' => $enterprise, 'tab' => 'team'])
+            ->with('success', ui('flash.enterprise_advisor_detached'));
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -311,6 +374,9 @@ class EnterpriseController extends Controller
         return [
             'public_id' => $enterprise->public_id,
             'business_name' => $enterprise->business_name,
+            'archived' => $enterprise->isArchived(),
+            'archived_at' => $enterprise->archived_at?->toDateTimeString(),
+            'archive_reason' => $enterprise->archive_reason,
             'sector' => $enterprise->sector,
             'location' => $enterprise->location,
             'founding_date' => $enterprise->founding_date?->toDateString(),

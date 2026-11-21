@@ -27,7 +27,10 @@ export function mutation(method, path) {
     return rules.find(([m, p]) => m === method.toUpperCase() && new RegExp(p).test(path))?.[2] ?? null;
 }
 export function cacheable(path) {
-    if (/\/(?:export|download|preview)(?:\/|$)/.test(path)) return /^\/(?:enterprises|documents)\//.test(path);
+    // Never cache private file streams — wrong cache hits can serve scripts/HTML as "preview".
+    if (/\/(?:export|download|preview)(?:\/|$)/.test(path)) {
+        return false;
+    }
     return path === '/' || path === '/offline' || /^\/(?:dashboard|enterprises|transactions|documents|financial-reports|reports|readiness-assessments|referrals|mfi|advisory|follow-ups)(?:\/|$)/.test(path)
         || /^\/admin\/(?:readiness|compliance|mfis)(?:\/|$)/.test(path) || /^\/ai\/pages\/knowledge(?:\/|$)/.test(path) || path === '/notifications/page';
 }

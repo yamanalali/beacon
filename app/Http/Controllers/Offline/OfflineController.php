@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
+use App\Services\Bookkeeping\TransactionCategoryCatalog;
 use App\Support\OfflinePolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -25,7 +26,7 @@ class OfflineController extends Controller
             ->header('Cache-Control', 'no-store');
     }
 
-    public function reportData(Request $request, Enterprise $enterprise)
+    public function reportData(Request $request, Enterprise $enterprise, TransactionCategoryCatalog $catalog)
     {
         Gate::authorize('reports.view', $enterprise);
         $transactions = FinancialTransaction::query()->posted()->where('enterprise_id', $enterprise->id)
@@ -37,7 +38,9 @@ class OfflineController extends Controller
             'saved_at' => now()->toIso8601String(),
             'enterprise' => ['public_id' => $enterprise->public_id, 'business_name' => $enterprise->business_name],
             'types' => collect(TransactionType::cases())->mapWithKeys(fn ($type) => [$type->value => $type->label()]),
-            'categories' => config('bookkeeping.categories'),
+            // Labels for saved records, so deactivated categories still display.
+            'categories' => collect(TransactionType::cases())
+                ->mapWithKeys(fn (TransactionType $type) => [$type->value => $catalog->labelsForType($type->value)]),
             'transactions' => $complete ? $transactions->map(fn ($t) => [
                 'status' => $t->status->value, 'type' => $t->type->value, 'category' => $t->category,
                 'amount' => $t->amount, 'currency' => $t->currency, 'date' => $t->transaction_date->toDateString(),
@@ -65,6 +68,18 @@ class OfflineController extends Controller
             }
         }
 
-        return response()->json(['version' => hash_file('sha256', $path), 'assets' => array_values(array_unique($assets))])->header('Cache-Control', 'no-store');
+        // Include offline runtime scripts so a SW-only fix still busts beacon-static-* caches.
+        $runtime = [
+            $path,
+            public_path('offline-core.js'),
+            public_path('offline-reports.js'),
+            public_path('sw.js'),
+        ];
+        $version = hash('sha256', implode('|', array_map(
+            static fn (string $file): string => is_file($file) ? (string) hash_file('sha256', $file) : '',
+            $runtime,
+        )));
+
+        return response()->json(['version' => $version, 'assets' => array_values(array_unique($assets))])->header('Cache-Control', 'no-store');
     }
 }

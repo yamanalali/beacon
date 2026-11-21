@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { router } from "@inertiajs/react";
 import AppLayout from "../../Layouts/AppLayout";
 import { useT } from "../../Hooks/useT";
 import { PageHeader } from "../../Components/Common/PageHeader";
@@ -112,6 +113,31 @@ function TemplatesCard({ hasDraft }: { hasDraft: boolean }) {
     );
 }
 
+/** Draft sets can be deleted; published sets are only archived (retired) so older assessments keep their rules. */
+function RuleSetLifecycle({ ruleSet }: { ruleSet: AdminRuleSet }) {
+    const t = useT();
+    const [busy, setBusy] = useState(false);
+    if (ruleSet.status === "retired") return null;
+    const isDraft = ruleSet.status === "draft";
+    const run = () => {
+        const message = isDraft
+            ? t("readiness.admin.delete_draft_confirm", undefined, "هل تريد حذف هذه المسودة نهائياً مع معاييرها؟ لا يمكن التراجع.")
+            : t("readiness.admin.retire_confirm", undefined, "هل تريد أرشفة هذه النسخة المعتمدة؟ تبقى التقييمات السابقة محتفظة بها، لكن لن تُستخدم في تقييمات جديدة حتى تعتمد نسخة أخرى.");
+        if (!window.confirm(message)) return;
+        const options = { preserveScroll: true, onStart: () => setBusy(true), onFinish: () => setBusy(false) };
+        if (isDraft) router.delete(`/admin/readiness/${ruleSet.id}`, options);
+        else router.post(`/admin/readiness/${ruleSet.id}/retire`, {}, options);
+    };
+    return (
+        <div className="d-flex justify-content-end">
+            <button type="button" className="btn btn-outline-danger" style={{ minHeight: "44px" }} disabled={busy} onClick={run}>
+                <i className={`bi ${isDraft ? "bi-trash" : "bi-archive"} me-1`} aria-hidden="true" />
+                {isDraft ? t("readiness.admin.delete_draft", undefined, "حذف المسودة") : t("readiness.admin.retire", undefined, "أرشفة النسخة المعتمدة")}
+            </button>
+        </div>
+    );
+}
+
 export default function Admin({ ruleSets }: Props) {
     const t = useT();
     const initial = ruleSets.find((s) => s.status === "draft") ?? ruleSets.find((s) => s.status === "published") ?? ruleSets[0];
@@ -155,7 +181,12 @@ export default function Admin({ ruleSets }: Props) {
                     <TemplatesCard hasDraft={hasDraft} />
                 </div>
                 <div className="col-12 col-lg-9">
-                    {selected ? <RuleSetBuilder key={selected.id} ruleSet={selected} /> : null}
+                    {selected ? (
+                        <div className="d-flex flex-column gap-3">
+                            <RuleSetLifecycle key={`lifecycle-${selected.id}`} ruleSet={selected} />
+                            <RuleSetBuilder key={selected.id} ruleSet={selected} />
+                        </div>
+                    ) : null}
                 </div>
             </div>
             </div>

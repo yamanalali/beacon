@@ -1,5 +1,6 @@
 import { Link, router, usePage } from "@inertiajs/react";
 import { FormEvent, useMemo, useState } from "react";
+import { UserProfileEditForm } from "../../../Components/Administration/UserProfileEditForm";
 import { PageHeader } from "../../../Components/Common/PageHeader";
 import { SectionCard } from "../../../Components/Common/SectionCard";
 import { DataTable, type Column, type Paginator as DataPaginator } from "../../../Components/Data/DataTable";
@@ -46,6 +47,7 @@ export default function Index({ users, search, currentUserId, mfaNote, roles }: 
     }
 
     const [term, setTerm] = useState(search);
+    const [editingUser, setEditingUser] = useState<UserRow | null>(null);
 
     function onSearch(event: FormEvent) {
         event.preventDefault();
@@ -114,14 +116,21 @@ export default function Index({ users, search, currentUserId, mfaNote, roles }: 
                 header: "",
                 hideable: false,
                 cell: (user) =>
-                    user.id === currentUserId ? null : user.is_active ? (
-                        <button type="button" className="btn btn-outline-danger btn-sm" style={{ minHeight: "44px" }} onClick={() => confirmDeactivate(user)}>
-                            {t("admin.users.deactivate", undefined, "إيقاف الحساب")}
-                        </button>
-                    ) : (
-                        <button type="button" className="btn btn-outline-success btn-sm" style={{ minHeight: "44px" }} onClick={() => confirmActivate(user)}>
-                            {t("admin.users.activate", undefined, "تفعيل الحساب")}
-                        </button>
+                    user.id === currentUserId ? null : (
+                        <div className="d-flex flex-wrap gap-2">
+                            <button type="button" className="btn btn-outline-secondary btn-sm" style={{ minHeight: "44px" }} onClick={() => setEditingUser(user)}>
+                                {t("users.edit_profile", undefined, "تعديل الاسم والبريد")}
+                            </button>
+                            {user.is_active ? (
+                                <button type="button" className="btn btn-outline-danger btn-sm" style={{ minHeight: "44px" }} onClick={() => confirmDeactivate(user)}>
+                                    {t("admin.users.deactivate", undefined, "إيقاف الحساب")}
+                                </button>
+                            ) : (
+                                <button type="button" className="btn btn-outline-success btn-sm" style={{ minHeight: "44px" }} onClick={() => confirmActivate(user)}>
+                                    {t("admin.users.activate", undefined, "تفعيل الحساب")}
+                                </button>
+                            )}
+                        </div>
                     ),
             },
         ],
@@ -166,6 +175,11 @@ export default function Index({ users, search, currentUserId, mfaNote, roles }: 
                     <p className="alert alert-danger" role="alert">
                         {errors.role}
                     </p>
+                ) : null}
+                {editingUser ? (
+                    <div className="mb-3">
+                        <UserProfileEditForm key={editingUser.id} user={editingUser} onClose={() => setEditingUser(null)} />
+                    </div>
                 ) : null}
                 <SectionCard title={t("admin.users.accounts_section", undefined, "الحسابات")}>
                     <DataTable

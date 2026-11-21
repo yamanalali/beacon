@@ -15,10 +15,50 @@ let registration: Promise<ServiceWorkerRegistration> | null = null;
 let account: string | null = null;
 let initializing = false;
 let listenersMounted = false;
+let updateListenersMounted = false;
+let awaitingWorkerReload = false;
 let generation = 0;
 let latest: { props: BeaconSharedProps; url: string } | null = null;
 const warmed = new Set<string>();
 export type OfflineReply = { details?: { name: string; label: string; value: string; file: boolean; size?: number }[]; file?: Blob; name?: string };
+/** Ask a waiting worker to take control immediately, then reload once so users get the fix without clearing cache. */
+function activateWaitingWorker(reg: ServiceWorkerRegistration) {
+    if (!reg.waiting) return;
+    awaitingWorkerReload = true;
+    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+}
+async function ensureLatestServiceWorker(reg: ServiceWorkerRegistration) {
+    if (!updateListenersMounted) {
+        updateListenersMounted = true;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!awaitingWorkerReload) return;
+            awaitingWorkerReload = false;
+            window.location.reload();
+        });
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type !== 'BEACON_SW_UPDATED') return;
+            // Worker already claimed — refresh once so preview/download use the new fetch rules.
+            if (sessionStorage.getItem('beacon-sw-rev') === String(event.data.revision)) return;
+            sessionStorage.setItem('beacon-sw-rev', String(event.data.revision));
+            window.location.reload();
+        });
+        reg.addEventListener('updatefound', () => {
+            const installing = reg.installing;
+            if (!installing) return;
+            installing.addEventListener('statechange', () => {
+                if (installing.state === 'installed' && (reg.waiting || navigator.serviceWorker.controller)) {
+                    activateWaitingWorker(reg);
+                }
+            });
+        });
+    }
+    try {
+        await reg.update();
+    } catch {
+        /* Offline or blocked update — keep the current worker. */
+    }
+    activateWaitingWorker(reg);
+}
 export async function offlineCommand(type: string, payload: Record<string, unknown> = {}) {
     const worker = navigator.serviceWorker?.controller ?? (await registration)?.active;
     if (!worker) throw new Error('يجري تجهيز العمل دون اتصال.');
@@ -71,7 +111,9 @@ export async function initializeOffline(props: BeaconSharedProps, url: string) {
             });
             window.setInterval(() => { if (navigator.onLine && state.ready && state.queue.length && !state.busy) void syncOffline(); }, 30000);
         }
-        await registration;
+        const reg = await registration;
+        if (intent !== generation) return;
+        await ensureLatestServiceWorker(reg);
         if (intent !== generation) return;
         const ready = await Promise.race([navigator.serviceWorker.ready, new Promise<never>((_, reject) => setTimeout(() => reject(new Error('تعذر تجهيز ملفات التطبيق. افتح الصفحة وأنت متصل ثم حاول مجدداً.')), 25000))]);
         if (intent !== generation) return;

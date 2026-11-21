@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Notifications;
 use App\Ai\Support\PaginatedProps;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -46,5 +47,23 @@ class NotificationController extends Controller
         $n->markAsRead();
 
         return response()->json(['id' => $n->id, 'read_at' => $n->read_at]);
+    }
+
+    /** Marks only the current user's unread notifications as read. */
+    public function markAllRead(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->isActive(), 403);
+        $request->user()->unreadNotifications()->update(['read_at' => now()]);
+
+        return back()->with('success', ui('flash.notifications_marked_read'));
+    }
+
+    /** A user can delete only their own notification; any other id is a 404. */
+    public function destroy(Request $request, string $notification): RedirectResponse
+    {
+        abort_unless($request->user()->isActive(), 403);
+        $request->user()->notifications()->whereKey($notification)->firstOrFail()->delete();
+
+        return back()->with('success', ui('flash.notification_deleted'));
     }
 }

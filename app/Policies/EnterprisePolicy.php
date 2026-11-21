@@ -55,7 +55,7 @@ class EnterprisePolicy
 
     public function update(User $user, Enterprise $enterprise): bool
     {
-        return $this->view($user, $enterprise);
+        return $this->view($user, $enterprise) && ! $enterprise->isArchived();
     }
 
     /** Directory CSV/XLSX for Beacon staff (same scope as viewAny). */
@@ -67,6 +67,26 @@ class EnterprisePolicy
     public function assignMembers(User $user, Enterprise $enterprise): bool
     {
         return $this->isActive($user, UserRole::BeaconAdmin);
+    }
+
+    public function archive(User $user, Enterprise $enterprise): bool
+    {
+        return $this->isActive($user, UserRole::BeaconAdmin) && ! $enterprise->isArchived();
+    }
+
+    public function restore(User $user, Enterprise $enterprise): bool
+    {
+        return $this->isActive($user, UserRole::BeaconAdmin) && $enterprise->isArchived();
+    }
+
+    public function detachMember(User $user, Enterprise $enterprise): bool
+    {
+        return $this->assignMembers($user, $enterprise);
+    }
+
+    public function detachAdvisor(User $user, Enterprise $enterprise): bool
+    {
+        return $this->assignMembers($user, $enterprise);
     }
 
     private function isActive(User $user, UserRole $role): bool

@@ -1,5 +1,6 @@
 import { transactionToday } from "../../lib/transactionInput";
-import { Link, useForm } from "@inertiajs/react";
+import { Link, router, useForm } from "@inertiajs/react";
+import { useState } from "react";
 import { useT } from "../../Hooks/useT";
 import AppLayout from "../../Layouts/AppLayout";
 import { DocumentList } from "../../Components/Documents/DocumentList";
@@ -20,7 +21,7 @@ type Detail = TransactionRow & {
     corrected_by_public_id: string | null;
 } & Partial<TransactionItemsProps>;
 
-type Settlement = { id: number; settlement_date: string | null; amount: string; note: string | null; creator_name: string | null };
+type Settlement = { id: number; settlement_date: string | null; amount: string; note: string | null; creator_name: string | null; is_voided?: boolean; void_reason?: string | null };
 
 export default function Show({
     enterprise,
@@ -31,6 +32,7 @@ export default function Show({
     can_correct,
     can_approve = false,
     can_settle,
+    can_void_settlement = false,
     can_upload,
     invoice_pdf_url = "#",
 }: {
@@ -42,6 +44,7 @@ export default function Show({
     can_correct: boolean;
     can_approve?: boolean;
     can_settle: boolean;
+    can_void_settlement?: boolean;
     can_upload: boolean;
     invoice_pdf_url?: string;
     has_signature?: boolean;
@@ -49,6 +52,7 @@ export default function Show({
     const t = useT();
     const form = useForm({ settlement_date: transactionToday(), amount: transaction.outstanding, note: "" });
     const approval = useForm({});
+    const [voiding, setVoiding] = useState(false);
     const settleLabel = transaction.is_inflow
         ? t("transactions.settle.received", undefined, "تسجيل دفعة مستلمة")
         : t("transactions.settle.paid", undefined, "تسجيل دفعة مدفوعة");
@@ -226,12 +230,38 @@ export default function Show({
                                 ) : (
                                     <ul className="list-unstyled mb-0">
                                         {settlements.map((s) => (
-                                            <li key={s.id} className="border-bottom py-2 d-flex justify-content-between gap-2">
-                                                <span>
+                                            <li key={s.id} className="border-bottom py-2 d-flex justify-content-between align-items-center gap-2" data-testid="settlement-row">
+                                                <span className={s.is_voided ? "text-body-secondary text-decoration-line-through" : undefined}>
                                                     {s.settlement_date}
                                                     {s.note ? ` · ${s.note}` : ""}
+                                                    {s.is_voided ? (
+                                                        <span className="ms-2 text-decoration-none d-inline-block">
+                                                            <StatusBadge label={t("transactions.settlement.voided", undefined, "ملغاة")} tone="neutral" />
+                                                        </span>
+                                                    ) : null}
                                                 </span>
-                                                <Money amount={s.amount} currency={transaction.currency} className="fw-semibold" />
+                                                <span className="d-flex align-items-center gap-2">
+                                                    <Money amount={s.amount} currency={transaction.currency} className="fw-semibold" />
+                                                    {can_void_settlement && !s.is_voided ? (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-outline-danger btn-sm"
+                                                            style={{ minHeight: 44 }}
+                                                            disabled={voiding}
+                                                            onClick={() => {
+                                                                if (window.confirm(t("transactions.settlement.void_confirm", undefined, "هل تريد إبطال هذه الدفعة؟ سيُعاد احتساب المبلغ المتبقي."))) {
+                                                                    router.post(`/transactions/${transaction.public_id}/settlements/${s.id}/void`, {}, {
+                                                                        preserveScroll: true,
+                                                                        onStart: () => setVoiding(true),
+                                                                        onFinish: () => setVoiding(false),
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            {t("transactions.settlement.void", undefined, "إبطال الدفعة")}
+                                                        </button>
+                                                    ) : null}
+                                                </span>
                                             </li>
                                         ))}
                                     </ul>

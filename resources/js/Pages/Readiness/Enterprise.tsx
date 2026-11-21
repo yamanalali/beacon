@@ -82,9 +82,11 @@ export default function Enterprise({ enterprise, assessments, canAssess, hasPubl
                                                 label={
                                                     a.status === "finalized"
                                                         ? t("readiness.status.finalized", undefined, "نهائي")
-                                                        : t("status.draft", undefined, "مسودة")
+                                                        : a.status === "voided"
+                                                          ? t("readiness.status.voided", undefined, "مُبطل")
+                                                          : t("status.draft", undefined, "مسودة")
                                                 }
-                                                tone={a.status === "finalized" ? "success" : "warning"}
+                                                tone={a.status === "finalized" ? "success" : a.status === "voided" ? "neutral" : "warning"}
                                             />
                                         </div>
                                         <p className="app-record-line">

@@ -9,6 +9,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -244,7 +245,7 @@ class OpenAiAiProvider implements AiProvider
     {
         $today = now()->toDateString();
         $typeKeys = ['income', 'expense', 'sale', 'purchase'];
-        $categoryMap = config('bookkeeping.categories', []);
+        $categoryMap = app(\App\Services\Bookkeeping\TransactionCategoryCatalog::class)->grouped();
         $flatCategories = [];
         foreach ($categoryMap as $type => $cats) {
             if (! is_array($cats)) {
@@ -443,9 +444,13 @@ class OpenAiAiProvider implements AiProvider
 
     private function unavailableFromHttp(int $status, string $body, ?Throwable $previous = null): AiUnavailableException
     {
-        $detail = mb_substr($body, 0, 300);
+        // Keep provider payloads out of user-facing exception messages; log them instead.
+        Log::warning('OpenAI request failed', [
+            'status' => $status,
+            'body' => mb_substr($body, 0, 500),
+        ]);
 
-        return new AiUnavailableException('OpenAI request failed (HTTP '.$status.'): '.$detail, $status, $previous);
+        return new AiUnavailableException('OpenAI request failed (HTTP '.$status.').', $status, $previous);
     }
 
     private function assertConfigured(): void

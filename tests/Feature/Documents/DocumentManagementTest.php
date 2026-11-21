@@ -91,4 +91,27 @@ class DocumentManagementTest extends TestCase
         $this->actingAs($this->advisor)->post(route('documents.archive', $this->document), ['reason' => 'xyz'])->assertForbidden();
         $this->actingAs($this->admin)->post(route('documents.archive', $this->document), ['reason' => 'xyz'])->assertRedirect();
     }
+
+    public function test_index_search_filters_by_title_and_exposes_archive_flag(): void
+    {
+        $this->actingAs($this->sme)->post(route('enterprises.documents.store', $this->enterprise), [
+            'file' => UploadedFile::fake()->image('receipt.jpg'),
+            'title' => 'إيصال مطعم',
+        ])->assertRedirect();
+
+        $this->actingAs($this->sme)->get(route('enterprises.documents.index', [
+            'enterprise' => $this->enterprise,
+            'search' => 'مطعم',
+        ]))->assertOk()->assertInertia(fn ($page) => $page
+            ->component('Documents/Index')
+            ->where('filters.search', 'مطعم')
+            ->has('documents.data', 1)
+            ->where('documents.data.0.title', 'إيصال مطعم')
+            ->where('documents.data.0.can_archive', true));
+
+        $this->actingAs($this->sme)->get(route('enterprises.documents.index', [
+            'enterprise' => $this->enterprise,
+            'search' => 'لا-يوجد',
+        ]))->assertOk()->assertInertia(fn ($page) => $page->has('documents.data', 0));
+    }
 }

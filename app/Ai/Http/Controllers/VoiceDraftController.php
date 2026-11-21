@@ -14,6 +14,7 @@ use App\Models\AuditLog;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Services\Ai\CategorySuggestion;
+use App\Services\Bookkeeping\TransactionCategoryCatalog;
 use App\Support\Currencies;
 use App\Support\SuggestedDateWarning;
 use Illuminate\Http\JsonResponse;
@@ -87,7 +88,8 @@ class VoiceDraftController extends Controller
         $catText = $text !== null ? ($p['normalized'] ?? $text) : null;
         $suggestedType = $p['transaction_type'] ?? $typeSuggester->suggest($catText);
         $type = $suggestedType ?? 'expense';
-        $allowed = config('bookkeeping.categories.'.$type, []);
+        $categoryCatalog = app(TransactionCategoryCatalog::class);
+        $allowed = $categoryCatalog->forType($type);
 
         $suggestion = null;
         if ($text !== null && isset($p['category']) && is_string($p['category']) && array_key_exists($p['category'], $allowed)) {
@@ -151,7 +153,7 @@ class VoiceDraftController extends Controller
                 'payment_statuses' => collect(PaymentStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->all(),
                 'currencies' => collect(app(Currencies::class)->enabled())->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all(),
                 'default_currency' => app(Currencies::class)->default(),
-                'categories' => collect(config('bookkeeping.categories'))->map(fn ($items) => collect($items)->map(fn ($l, $v) => ['value' => $v, 'label' => $l])->values()->all())->all(),
+                'categories' => $categoryCatalog->options(),
             ],
             'ai_available' => $text !== null,
             'message' => match (true) {

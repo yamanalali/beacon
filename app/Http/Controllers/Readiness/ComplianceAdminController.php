@@ -122,6 +122,18 @@ class ComplianceAdminController extends Controller
         return redirect()->route('admin.compliance.index');
     }
 
+    public function reactivate(Request $request, ComplianceRequirement $requirement): RedirectResponse
+    {
+        $actor = $this->authorizeAdmin($request);
+        abort_if($requirement->is_active, 422, 'المتطلب فعّال مسبقاً.');
+
+        $previousReplacement = $requirement->replacedBy?->code;
+        $requirement->update(['is_active' => true, 'replaced_by_id' => null]);
+        $this->audit->record($actor, 'compliance.requirement_reactivated', $requirement, ['code' => $requirement->code, 'previous_replaced_by' => $previousReplacement]);
+
+        return redirect()->route('admin.compliance.index')->with('success', ui('flash.compliance_reactivated'));
+    }
+
     public function replace(Request $request, ComplianceRequirement $requirement): RedirectResponse
     {
         $actor = $this->authorizeAdmin($request);

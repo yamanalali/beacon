@@ -15,6 +15,7 @@ class ReadinessAssessment extends Model
 
     public const STATUS_DRAFT = 'draft';
     public const STATUS_FINALIZED = 'finalized';
+    public const STATUS_VOIDED = 'voided';
 
     protected $fillable = [
         'public_id', 'enterprise_id', 'readiness_rule_set_id', 'status', 'score',
@@ -33,7 +34,7 @@ class ReadinessAssessment extends Model
 
     public function wasLockedBeforeChange(): bool
     {
-        return $this->getOriginal('status') === self::STATUS_FINALIZED;
+        return in_array($this->getOriginal('status'), [self::STATUS_FINALIZED, self::STATUS_VOIDED], true);
     }
 
     public function enterprise(): BelongsTo
@@ -87,6 +88,11 @@ class ReadinessAssessment extends Model
     public function frozenBand(): ?string
     {
         return $this->currentSnapshot?->band;
+    }
+
+    public function isVoided(): bool
+    {
+        return $this->status === self::STATUS_VOIDED;
     }
 
     public function isFinalized(): bool

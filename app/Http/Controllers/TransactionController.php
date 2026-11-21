@@ -7,6 +7,7 @@ use App\Actions\Bookkeeping\ApproveTransactionAction;
 use App\Actions\Bookkeeping\CorrectTransactionAction;
 use App\Actions\Bookkeeping\CreateTransactionAction;
 use App\Actions\Bookkeeping\RecordSettlementAction;
+use App\Actions\Bookkeeping\VoidSettlementAction;
 use App\Ai\Support\PaginatedProps;
 use App\Enums\PaymentStatus;
 use App\Enums\TransactionStatus;
@@ -14,12 +15,14 @@ use App\Enums\TransactionType;
 use App\Http\Requests\Bookkeeping\CorrectTransactionRequest;
 use App\Http\Requests\Bookkeeping\StoreSettlementRequest;
 use App\Http\Requests\Bookkeeping\StoreTransactionRequest;
+use App\Http\Requests\Bookkeeping\VoidSettlementRequest;
 use App\Models\Document;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\TransactionItem;
 use App\Models\TransactionSettlement;
 use App\Navigation\PageAccess;
+use App\Services\Bookkeeping\TransactionCategoryCatalog;
 use App\Services\Bookkeeping\TransactionInvoiceExporter;
 use App\Support\Currencies;
 use App\Support\Money;
@@ -35,6 +38,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TransactionController extends Controller
 {
+    /** @var array<string, array<string, string>> Category labels per transaction type, loaded once per request. */
+    private array $categoryLabels = [];
+
     /**
      * Navigation entry point: SME users go to their own enterprise,
      * Beacon staff choose an enterprise first.
@@ -259,7 +265,7 @@ class TransactionController extends Controller
 
     public function show(Request $request, FinancialTransaction $transaction): Response
     {
-        $transaction->load(['enterprise', 'settlements.creator:id,name', 'creator:id,name', 'correctedTransaction', 'correction', 'documents', 'items']);
+        $transaction->load(['enterprise', 'settlements', 'settlementHistory.creator:id,name', 'creator:id,name', 'correctedTransaction', 'correction', 'documents', 'items']);
         Gate::authorize('view', $transaction);
 
         $user = $request->user();
@@ -273,7 +279,7 @@ class TransactionController extends Controller
                 'corrects_public_id' => $transaction->correctedTransaction?->public_id,
                 'corrected_by_public_id' => $transaction->correction?->public_id,
             ] + self::itemsProps($transaction),
-            'settlements' => $transaction->settlements
+            'settlements' => $transaction->settlementHistory
                 ->sortBy('settlement_date')
                 ->values()
                 ->map(fn (TransactionSettlement $s): array => [
@@ -282,12 +288,15 @@ class TransactionController extends Controller
                     'amount' => (string) $s->amount,
                     'note' => $s->note,
                     'creator_name' => $s->creator?->name,
+                    'is_voided' => $s->isVoided(),
+                    'void_reason' => $s->void_reason,
                 ]),
             'documents' => $transaction->documents->whereNull('archived_at')->values()->map(fn (Document $d): array => DocumentController::row($d)),
             'can_create' => $user->can('create', [FinancialTransaction::class, $transaction->enterprise]),
             'can_approve' => $user->can('approve', $transaction),
             'can_correct' => $user->can('correct', $transaction),
             'can_settle' => $user->can('settle', $transaction) && $transaction->outstandingMinor() > 0,
+            'can_void_settlement' => $user->can('voidSettlement', $transaction),
             'can_upload' => $user->can('upload', [Document::class, $transaction->enterprise]),
             'invoice_pdf_url' => route('transactions.invoice.pdf', $transaction),
             'has_signature' => filled($user->signature_path),
@@ -309,7 +318,7 @@ class TransactionController extends Controller
 
         return Inertia::render('Transactions/Form', [
             'enterprise' => $this->enterpriseProps($transaction->enterprise),
-            'options' => $this->options($transaction->currency),
+            'options' => $this->options($transaction->currency, $transaction),
             'counterparties' => $this->counterparties($transaction->enterprise),
             'original' => $this->row($transaction->load(['settlements', 'items'])) + self::itemsProps($transaction),
         ]);
@@ -335,6 +344,17 @@ class TransactionController extends Controller
         return redirect()->route('transactions.show', $transaction)->with('success', ui('flash.settlement_recorded'));
     }
 
+    public function voidSettlement(VoidSettlementRequest $request, FinancialTransaction $transaction, TransactionSettlement $settlement, VoidSettlementAction $action): RedirectResponse
+    {
+        $transaction->load('enterprise');
+        Gate::authorize('voidSettlement', $transaction);
+        abort_unless($settlement->financial_transaction_id === $transaction->id, 404);
+
+        $action->execute($request->user(), $transaction, $settlement, $request->validated()['reason'] ?? null);
+
+        return redirect()->route('transactions.show', $transaction)->with('success', ui('flash.settlement_voided'));
+    }
+
     /**
      * @return list<string>
      */
@@ -347,7 +367,7 @@ class TransactionController extends Controller
 
     private function row(FinancialTransaction $t): array
     {
-        $categories = config('bookkeeping.categories.'.$t->type->value, []);
+        $categoryLabel = ($this->categoryLabels[$t->type->value] ??= app(TransactionCategoryCatalog::class)->labelsForType($t->type->value))[$t->category] ?? $t->category;
 
         return [
             'public_id' => $t->public_id,
@@ -358,7 +378,7 @@ class TransactionController extends Controller
             'amount' => (string) $t->amount,
             'currency' => $t->currency,
             'category' => $t->category,
-            'category_label' => $categories[$t->category] ?? $t->category,
+            'category_label' => $categoryLabel,
             'payment_status' => $t->payment_status->value,
             'payment_status_label' => $t->payment_status->label(),
             'outstanding' => Money::fromMinor($t->outstandingMinor()),
@@ -412,7 +432,7 @@ class TransactionController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function options(?string $historicalCurrency = null): array
+    private function options(?string $historicalCurrency = null, ?FinancialTransaction $historical = null): array
     {
         $pairs = fn (array $items): array => collect($items)
             ->map(fn (string $label, string $value): array => ['value' => $value, 'label' => $label])
@@ -424,7 +444,7 @@ class TransactionController extends Controller
             'payment_statuses' => collect(PaymentStatus::cases())->map(fn (PaymentStatus $s) => ['value' => $s->value, 'label' => $s->label()])->all(),
             'currencies' => $pairs(app(Currencies::class)->available($historicalCurrency)),
             'default_currency' => app(Currencies::class)->default(),
-            'categories' => collect(config('bookkeeping.categories'))->map($pairs)->all(),
+            'categories' => app(TransactionCategoryCatalog::class)->options($historical?->type->value, $historical?->category),
         ];
     }
 }

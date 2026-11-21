@@ -4713,6 +4713,35 @@ a.sme-tx:active { background: var(--app-surface-alt); }
     background: var(--app-surface);
 }
 
+.sme-shortcuts {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.sme-shortcut {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    background: var(--app-surface);
+    color: var(--app-text);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 15px;
+}
+.sme-shortcut .bi {
+    color: var(--app-primary);
+    font-size: 1.15rem;
+}
+.sme-shortcut:hover,
+.sme-shortcut:focus-visible {
+    border-color: color-mix(in srgb, var(--app-primary) 35%, var(--app-border));
+    background: var(--app-primary-soft);
+    color: var(--app-primary-dark);
+}
 .sme-status {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));

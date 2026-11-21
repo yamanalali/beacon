@@ -1,4 +1,4 @@
-import { Link, useForm, usePage } from "@inertiajs/react";
+import { Link, router, useForm, usePage } from "@inertiajs/react";
 import AppLayout from "../../../Layouts/AppLayout";
 import { PageHeader } from "../../../Components/Common/PageHeader";
 import { SectionCard } from "../../../Components/Common/SectionCard";
@@ -14,6 +14,8 @@ type Escalation = {
     staff_reply?: string | null;
     replied_at?: string | null;
     can_reply?: boolean;
+    can_reopen?: boolean;
+    can_delete?: boolean;
 };
 
 type Props = { escalation: Escalation };
@@ -27,6 +29,20 @@ export default function Show({ escalation }: Props) {
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         form.post(`/ai/pages/escalations/${escalation.id}/reply`, { preserveScroll: true });
+    };
+
+    const reopen = () => {
+        if (!window.confirm(t("escalations.reopen_confirm", undefined, "إعادة فتح هذا السؤال؟ سيُمسح رد الفريق (ويبقى في سجل التدقيق)."))) {
+            return;
+        }
+        router.post(`/ai/pages/escalations/${escalation.id}/reopen`, {}, { preserveScroll: true });
+    };
+
+    const destroy = () => {
+        if (!window.confirm(t("escalations.delete_confirm", undefined, "حذف هذا السؤال نهائياً؟"))) {
+            return;
+        }
+        router.delete(`/ai/pages/escalations/${escalation.id}`);
     };
 
     return (
@@ -144,6 +160,20 @@ export default function Show({ escalation }: Props) {
                                     </>
                                 ) : null}
                             </dl>
+                            {escalation.can_reopen || escalation.can_delete ? (
+                                <div className="d-flex flex-wrap gap-2 mt-3">
+                                    {escalation.can_reopen ? (
+                                        <button type="button" className="btn btn-outline-primary" style={{ minHeight: "44px" }} onClick={reopen}>
+                                            {t("escalations.reopen", undefined, "إعادة فتح السؤال")}
+                                        </button>
+                                    ) : null}
+                                    {escalation.can_delete ? (
+                                        <button type="button" className="btn btn-outline-danger" style={{ minHeight: "44px" }} onClick={destroy}>
+                                            {t("escalations.delete", undefined, "حذف السؤال")}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            ) : null}
                         </SectionCard>
                         {!canReply && !escalation.staff_reply ? (
                             <SectionCard title={t("ai.escalations.reply", undefined, "الرد")}>

@@ -34,7 +34,7 @@ class DocumentExportAndArchiveAccessTest extends TestCase
     private function upload(User $user, Enterprise $enterprise): Document
     {
         $this->actingAs($user)->post(route('enterprises.documents.store', $enterprise), [
-            'file' => UploadedFile::fake()->create('invoice.pdf', 20, 'application/pdf'),
+            'file' => UploadedFile::fake()->createWithContent('invoice.pdf', "%PDF-1.4\n%beacon-test\n"),
             'title' => 'فاتورة',
         ])->assertRedirect();
 

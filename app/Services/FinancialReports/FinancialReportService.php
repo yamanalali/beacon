@@ -6,6 +6,7 @@ use App\Enums\TransactionType;
 use App\Models\Enterprise;
 use App\Models\FinancialTransaction;
 use App\Models\TransactionSettlement;
+use App\Services\Bookkeeping\TransactionCategoryCatalog;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -113,11 +114,12 @@ class FinancialReportService
     private function byCategory(Enterprise $enterprise, CarbonImmutable $from, CarbonImmutable $to, array $types, string $title): array
     {
         $groups = [];
+        $catalog = app(TransactionCategoryCatalog::class);
         foreach ($this->transactions($enterprise, $from, $to) as $t) {
             if (! in_array($t->type, $types, true)) {
                 continue;
             }
-            $label = config('bookkeeping.categories.'.$t->type->value.'.'.$t->category, $t->category);
+            $label = $catalog->label($t->type->value, $t->category);
             $k = $t->currency.'|'.$t->type->label().'|'.$label;
             $groups[$k] ??= ['count' => 0, 'amount' => 0, 'outstanding' => 0];
             $groups[$k]['count']++;
@@ -208,6 +210,7 @@ class FinancialReportService
     private function settlements(Enterprise $enterprise, CarbonImmutable $from, CarbonImmutable $to): Collection
     {
         return TransactionSettlement::query()
+            ->active()
             ->whereHas('transaction', fn ($q) => $q->posted()->where('enterprise_id', $enterprise->id))
             ->whereDate('settlement_date', '>=', $from->toDateString())
             ->whereDate('settlement_date', '<=', $to->toDateString())

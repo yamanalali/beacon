@@ -33,6 +33,12 @@ Route::middleware('auth')->prefix('ai')->name('ai.')->group(function () {
         Route::post('/pages/escalations/{escalation}/reply', [AiPageController::class, 'replyEscalation'])
             ->middleware('role:beacon_advisor,beacon_admin')
             ->name('pages.escalations.reply');
+        Route::post('/pages/escalations/{escalation}/reopen', [AiPageController::class, 'reopenEscalation'])
+            ->middleware('role:beacon_advisor,beacon_admin')
+            ->name('pages.escalations.reopen');
+        // Policy decides: admin any; asker only while their own question is still open.
+        Route::delete('/pages/escalations/{escalation}', [AiPageController::class, 'destroyEscalation'])
+            ->name('pages.escalations.destroy');
         Route::get('/pages/knowledge', [AiPageController::class, 'published'])->name('pages.knowledge.published');
     });
 

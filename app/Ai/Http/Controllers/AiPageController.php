@@ -3,6 +3,8 @@
 namespace App\Ai\Http\Controllers;
 
 use App\Actions\Audit\RecordAuditLog;
+use App\Ai\Actions\DeleteAiEscalationAction;
+use App\Ai\Actions\ReopenAiEscalationAction;
 use App\Ai\Http\Requests\ReplyAiEscalationRequest;
 use App\Ai\Models\AiEscalation;
 use App\Ai\Models\KnowledgeArticle;
@@ -75,6 +77,8 @@ class AiPageController extends Controller
             'staff_reply' => $escalation->staff_reply,
             'replied_at' => $escalation->replied_at?->toIso8601String(),
             'can_reply' => Gate::allows('reply', $escalation),
+            'can_reopen' => Gate::allows('reopen', $escalation),
+            'can_delete' => Gate::allows('delete', $escalation),
         ];
     }
 
@@ -106,6 +110,28 @@ class AiPageController extends Controller
         return redirect()
             ->route('ai.pages.escalations.show', $escalation)
             ->with('success', ui('flash.ai_escalation_reply_saved'));
+    }
+
+    public function reopenEscalation(Request $request, AiEscalation $escalation, ReopenAiEscalationAction $reopen): RedirectResponse
+    {
+        Gate::authorize('reopen', $escalation);
+
+        $reopen->execute($request->user(), $escalation);
+
+        return redirect()
+            ->route('ai.pages.escalations.show', $escalation)
+            ->with('success', ui('flash.escalation_reopened'));
+    }
+
+    public function destroyEscalation(Request $request, AiEscalation $escalation, DeleteAiEscalationAction $delete): RedirectResponse
+    {
+        Gate::authorize('delete', $escalation);
+
+        $delete->execute($request->user(), $escalation);
+
+        return redirect()
+            ->route('ai.pages.escalations.index')
+            ->with('success', ui('flash.escalation_deleted'));
     }
 
     public function published(Request $request): Response

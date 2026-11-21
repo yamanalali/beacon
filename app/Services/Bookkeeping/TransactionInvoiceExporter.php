@@ -34,8 +34,7 @@ class TransactionInvoiceExporter
 
         $logoDataUri = $this->resizedLogoDataUri(public_path('images/brand/beacon-logo.png'), 110);
 
-        $categories = config('bookkeeping.categories.'.$transaction->type->value, []);
-        $categoryLabel = $categories[$transaction->category] ?? $transaction->category;
+        $categoryLabel = app(TransactionCategoryCatalog::class)->label($transaction->type->value, $transaction->category);
         $paymentStatusClass = match ($transaction->payment_status) {
             PaymentStatus::Paid => 'status-paid',
             PaymentStatus::PartiallyPaid => 'status-partial',
